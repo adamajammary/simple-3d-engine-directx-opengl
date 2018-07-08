@@ -126,6 +126,9 @@
     <ClCompile Include="3rd\json11-master\json11.cpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="src\render\VulkanContext.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\globals.h">
@@ -212,6 +215,9 @@
     <ClInclude Include="3rd\json11-master\json11.hpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClInclude>
+    <ClInclude Include="src\render\VulkanContext.h">
+      <Filter>Render</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\shaders\water.vs.glsl">
@@ -248,6 +254,12 @@
       <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="resources\shaders\water.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\test.vs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\test.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>

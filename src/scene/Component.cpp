@@ -70,7 +70,7 @@ int Component::GetChildIndex(Mesh* child)
 bool Component::IsTextured()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11() != nullptr) && !this->Textures[0]->ImageFile().empty());
 	case GRAPHICS_API_DIRECTX12:

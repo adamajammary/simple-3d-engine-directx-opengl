@@ -46,21 +46,21 @@ Mesh::~Mesh()
 
 void Mesh::BindBuffer(GLuint bufferID, GLuint shaderAttrib, GLsizei size, GLenum arrayType, GLboolean normalized, const GLvoid* offset)
 {
-	GLsizei stride = 0;
+	//GLsizei stride = 0;
 
-	switch (arrayType) {
-		case GL_BYTE:           stride = (size * sizeof(char));           break;
-		case GL_UNSIGNED_BYTE:  stride = (size * sizeof(unsigned char));  break;
-		case GL_SHORT:          stride = (size * sizeof(short));          break;
-		case GL_UNSIGNED_SHORT: stride = (size * sizeof(unsigned short)); break;
-		case GL_INT:            stride = (size * sizeof(int));            break;
-		case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
-		case GL_FLOAT:          stride = (size * sizeof(float));          break;
-	}
+	//switch (arrayType) {
+	//	case GL_BYTE:           stride = (size * sizeof(char));           break;
+	//	case GL_UNSIGNED_BYTE:  stride = (size * sizeof(unsigned char));  break;
+	//	case GL_SHORT:          stride = (size * sizeof(short));          break;
+	//	case GL_UNSIGNED_SHORT: stride = (size * sizeof(unsigned short)); break;
+	//	case GL_INT:            stride = (size * sizeof(int));            break;
+	//	case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
+	//	case GL_FLOAT:          stride = (size * sizeof(float));          break;
+	//}
 
 	glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-	glVertexAttribPointer(shaderAttrib, size, GL_FLOAT, normalized, stride, offset);
-	glEnableVertexAttribArray(shaderAttrib);
+		glVertexAttribPointer(shaderAttrib, size, GL_FLOAT, normalized, Utils::GetStride(size, arrayType), offset);
+		glEnableVertexAttribArray(shaderAttrib);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -102,7 +102,7 @@ GLuint Mesh::VBO()
 bool Mesh::IsOK()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
 	case GRAPHICS_API_DIRECTX12:
@@ -111,7 +111,9 @@ bool Mesh::IsOK()
 	case GRAPHICS_API_OPENGL:
 		return ((this->IBO() > 0) && (this->VBO() > 0));
 	case GRAPHICS_API_VULKAN:
-		return false;
+		//return false;
+		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
+		//return (this->VertexBuffer() != nullptr);
 	}
 
 	return false;
@@ -207,7 +209,7 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
 	this->isValid = this->IsOK();
 
-	return this->IsOK();
+	return this->isValid;
 }
 
 void Mesh::LoadTexture(Texture* texture, int index)
@@ -270,7 +272,7 @@ void Mesh::setMaxScale()
 bool Mesh::setModelData()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		if (!this->indices.empty())
@@ -296,6 +298,12 @@ bool Mesh::setModelData()
 
 		break;
 	case GRAPHICS_API_VULKAN:
+		if (!this->indices.empty())
+			this->indexBuffer = new Buffer(this->indices);
+
+		if (!this->vertices.empty())
+			this->vertexBuffer = new Buffer(this->vertices, this->normals, this->textureCoords);
+
 		break;
 	default:
 		return false;

@@ -17,7 +17,10 @@ const wxChar* Utils::ALIGNMENTS[] = {
 	nullptr
 };
 
-const char*    Utils::APP_NAME           = "Simple 3D Engine (DirectX, OpenGL)";
+const char*    Utils::APP_NAME           = "Simple 3D Engine";
+const uint8_t  Utils::APP_VERSION_MAJOR  = 1;
+const uint8_t  Utils::APP_VERSION_MINOR  = 0;
+const uint8_t  Utils::APP_VERSION_PATCH  = 0;
 const char*    Utils::APP_VERSION        = "1.0.0";
 const wxString Utils::ASPECT_RATIOS[]    = { wxT("16:9"), wxT("4:3") };
 const wxChar*  Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
@@ -28,7 +31,7 @@ const wxString Utils::FOVS[]             = { wxT("45\u00B0"), wxT("60\u00B0"), w
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file  (*.scene)|*.scene";
 
 const wxString Utils::GRAPHIC_APIS[] = {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	wxT("DirectX 11"),
 	wxT("DirectX 12"),
 	#endif
@@ -65,7 +68,7 @@ const std::vector<Icon> Utils::ICONS = {
 	{ "img/icon-skybox-256.png",        ID_ICON_SKYBOX,      "Skybox" },
 	{ "img/icon-terrain-200x121.png",   ID_ICON_TERRAIN,     "Terrain" },
 	{ "img/icon-water-208x235.png",     ID_ICON_WATER,       "Water" },
-	{ "img/icon-hud-128.png",           ID_ICON_HUD,         "HUD" },
+	{ "img/icon-hud-128.png",           ID_ICON_HUD,         "HUD" }
 };
 
 const wxString Utils::MODEL_FILE_FORMATS =
@@ -122,7 +125,7 @@ std::map<wxString, wxString> Utils::RESOURCE_IMAGES = {
 	{ "skyboxTop",         "resources/textures/skybox/top.png" },
 	{ "skyboxBottom",      "resources/textures/skybox/bottom.png" },
 	{ "skyboxBack",        "resources/textures/skybox/back.png" },
-	{ "skyboxFront",       "resources/textures/skybox/front.png" },
+	{ "skyboxFront",       "resources/textures/skybox/front.png" }
 };
 
 std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
@@ -134,7 +137,7 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 	{ ID_ICON_CYLINDER,    "resources/models/cylinder.blend" },
 	{ ID_ICON_CONE,        "resources/models/cone.blend" },
 	{ ID_ICON_TORUS,       "resources/models/torus.blend" },
-	{ ID_ICON_MONKEY_HEAD, "resources/models/monkey_head.blend" },
+	{ ID_ICON_MONKEY_HEAD, "resources/models/monkey_head.blend" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
@@ -143,7 +146,7 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 	{ "resources/shaders/skybox.hlsl",  "skybox",   "" },
 	{ "resources/shaders/solid.hlsl",   "solid",    "" },
 	{ "resources/shaders/terrain.hlsl", "terrain",  "" },
-	{ "resources/shaders/water.hlsl",   "water",    "" },
+	{ "resources/shaders/water.hlsl",   "water",    "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
@@ -158,7 +161,24 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
 	{ "resources/shaders/terrain.vs.glsl", "terrain_vs",  "" },
 	{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
 	{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
-	{ "resources/shaders/water.fs.glsl",   "water_fs",    "" },
+	{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
+};
+
+const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
+	//{ "resources/shaders/test.vs.glsl", "test_vs",  "" },
+	//{ "resources/shaders/test.fs.glsl", "test_vs",  "" },
+	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
+	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
+	//{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
+	//{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
+	//{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
+	//{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+	//{ "resources/shaders/solid.vs.glsl",   "solid_vs",    "" },
+	//{ "resources/shaders/solid.fs.glsl",   "solid_fs",    "" },
+	//{ "resources/shaders/terrain.vs.glsl", "terrain_vs",  "" },
+	//{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
+	//{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
+	//{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)
@@ -217,7 +237,7 @@ std::vector<uint8_t> Utils::Decompress(const std::vector<uint8_t> &data)
 	return outBuffer;
 }
 
-#ifdef _WINDOWS
+#if defined _WINDOWS
 DXGI_FORMAT Utils::GetImageFormatDXGI(wxImage* image)
 {
 	if ((image != nullptr) && (image->GetMaskBlue() == 0xFF))
@@ -232,7 +252,7 @@ wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 	wxString apiString = "";
 
 	switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11: apiString = "DirectX 11"; break;
 		case GRAPHICS_API_DIRECTX12: apiString = "DirectX 12"; break;
 		#endif
@@ -259,11 +279,28 @@ GLenum Utils::GetImageFormat(wxImage* image)
 	return format;
 }
 
+GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
+{
+	GLsizei stride = 0;
+
+	switch (arrayType) {
+		case GL_BYTE:           stride = (size * sizeof(char));           break;
+		case GL_UNSIGNED_BYTE:  stride = (size * sizeof(unsigned char));  break;
+		case GL_SHORT:          stride = (size * sizeof(short));          break;
+		case GL_UNSIGNED_SHORT: stride = (size * sizeof(unsigned short)); break;
+		case GL_INT:            stride = (size * sizeof(int));            break;
+		case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
+		case GL_FLOAT:          stride = (size * sizeof(float));          break;
+	}
+
+	return stride;
+}
+
 std::vector<uint8_t> Utils::LoadDataFile(const wxString &file)
 {
 	std::vector<uint8_t> result;
-	size_t            size;
-	std::ifstream     fileStream(file.wc_str(), std::ios::binary);
+	size_t               size;
+	std::ifstream        fileStream(file.wc_str(), (std::ios::binary | std::ios::ate));
 
 	if (!fileStream.good())
 	{
@@ -273,9 +310,10 @@ std::vector<uint8_t> Utils::LoadDataFile(const wxString &file)
 		return result;
 	}
 
-	fileStream.seekg(0, std::ios::end);
+	//fileStream.seekg(0, std::ios::end);
 	size = fileStream.tellg();
-	fileStream.seekg(0, std::ios::beg);
+	//fileStream.seekg(0, std::ios::beg);
+	fileStream.seekg(0);
 
 	result.resize(size);
 	fileStream.read(reinterpret_cast<char*>(&result[0]), size);
@@ -515,7 +553,7 @@ uint8_t* Utils::ToRGBA(wxImage* image)
 	if (image == nullptr)
 		return nullptr;
 
-	int   size  = (image->GetWidth() * image->GetHeight() * 4);
+	int      size  = (image->GetWidth() * image->GetHeight() * 4);
 	uint8_t* rgb   = image->GetData();
 	uint8_t* alpha = image->GetAlpha();
 	uint8_t* rgba  = (uint8_t*)std::malloc(size);
@@ -572,6 +610,33 @@ glm::vec4 Utils::ToVec4Color(const wxColour &color)
 		(color.Red() / 255.0f), (color.Green() / 255.0f), (color.Blue() / 255.0f), (color.Alpha() / 255.0f)
 	);
 	return vec4Colour;
+}
+
+std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
+{
+	std::vector<float> data;
+
+	for (int i = 0, j = 0; i < (int)vertices.size(); i += 3, j += 2)
+	{
+		if ((int)normals.size() > i + 2) {
+			data.push_back(normals[i + 0]);
+			data.push_back(normals[i + 1]);
+			data.push_back(normals[i + 2]);
+		}
+
+		if ((int)vertices.size() > i + 2) {
+			data.push_back(vertices[i + 0]);
+			data.push_back(vertices[i + 1]);
+			data.push_back(vertices[i + 2]);
+		}
+
+		if ((int)texCoords.size() > j + 1) {
+			data.push_back(texCoords[j + 0]);
+			data.push_back(texCoords[j + 1]);
+		}
+	}
+
+	return data;
 }
 
 wxColour Utils::ToWxColour(const wxVariant &color)

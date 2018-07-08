@@ -1,25 +1,26 @@
-#ifdef _WINDOWS
+#if defined _WINDOWS
 
 #include "DXContext.h"
 
 DXContext::DXContext(GraphicsAPI api, bool vsync)
 {
-	this->release();
+	//this->release();
 
 	switch (api) {
 		case GRAPHICS_API_DIRECTX11: this->isOK = this->init11(vsync); break;
 		case GRAPHICS_API_DIRECTX12: this->isOK = this->init12(vsync); break;
+		default:                     this->isOK = false; break;
 	}
 
 	if (!this->isOK)
 		this->release();
 }
 
-DXContext::DXContext()
-{
-	this->release();
-	this->isOK = false;
-}
+//DXContext::DXContext()
+//{
+//	this->release();
+//	this->isOK = false;
+//}
 
 DXContext::~DXContext()
 {
@@ -167,7 +168,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 	DWORD     flags  = 0;
 	HRESULT   result = -1;
 
-	#ifdef _DEBUG
+	#if defined _DEBUG
 		flags |= (D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_STRICTNESS);
     #endif
 
@@ -353,12 +354,15 @@ int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, ID3D12Res
 	this->commandsInit();
 
 	UpdateSubresources(this->commandList, *indexBuffer, bufferResource, 0, 0, 1, &bufferData);
+
 	this->commandList->ResourceBarrier(
 		1, &CD3DX12_RESOURCE_BARRIER::Transition(*indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER)
 	);
 
 	this->commandsExecute();
 	this->wait();
+
+	_RELEASEP(bufferResource);
 
 	return 0;
 }
@@ -631,6 +635,8 @@ int DXContext::CreateTexture12(
 
 		this->commandsExecute();
 		this->wait();
+
+		_RELEASEP(textureResource);
 	}
 
 	srvDesc.Format                  = format;
@@ -704,7 +710,7 @@ int DXContext::CreateVertexBuffer11(
 {
 	D3D11_SUBRESOURCE_DATA bufferData       = {};
 	D3D11_BUFFER_DESC      bufferDesc       = {};
-	std::vector<float>     vertexBufferData = this->getVertexBufferData(vertices, normals, texCoords);
+	std::vector<float>     vertexBufferData = Utils::ToVertexBufferData(vertices, normals, texCoords);
 
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.ByteWidth = (vertexBufferData.size() * sizeof(float));
@@ -858,7 +864,7 @@ int DXContext::CreateVertexBuffer12(
 
 	bufferStride = offset;
 
-	std::vector<float> vertexBufferData = this->getVertexBufferData(vertices, normals, texCoords);
+	std::vector<float> vertexBufferData = Utils::ToVertexBufferData(vertices, normals, texCoords);
 	UINT               bufferSize       = (vertexBufferData.size() * sizeof(float));
 
 	HRESULT result = this->renderDevice12->CreateCommittedResource(
@@ -900,12 +906,35 @@ int DXContext::CreateVertexBuffer12(
 	this->commandsExecute();
 	this->wait();
 
-	// INPUT ELEMENTS
-	D3D12_INPUT_ELEMENT_DESC inputElementDesc[3] = {};
+	_RELEASEP(bufferResource);
 
-	inputElementDesc[0] = { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,                   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputElementDesc[1] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	inputElementDesc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, (6 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	// INPUT ELEMENTS
+	D3D12_INPUT_ELEMENT_DESC inputElementDesc[NR_OF_ATTRIBS] = {};
+
+	// NORMALS
+	inputElementDesc[ATTRIB_NORMAL].SemanticName      = "NORMAL";
+	//inputElementDesc[ATTRIB_NORMAL].SemanticIndex   = 0;
+	inputElementDesc[ATTRIB_NORMAL].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+	//inputElementDesc[ATTRIB_NORMAL].InputSlot       = 0;
+	inputElementDesc[ATTRIB_NORMAL].AlignedByteOffset = 0;
+	inputElementDesc[ATTRIB_NORMAL].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	//inputElementDesc[ATTRIB_NORMAL].InstanceDataStepRate = 0;
+
+	// POSITIONS
+	inputElementDesc[ATTRIB_POSITION].SemanticName      = "POSITION";
+	inputElementDesc[ATTRIB_POSITION].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDesc[ATTRIB_POSITION].AlignedByteOffset = (3 * sizeof(float));
+	inputElementDesc[ATTRIB_POSITION].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+
+	// TEXTURE COORDINATES
+	inputElementDesc[ATTRIB_TEXCOORDS].SemanticName      = "TEXCOORD";
+	inputElementDesc[ATTRIB_TEXCOORDS].Format            = DXGI_FORMAT_R32G32_FLOAT;
+	inputElementDesc[ATTRIB_TEXCOORDS].AlignedByteOffset = (6 * sizeof(float));
+	inputElementDesc[ATTRIB_TEXCOORDS].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+
+	//inputElementDesc[ATTRIB_NORMAL]    = { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,                   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	//inputElementDesc[ATTRIB_POSITION]  = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	//inputElementDesc[ATTRIB_TEXCOORDS] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, (6 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
 	// PIPELINE STATE
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
@@ -1209,33 +1238,6 @@ IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory4* factory)
 	return nullptr;
 }
 
-std::vector<float> DXContext::getVertexBufferData(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords)
-{
-	std::vector<float> data;
-
-	for (int i = 0, j = 0; i < (int)vertices.size(); i += 3, j += 2)
-	{
-		if ((int)normals.size() > i + 2) {
-			data.push_back(normals[i + 0]);
-			data.push_back(normals[i + 1]);
-			data.push_back(normals[i + 2]);
-		}
-
-		if ((int)vertices.size() > i + 2) {
-			data.push_back(vertices[i + 0]);
-			data.push_back(vertices[i + 1]);
-			data.push_back(vertices[i + 2]);
-		}
-
-		if ((int)texCoords.size() > j + 1) {
-			data.push_back(texCoords[j + 0]);
-			data.push_back(texCoords[j + 1]);
-		}
-	}
-
-	return data;
-}
-
 bool DXContext::init11(bool vsync)
 {
 	this->vSync = vsync;
@@ -1354,7 +1356,7 @@ bool DXContext::init11(bool vsync)
 	if (FAILED(result))
 		return false;
 
-	RenderEngine::GPU.Vendor   = "";
+	RenderEngine::GPU.Vendor   = wxT("");
 	RenderEngine::GPU.Renderer = adapterDesc.Description;
 	RenderEngine::GPU.Version  = wxT("DirectX 11");
 
@@ -1367,7 +1369,7 @@ bool DXContext::init12(bool vsync)
 
 	UINT factoryFlags = 0;
 
-	#ifdef _DEBUG
+	#if defined _DEBUG
 		ID3D12Debug* debug;
 
 		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
@@ -1399,7 +1401,7 @@ bool DXContext::init12(bool vsync)
 		return false;
 	}
 
-	#ifdef _DEBUG
+	#if defined _DEBUG
 		ID3D12InfoQueue*        infoQueue;
 		D3D12_MESSAGE_ID        messageIDs[]        = { D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE };
 		D3D12_MESSAGE_SEVERITY  messageSeverities[] = { D3D12_MESSAGE_SEVERITY_INFO };
@@ -1577,7 +1579,7 @@ bool DXContext::init12(bool vsync)
 	if (FAILED(result))
 		return false;
 
-	RenderEngine::GPU.Vendor   = "";
+	RenderEngine::GPU.Vendor   = wxT("");
 	RenderEngine::GPU.Renderer = adapterDesc.Description;
 	RenderEngine::GPU.Version  = wxT("DirectX 12");
 
@@ -1587,38 +1589,6 @@ bool DXContext::init12(bool vsync)
 bool DXContext::IsOK()
 {
 	return this->isOK;
-}
-
-void DXContext::release()
-{
-	if (this->fenceEvent != nullptr) {
-		this->wait();
-		CloseHandle(this->fenceEvent);
-	}
-
-	for (UINT i = 0; i < NR_OF_FRAMEBUFFERS; i++)
-		_RELEASEP(this->colorBuffers[i]);
-
-	_RELEASEP(this->colorBuffer);
-	_RELEASEP(this->colorBufferHeap);
-	_RELEASEP(this->commandAllocator);
-	_RELEASEP(this->commandList);
-	_RELEASEP(this->commandQueue);
-	_RELEASEP(this->depthStencilBuffer11);
-	_RELEASEP(this->depthStencilBuffer12);
-	_RELEASEP(this->depthStencilBufferHeap);
-	_RELEASEP(this->deviceContext);
-	_RELEASEP(this->pipelineState);
-	_RELEASEP(this->renderDevice11);
-	_RELEASEP(this->renderDevice12);
-	_RELEASEP(this->swapChain11);
-	_RELEASEP(this->swapChain12);
-
-	this->colorBufferIndex = 0;
-	this->colorBufferSize  = 0;
-	this->scissorRect      = {};
-	this->viewPort11       = {};
-	this->viewPort12       = {};
 }
 
 void DXContext::Present11()
@@ -1634,7 +1604,65 @@ void DXContext::Present12()
 	this->wait();
 }
 
-void DXContext::SetVSYNC(bool enable)
+void DXContext::release()
+{
+	#if defined(_DEBUG)
+		ID3D11Debug*       debugDevice11 = nullptr;
+		ID3D12DebugDevice* debugDevice12 = nullptr;
+
+		if (this->renderDevice11 != nullptr)
+			this->renderDevice11->QueryInterface(IID_ID3D11Debug, (void**)&debugDevice11);
+
+		if (this->renderDevice12 != nullptr)
+			this->renderDevice12->QueryInterface(IID_ID3D12DebugDevice, (void**)&debugDevice12);
+	#endif
+		
+	if (this->fenceEvent != nullptr) {
+		this->wait();
+		CloseHandle(this->fenceEvent);
+	}
+
+	_RELEASEP(this->fence);
+	_RELEASEP(this->pipelineState);
+	_RELEASEP(this->commandList);
+	_RELEASEP(this->commandAllocator);
+	_RELEASEP(this->depthStencilBuffer11);
+	_RELEASEP(this->depthStencilBuffer12);
+	_RELEASEP(this->depthStencilBufferHeap);
+
+	for (UINT i = 0; i < NR_OF_FRAMEBUFFERS; i++)
+		_RELEASEP(this->colorBuffers[i]);
+
+	_RELEASEP(this->colorBufferHeap);
+	_RELEASEP(this->colorBuffer);
+	_RELEASEP(this->swapChain11);
+	_RELEASEP(this->swapChain12);
+	_RELEASEP(this->commandQueue);
+	_RELEASEP(this->renderDevice11);
+	_RELEASEP(this->renderDevice12);
+	_RELEASEP(this->deviceContext);
+
+	this->colorBufferIndex = 0;
+	this->colorBufferSize  = 0;
+	this->scissorRect      = {};
+	this->viewPort11       = {};
+	this->viewPort12       = {};
+
+	#if defined(_DEBUG)
+	if (debugDevice11 != nullptr) {
+		debugDevice11->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
+		_RELEASEP(debugDevice11);
+	}
+
+	if (debugDevice12 != nullptr) {
+		debugDevice12->ReportLiveDeviceObjects(D3D12_RLDO_DETAIL | D3D12_RLDO_IGNORE_INTERNAL);
+		_RELEASEP(debugDevice12);
+	}
+	#endif
+
+}
+
+void DXContext::SetVSync(bool enable)
 {
 	this->vSync = enable;
 }

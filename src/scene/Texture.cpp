@@ -11,7 +11,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		this->transparent = transparent;
 
 		switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
 			this->loadTextureImagesDX({ image });
@@ -23,6 +23,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 			this->loadTextureImageGL(image);
 			break;
 		case GRAPHICS_API_VULKAN:
+			this->loadTextureImageVK(image);
 			break;
 		}
 	}
@@ -45,7 +46,7 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 		this->transparent = transparent;
 
 		switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
 			this->loadTextureImagesDX({ image });
@@ -57,6 +58,8 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 			this->loadTextureImageGL(image);
 			break;
 		case GRAPHICS_API_VULKAN:
+			this->loadTextureImageVK(image);
+			//this->loadTextureImagesVK({ image });
 			break;
 		}
 
@@ -86,7 +89,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 		this->transparent = transparent;
 
 		switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
 			this->loadTextureImagesDX(images);
@@ -102,6 +105,9 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 
 			break;
 		case GRAPHICS_API_VULKAN:
+			for (int i = 0; i < MAX_TEXTURES; i++)
+				this->loadTextureImageVK(images[i], true, i);
+			//this->loadTextureImagesVK(images);
 			break;
 		}
 	}
@@ -186,7 +192,7 @@ Texture::Texture(GLint filter, GLint formatIn, GLenum formatOut, GLenum dataType
 Texture::Texture()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->colorBuffer11  = nullptr;
 		this->resource11     = nullptr;
@@ -203,33 +209,40 @@ Texture::Texture()
 		this->type = GL_TEXTURE_2D;
 		break;
 	case GRAPHICS_API_VULKAN:
+		this->image       = nullptr;
+		this->imageMemory = nullptr;
 		break;
 	}
 }
 
 Texture::~Texture()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
+	//switch (Utils::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
 		_RELEASEP(this->colorBuffer11);
 		_RELEASEP(this->resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->srv11);
-		break;
-	case GRAPHICS_API_DIRECTX12:
+		//break;
+	//case GRAPHICS_API_DIRECTX12:
 		_RELEASEP(this->colorBuffer12);
 		_RELEASEP(this->resource12);
-		break;
+		//break;
 	#endif
-	case GRAPHICS_API_OPENGL:
+	//case GRAPHICS_API_OPENGL:
+	if (this->id > 0)
+	{
 		glDeleteTextures(1, &this->id);
+
 		this->id   = 0;
 		this->type = GL_TEXTURE_2D;
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
 	}
+		//break;
+	//case GRAPHICS_API_VULKAN:
+	RenderEngine::Canvas.Vulkan->DestroyTexture(&this->image, &this->imageMemory);
+		//break;
+	//}
 
 	this->imageFiles.clear();
 }
@@ -277,11 +290,12 @@ wxString Texture::ImageFile(int index)
 bool Texture::IsOK()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11: return (this->resource11 != nullptr);
 		case GRAPHICS_API_DIRECTX12: return (this->resource12 != nullptr);
 		#endif
 		case GRAPHICS_API_OPENGL:    return (this->id > 0);
+		// TODO: VULKAN
 		case GRAPHICS_API_VULKAN:    break;
 	}
 
@@ -358,9 +372,9 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 {
-	wxImage image2 = (this->flipY ? image->Mirror(false) : *image);
-	uint8_t*   pixels = (image2.HasAlpha() ? Utils::ToRGBA(&image2) : image2.GetData());
-	GLenum  format = Utils::GetImageFormat(&image2);
+	wxImage  image2 = (this->flipY ? image->Mirror(false) : *image);
+	uint8_t* pixels = (image2.HasAlpha() ? Utils::ToRGBA(&image2) : image2.GetData());
+	GLenum   format = Utils::GetImageFormat(&image2);
 
 	glBindTexture(this->type, this->id);
 
@@ -409,6 +423,35 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 		image2.Destroy();
 }
 
+void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
+{
+}
+
+void Texture::loadTextureImageVK(wxImage* image, bool cubemap, int index)
+{
+	wxImage  image2 = (this->flipY ? image->Mirror(false) : *image);
+	//uint8_t*     pixels = (image2.HasAlpha() ? Utils::ToRGBA(&image2) : image2.GetData());
+	uint8_t* pixels = Utils::ToRGBA(&image2);
+	//VkDeviceSize size   = (image2.GetWidth() * image2.GetHeight() * (image2.HasAlpha() ? 4 : 3));
+
+	this->transparent = (this->transparent && image2.HasAlpha());
+
+	//if (this->transparent)
+	//	this->setAlphaBlending(true);
+
+	RenderEngine::Canvas.Vulkan->CreateTexture(
+		(uint32_t)image2.GetWidth(), (uint32_t)image2.GetHeight(), pixels, &this->image, &this->imageMemory
+	);
+
+	//if (image2.HasAlpha())
+	std::free(pixels);
+
+	if (this->flipY)
+		image2.Destroy();
+
+	int x = 0;
+}
+
 void Texture::reload()
 {
 	wxImage* image = nullptr;
@@ -445,12 +488,6 @@ const D3D12_SAMPLER_DESC* Texture::SamplerDesc12()
 void Texture::setAlphaBlending(bool enable)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
 	case GRAPHICS_API_OPENGL:
 		if (enable) {
 			glEnable(GL_BLEND);

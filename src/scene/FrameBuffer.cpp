@@ -6,7 +6,7 @@ FrameBuffer::FrameBuffer(int width, int height)
 	this->size         = wxSize(width, height);
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		break;
@@ -32,25 +32,27 @@ FrameBuffer::~FrameBuffer()
 
 	_DELETEP(this->colorTexture);
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		glDeleteFramebuffers(1,  &this->colorBuffer);
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	if (this->colorBuffer > 0) {
+		glDeleteFramebuffers(1, &this->colorBuffer);
 		this->colorBuffer = 0;
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
 	}
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//}
 }
 
 void FrameBuffer::Bind()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Bind11(
 			this->colorTexture->ColorBuffer11(), nullptr, this->colorTexture->ColorBufferViewPort11()
@@ -78,7 +80,7 @@ void FrameBuffer::Bind()
 void FrameBuffer::Unbind()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Unbind11();
 		break;
@@ -100,7 +102,7 @@ void FrameBuffer::CreateColorTexture()
 	GLenum buffers[1];
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->colorTexture = new Texture(
 			D3D11_FILTER_MIN_MAG_MIP_LINEAR, DXGI_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight()

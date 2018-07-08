@@ -15,7 +15,7 @@ public:
 	Texture();
 	~Texture();
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	Texture(D3D11_FILTER filter, DXGI_FORMAT format, int width = 100, int height = 100);
 	Texture(D3D12_FILTER filter, DXGI_FORMAT format, int width = 100, int height = 100);
 #endif
@@ -27,11 +27,13 @@ private:
 	bool                  flipY;
 	GLuint                id;
 	std::vector<wxString> imageFiles;
+	VkDeviceMemory        imageMemory;
+	VkImage               image;
 	bool                  repeat;
 	bool                  transparent;
 	GLenum                type;
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		ID3D11RenderTargetView*         colorBuffer11;
 		D3D11_VIEWPORT                  colorBufferViewPort11;
 		ID3D11Texture2D*                resource11;
@@ -56,7 +58,7 @@ public:
 	void     SetTransparent(bool newTransparent);
 	GLenum   Type();
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		ID3D11RenderTargetView*                ColorBuffer11();
 		ID3D12DescriptorHeap*                  ColorBuffer12();
 		D3D11_VIEWPORT*                        ColorBufferViewPort11();
@@ -70,13 +72,15 @@ public:
 
 private:
 	void loadTextureImageGL(wxImage* image, bool cubemap = false, int index = 0);
+	void loadTextureImageVK(wxImage* image, bool cubemap = false, int index = 0);
+	void loadTextureImagesVK(const std::vector<wxImage*> &images);
 	void reload();
 	void setAlphaBlending(bool enable);
 	void setFilteringGL(bool mipmap = true);
 	void setWrappingGL();
 	void setWrappingCubemapGL();
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		void loadTextureImagesDX(const std::vector<wxImage*> &images);
 		void setFilteringDX11(D3D11_SAMPLER_DESC &samplerDesc);
 		void setFilteringDX12(D3D12_SAMPLER_DESC &samplerDesc);

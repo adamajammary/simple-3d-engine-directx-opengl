@@ -50,19 +50,29 @@ int SceneManager::AddComponent(Component* component)
 
 void SceneManager::Clear()
 {
-    RenderEngine::HUDs.clear();
-    RenderEngine::Skybox = nullptr;
+	RenderEngine::Skybox = nullptr;
+
+	RenderEngine::HUDs.clear();
     RenderEngine::Terrains.clear();
     RenderEngine::Waters.clear();
     RenderEngine::Renderables.clear();
 
-	if (!SceneManager::Components.empty())
-		SceneManager::Components.erase(SceneManager::Components.begin() + 1, SceneManager::Components.end());
+	if (SceneManager::Components.size() > 1)
+	{
+		for (auto it = SceneManager::Components.begin() + 1; it != SceneManager::Components.end(); it++)
+			_DELETEP(*it);
+
+		//if (!SceneManager::Components.empty())
+		//	SceneManager::Components.erase(SceneManager::Components.begin() + 1, SceneManager::Components.end());
+	}
 
 	SceneManager::SelectedComponent = nullptr;
 	SceneManager::SelectedChild     = nullptr;
+
 	SceneManager::Components.clear();
-	RenderEngine::Canvas.Window->ClearScene();
+
+	if (RenderEngine::Canvas.Window != nullptr)
+		RenderEngine::Canvas.Window->ClearScene();
 }
 
 int SceneManager::GetComponentIndex(Component* component)

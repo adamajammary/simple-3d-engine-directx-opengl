@@ -255,7 +255,11 @@ void WindowFrame::ClearScene()
 	this->listBoxComponents->Clear();
 	this->listBoxChildren->Clear();
 
-	SceneManager::AddComponent(RenderEngine::Camera);
+	// Add camera back to the scene
+	if (RenderEngine::Camera != NULL) {
+		RenderEngine::Camera->UpdateProjection();
+		SceneManager::AddComponent(RenderEngine::Camera);
+	}
 }
 
 void WindowFrame::InitDetails()
@@ -451,9 +455,6 @@ void WindowFrame::OnAbout(wxCommandEvent &event)
 
 void WindowFrame::OnExit(wxCommandEvent &event)
 {
-	_DELETEP(Utils::EmptyCubemap);
-	_DELETEP(Utils::EmptyTexture);
-
 	this->Close(true);
 }
 

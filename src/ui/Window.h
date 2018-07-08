@@ -12,6 +12,7 @@ private:
 
 public:
 	void         GameLoop(wxIdleEvent &event);
+	virtual int  OnExit();
 	virtual bool OnInit();
 };
 

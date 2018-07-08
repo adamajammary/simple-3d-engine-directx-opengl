@@ -8,14 +8,14 @@
 class Buffer
 {
 public:
-	Buffer(std::vector<unsigned int> &indices);
+	Buffer(std::vector<uint32_t> &indices);
 	Buffer(std::vector<float> &data);
 	Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords);
 	Buffer();
 	~Buffer();
 
 public:
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		ID3D11BlendState*        BlendStatesDX11[NR_OF_SHADERS];
 		ID3D11DepthStencilState* DepthStencilStatesDX11[NR_OF_SHADERS];
 		ID3D11InputLayout*       InputLayoutsDX11[NR_OF_SHADERS];
@@ -36,14 +36,20 @@ public:
 		DXSolidBuffer   SolidBufferValues;
 		DXTerrainBuffer TerrainBufferValues;
 		DXWaterBuffer   WaterBufferValues;
-
-#endif
+	#endif
 
 private:
-	UINT   bufferStride;
-	GLuint id;
+	UINT           bufferStride;
+	GLuint         id;
+	VkBuffer       indexBuffer;
+	VkDeviceMemory indexBufferMemory;
+	VkPipeline     pipelines[NR_OF_SHADERS];
+	VkBuffer       uniformBuffers[NR_OF_UNIFORM_BUFFERS];
+	VkDeviceMemory uniformBufferMemories[NR_OF_UNIFORM_BUFFERS];
+	VkBuffer       vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		ID3D11Buffer*            bufferDX11;
 		ID3D12Resource*          bufferDX12;
 		D3D12_INDEX_BUFFER_VIEW  indexBufferViewDX12;
@@ -51,14 +57,22 @@ private:
 	#endif
 
 public:
-	UINT   BufferStride();
-	GLuint ID();
+	UINT           BufferStride();
+	GLuint         ID();
+	VkBuffer       IndexBuffer();
+	VkPipeline     Pipeline(ShaderID shaderID);
+	VkBuffer       UniformBuffer(UniformBufferType uniformBuffer);
+	VkDeviceMemory UniformBufferMemory(UniformBufferType uniformBuffer);
+	VkBuffer       VertexBuffer();
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		ID3D11Buffer*            BufferDX11();
 		D3D12_INDEX_BUFFER_VIEW  IndexBufferViewDX12();
 		D3D12_VERTEX_BUFFER_VIEW VertexBufferViewDX12();
 	#endif
+
+private:
+	void init();
 
 };
 

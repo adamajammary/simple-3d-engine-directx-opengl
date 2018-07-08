@@ -14,6 +14,9 @@ private:
 public:
 	static const wxChar*                ALIGNMENTS[];
 	static const char*                  APP_NAME;
+	static const uint8_t                APP_VERSION_MAJOR;
+	static const uint8_t                APP_VERSION_MINOR;
+	static const uint8_t                APP_VERSION_PATCH;
 	static const char*                  APP_VERSION;
 	static const wxString               ASPECT_RATIOS[];
 	static const wxChar*                BOUNDING_VOLUMES[];
@@ -30,6 +33,7 @@ public:
 	static const wxString               SCENE_FILE_FORMAT;
 	static const std::vector<Resource>  SHADER_RESOURCES_DX;
 	static const std::vector<Resource>  SHADER_RESOURCES_GL;
+	static const std::vector<Resource>  SHADER_RESOURCES_VULKAN;
 	static Texture*                     EmptyCubemap;
 	static Texture*                     EmptyTexture;
 	static GraphicsAPI                  SelectedGraphicsAPI;
@@ -39,6 +43,7 @@ public:
 	static std::vector<uint8_t>     Decompress(const std::vector<uint8_t> &data);
 	static wxString                 GetGraphicsAPI(GraphicsAPI api);
 	static GLenum                   GetImageFormat(wxImage* image);
+	static GLsizei                  GetStride(GLsizei size, GLenum arrayType);
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
 	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_PNG);
 	static std::vector<AssImpMesh*> LoadModelFile(const wxString &file);
@@ -62,15 +67,16 @@ public:
 	static glm::vec3                ToVec3(const json11::Json::array &jsonArray);
 	static glm::vec4                ToVec4(const json11::Json::array &jsonArray);
 	static glm::vec4                ToVec4Color(const wxColour &color);
+	static std::vector<float>       ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords);
 	static wxColour                 ToWxColour(const wxVariant &color);
 	static wxColour                 ToWxColour(const glm::vec4 &color);
 
-	#ifdef _WINDOWS
-	static DXGI_FORMAT       GetImageFormatDXGI(wxImage* image);
-	static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
-	static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
-	static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec4 &vector);
-	static DirectX::XMMATRIX ToXMMATRIX(const glm::mat4 &matrix);
+	#if defined _WINDOWS
+		static DXGI_FORMAT       GetImageFormatDXGI(wxImage* image);
+		static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
+		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
+		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec4 &vector);
+		static DirectX::XMMATRIX ToXMMATRIX(const glm::mat4 &matrix);
 	#endif
 
 };

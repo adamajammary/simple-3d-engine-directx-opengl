@@ -26,12 +26,14 @@ public:
 	static GPUDescription     GPU;
 	static bool               DrawBoundingVolume;
 	static std::vector<Mesh*> HUDs;
+	static bool               Ready;
 	static std::vector<Mesh*> Renderables;
 	static Mesh*              Skybox;
 	static std::vector<Mesh*> Terrains;
 	static std::vector<Mesh*> Waters;
 
 public:
+	static void Close();
 	static void Draw();
 	static int  Init(WindowFrame* window, const wxSize &size);
 	static void RemoveMesh(Mesh* mesh);
@@ -40,7 +42,7 @@ public:
 	static void SetDrawMode(const wxString &mode);
 	static int  SetGraphicsAPI(const wxString &api);
 	static int  SetGraphicsAPI(GraphicsAPI api);
-	static void SetVSYNC(bool enable);
+	static void SetVSync(bool enable);
 
 private:
 	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr);
@@ -52,10 +54,11 @@ private:
 	static int            drawTerrains(bool    enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	static int            drawWaters(bool      enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	static void           drawScene(bool       enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	static void           drawMesh(Mesh*     mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	static int            drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	static int            drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	static int            drawMeshGL(Mesh*   mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	static void           drawMesh(Mesh*       mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	static int            drawMeshDX11(Mesh*   mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	static int            drawMeshDX12(Mesh*   mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	static int            drawMeshGL(Mesh*     mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	static int            drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	static int            initResources();
 	static ShaderProgram* setShaderProgram(bool enable, ShaderID program = SHADER_ID_UNKNOWN);
 

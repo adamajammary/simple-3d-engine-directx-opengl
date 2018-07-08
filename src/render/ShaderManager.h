@@ -15,7 +15,8 @@ public:
 	static ShaderProgram* Programs[NR_OF_SHADERS];
 
 public:
-	static int Init();
+	static void Close();
+	static int  Init();
 
 };
 

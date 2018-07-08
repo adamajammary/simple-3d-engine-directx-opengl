@@ -1,4 +1,4 @@
-#ifdef _WINDOWS
+#if defined _WINDOWS
 
 #ifndef GE3D_GLOBALS_H
 	#include "../globals.h"
@@ -11,12 +11,12 @@ class DXContext
 {
 public:
 	DXContext(GraphicsAPI api, bool vsync = true);
-	DXContext();
+	//DXContext();
 	~DXContext();
 
 private:
 	ID3D11RenderTargetView*    colorBuffer;
-	ID3D12Resource*            colorBuffers[2];
+	ID3D12Resource*            colorBuffers[NR_OF_FRAMEBUFFERS];
 	ID3D12DescriptorHeap*      colorBufferHeap;
 	UINT                       colorBufferIndex;
 	UINT                       colorBufferSize;
@@ -31,7 +31,6 @@ private:
 	HANDLE                     fenceEvent;
 	UINT64                     fenceValue;
 	bool                       isOK;
-	const UINT                 NR_OF_FRAMEBUFFERS = 2;
 	ID3D12PipelineState*       pipelineState;
 	ID3D11Device*              renderDevice11;
 	ID3D12Device*              renderDevice12;
@@ -68,7 +67,7 @@ public:
 	bool IsOK();
 	void Present11();
 	void Present12();
-	void SetVSYNC(bool enable);
+	void SetVSync(bool enable);
 
 private:
 	int                commandsExecute();
@@ -79,7 +78,6 @@ private:
 	int                createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
 	IDXGIAdapter*      getAdapter11(IDXGIFactory*  factory);
 	IDXGIAdapter1*     getAdapter12(IDXGIFactory4* factory);
-	std::vector<float> getVertexBufferData(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords);
 	bool               init11(bool vsync = true);
 	bool               init12(bool vsync = true);
 	void               release();

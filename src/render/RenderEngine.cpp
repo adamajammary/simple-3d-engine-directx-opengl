@@ -7,6 +7,7 @@ GPUDescription     RenderEngine::GPU                = {};
 bool               RenderEngine::DrawBoundingVolume = false;
 Mesh*              RenderEngine::Skybox             = nullptr;
 std::vector<Mesh*> RenderEngine::HUDs;
+bool               RenderEngine::Ready              = false;
 std::vector<Mesh*> RenderEngine::Renderables;
 std::vector<Mesh*> RenderEngine::Terrains;
 std::vector<Mesh*> RenderEngine::Waters;
@@ -14,7 +15,7 @@ std::vector<Mesh*> RenderEngine::Waters;
 void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Clear11(r, g, b, a, fbo);
 		break;
@@ -28,7 +29,27 @@ void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		break;
 	case GRAPHICS_API_VULKAN:
+		RenderEngine::Canvas.Vulkan->Clear(r, g, b, a);
 		break;
+	}
+}
+
+void RenderEngine::Close()
+{
+	InputManager::Reset();
+	SceneManager::Clear();
+	ShaderManager::Close();
+
+	_DELETEP(Utils::EmptyCubemap);
+	_DELETEP(Utils::EmptyTexture);
+
+	_DELETEP(RenderEngine::Canvas.DX);
+	_DELETEP(RenderEngine::Canvas.GL);
+	_DELETEP(RenderEngine::Canvas.Vulkan);
+
+	if (RenderEngine::Canvas.Canvas != nullptr) {
+		RenderEngine::Canvas.Canvas->DestroyChildren();
+		RenderEngine::Canvas.Canvas->Destroy();
 	}
 }
 
@@ -86,13 +107,21 @@ void RenderEngine::Draw()
     RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
 	RenderEngine::drawScene();
 
+
+
+	//// TODO: VULKAN
+	//if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+	//	RenderEngine::Canvas.Vulkan->Draw(nullptr, ShaderManager::Programs[SHADER_ID_DEFAULT]);
+
+
+
 	switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11: RenderEngine::Canvas.DX->Present11(); break;
 		case GRAPHICS_API_DIRECTX12: RenderEngine::Canvas.DX->Present12(); break;
 		#endif
-		case GRAPHICS_API_OPENGL:    RenderEngine::Canvas.Canvas->SwapBuffers(); break;
-		case GRAPHICS_API_VULKAN:    break;
+		case GRAPHICS_API_OPENGL: RenderEngine::Canvas.Canvas->SwapBuffers(); break;
+		case GRAPHICS_API_VULKAN: RenderEngine::Canvas.Vulkan->Present();     break;
 	}
 }
 
@@ -104,7 +133,7 @@ int RenderEngine::drawBoundingVolumes()
 	uint16_t oldDrawMode = RenderEngine::DrawMode;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		RenderEngine::DrawMode = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
@@ -140,7 +169,7 @@ int RenderEngine::drawHUDs(bool enableClipping, const glm::vec3 &clipMax, const 
 		return -1;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		break;
 	case GRAPHICS_API_DIRECTX12:
@@ -169,13 +198,13 @@ int RenderEngine::drawHUDs(bool enableClipping, const glm::vec3 &clipMax, const 
 
 int RenderEngine::drawRenderables(bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
+	// TODO: VULKAN
 	if (RenderEngine::Renderables.empty())
 		return -1;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		break;
 	case GRAPHICS_API_DIRECTX12:
 		break;
 	#endif
@@ -185,6 +214,7 @@ int RenderEngine::drawRenderables(bool enableClipping, const glm::vec3 &clipMax,
 		glDisable(GL_BLEND);
 		break;
 	case GRAPHICS_API_VULKAN:
+		//RenderEngine::Canvas.Vulkan->Draw(nullptr, ShaderManager::Programs[SHADER_ID_DEFAULT]);
 		break;
 	default:
 		break;
@@ -217,7 +247,7 @@ int RenderEngine::drawSelected()
 	uint16_t oldDrawMode = RenderEngine::DrawMode;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		RenderEngine::DrawMode = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
@@ -252,7 +282,7 @@ int RenderEngine::drawSkybox(bool enableClipping, const glm::vec3 &clipMax, cons
 		return -1;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		break;
 	case GRAPHICS_API_DIRECTX12:
@@ -282,7 +312,7 @@ int RenderEngine::drawTerrains(bool enableClipping, const glm::vec3 &clipMax, co
 		return -1;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		break;
 	case GRAPHICS_API_DIRECTX12:
@@ -315,7 +345,7 @@ int RenderEngine::drawWaters(bool enableClipping, const glm::vec3 &clipMax, cons
 		return -1;
 
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		break;
 	case GRAPHICS_API_DIRECTX12:
@@ -356,7 +386,7 @@ void RenderEngine::drawScene(bool enableClipping, const glm::vec3 &clipMax, cons
 void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::drawMeshDX11(mesh, shaderProgram, enableClipping, clipMax, clipMin);
 		break;
@@ -368,6 +398,7 @@ void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, bool enabl
 		RenderEngine::drawMeshGL(mesh, shaderProgram, enableClipping, clipMax, clipMin);
 		break;
 	case GRAPHICS_API_VULKAN:
+		RenderEngine::drawMeshVulkan(mesh, shaderProgram, enableClipping, clipMax, clipMin);
 		break;
 	default:
 		break;
@@ -378,10 +409,10 @@ int RenderEngine::drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, bool en
 {
 	return RenderEngine::Canvas.DX->Draw11(mesh, shaderProgram, enableClipping, clipMax, clipMin);
 }
+
 int RenderEngine::drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
 	return RenderEngine::Canvas.DX->Draw12(mesh, shaderProgram, enableClipping, clipMax, clipMin);
-
 }
 
 int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
@@ -394,7 +425,7 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, bool enab
        
     // DRAW
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO());
-    glDrawElements(RenderEngine::DrawMode, (GLsizei)mesh->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
+		glDrawElements(RenderEngine::DrawMode, (GLsizei)mesh->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	//glDrawArrays(RenderEngine::DrawMode, 0, (GLsizei)mesh->NrOfVertices());
 
@@ -410,6 +441,11 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, bool enab
     return 0;
 }
 
+int RenderEngine::drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+{
+	return RenderEngine::Canvas.Vulkan->Draw(mesh, shaderProgram, enableClipping, clipMax, clipMin);
+}
+
 int RenderEngine::Init(WindowFrame* window, const wxSize &size)
 {
 	int result;
@@ -419,7 +455,7 @@ int RenderEngine::Init(WindowFrame* window, const wxSize &size)
 	RenderEngine::Canvas.Size        = size;
 	RenderEngine::Canvas.Window      = window;
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_DIRECTX11);
 	#else
 		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_OPENGL);
@@ -439,6 +475,10 @@ int RenderEngine::initResources()
 	Utils::EmptyTexture = new Texture(emptyFile);
 	Utils::EmptyCubemap = new Texture(emptyFiles);
 
+	// TODO: FIX FOR VULKAN
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+		return 0;
+	
 	if (!Utils::EmptyTexture->IsOK() || !Utils::EmptyCubemap->IsOK())
 		return -1;
 
@@ -483,6 +523,9 @@ void RenderEngine::SetAspectRatio(const wxString &ratio)
 		RenderEngine::Canvas.Size.GetWidth(),
 		(int)((float)RenderEngine::Canvas.Size.GetWidth() * RenderEngine::Canvas.AspectRatio)
 	);
+
+	if (RenderEngine::Canvas.Vulkan != nullptr)
+		RenderEngine::Canvas.Vulkan->UpdateSwapChain();
 }
 
 void RenderEngine::SetCanvasSize(int width, int height)
@@ -496,7 +539,7 @@ void RenderEngine::SetCanvasSize(int width, int height)
 void RenderEngine::SetDrawMode(const wxString &mode)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		if (mode == Utils::DRAW_MODES[DRAW_MODE_FILLED])
@@ -544,20 +587,11 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 {
 	int result                 = -1;
+	RenderEngine::Ready        = false;
 	Utils::SelectedGraphicsAPI = api;
-	
+
 	// CLEAR SCENE AND FREE MEMORY
-	if (SceneManager::Components.size() > 1)
-		SceneManager::Clear();
-
-	InputManager::Reset();
-	_DELETEP(RenderEngine::Canvas.DX);
-	_DELETEP(RenderEngine::Canvas.GL);
-
-	if (RenderEngine::Canvas.Canvas != nullptr) {
-		RenderEngine::Canvas.Canvas->DestroyChildren();
-		RenderEngine::Canvas.Canvas->Destroy();
-	}
+	RenderEngine::Close();
 
 	// RE-CREATE THE CANVAS
 	wxGLAttributes attribs;
@@ -573,13 +607,13 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 
 	// RE-CREATE THE GRAPHICS CONTEXT
 	switch (api) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		RenderEngine::Canvas.DX = new DXContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
 
 		if (!RenderEngine::Canvas.DX->IsOK())
-			return -1;
+			return -2;
 
 		break;
 	#endif
@@ -587,14 +621,14 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 		RenderEngine::Canvas.GL = new wxGLContext(RenderEngine::Canvas.Canvas);
 
 		if (!RenderEngine::Canvas.GL->IsOK())
-			return -1;
+			return -2;
 
 		RenderEngine::Canvas.Canvas->SetCurrent(*RenderEngine::Canvas.GL);
 
 		glewInit();
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 		
-		RenderEngine::SetVSYNC(RenderEngine::Canvas.Window->VSyncEnable->GetValue());
+		RenderEngine::SetVSync(RenderEngine::Canvas.Window->VSyncEnable->GetValue());
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_TEXTURE_CUBE_MAP);
 
@@ -604,25 +638,31 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.Window->SetStatusText("GRAPHICS_API_VULKAN: NOT IMPLEMENTED");
-		return -1;
+		RenderEngine::Canvas.Vulkan = new VulkanContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
+
+		if (!RenderEngine::Canvas.Vulkan->IsOK())
+			return -2;
+
+		break;
 	default:
 		Utils::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
 		RenderEngine::Canvas.Window->SetStatusText("GRAPHICS_API_UNKNOWN: INVALID API");
-		return -1;
+		return -2;
 	}
 
 	// RE-INITIALIZE ENGINE MODULES AND RESOURCES
 	if (InputManager::Init() != 0)
-		return -1;
+		return -3;
 
 	if (ShaderManager::Init() != 0)
-		return -1;
+		return -4;
 
 	if (RenderEngine::initResources() != 0)
-		return -1;
+		return -5;
 
 	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
+
+	RenderEngine::Ready = true;
 
 	return 0;
 }
@@ -635,17 +675,17 @@ ShaderProgram* RenderEngine::setShaderProgram(bool enable, ShaderID program)
 	return (enable ? ShaderManager::Programs[program] : nullptr);
 }
 
-void RenderEngine::SetVSYNC(bool enable)
+void RenderEngine::SetVSync(bool enable)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->SetVSYNC(enable);
+		RenderEngine::Canvas.DX->SetVSync(enable);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		if (std::strstr((char*)glGetString(GL_EXTENSIONS), "WGL_EXT_swap_control") > 0)
 		{
 			PFNWGLGETEXTENSIONSSTRINGEXTPROC wglGetExtensionsStringEXT = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");

@@ -2,11 +2,26 @@
 
 void Window::GameLoop(wxIdleEvent &event)
 {
-	event.RequestMore();
+	if (RenderEngine::Ready)
+	{
+		event.RequestMore();
 
-	TimeManager::UpdateFPS();
-	PhysicsEngine::Update();
-	RenderEngine::Draw();
+		TimeManager::UpdateFPS();
+		PhysicsEngine::Update();
+		RenderEngine::Draw();
+	}
+}
+
+int Window::OnExit()
+{
+	RenderEngine::Canvas.Canvas = nullptr;
+	RenderEngine::Canvas.Window = nullptr;
+
+	RenderEngine::Close();
+	//SceneManager::Clear();
+	_DELETEP(RenderEngine::Camera);
+
+	return 0;
 }
 
 bool Window::OnInit()

@@ -5,15 +5,16 @@ MouseState InputManager::mouseState;
 int InputManager::Init()
 {
 	RenderEngine::Canvas.Window->Parent->Bind(wxEVT_KEY_DOWN, &InputManager::OnKeyboard);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_DOWN,        &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_DOWN,      &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_DOWN,       &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_UP,          &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_UP,        &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_UP,         &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOTION,           &InputManager::OnMouseMove,    ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOUSEWHEEL,       &InputManager::OnMouseScroll,  ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_SIZE,             &InputManager::OnWindowResize);
+
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_DOWN,   &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_DOWN, &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_DOWN,  &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_UP,     &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_UP,   &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_UP,    &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOTION,      &InputManager::OnMouseMove,    ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOUSEWHEEL,  &InputManager::OnMouseScroll,  ID_CANVAS, ID_CANVAS);
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_SIZE,        &InputManager::OnWindowResize);
 
 	return 0;
 }
@@ -87,7 +88,7 @@ void InputManager::OnGraphicsMenu(wxCommandEvent &event)
 		case ID_DRAW_MODE:     RenderEngine::SetDrawMode(event.GetString());         break;
 		case ID_DRAW_BOUNDING: RenderEngine::DrawBoundingVolume = event.IsChecked(); break;
 		case ID_GRAPHICS_API:  RenderEngine::SetGraphicsAPI(event.GetString());      break;
-		case ID_VSYNC:         RenderEngine::SetVSYNC(event.IsChecked());            break;
+		case ID_VSYNC:         RenderEngine::SetVSync(event.IsChecked());            break;
 	}
 }
 
