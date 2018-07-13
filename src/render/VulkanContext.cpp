@@ -719,16 +719,17 @@ VkPhysicalDevice VulkanContext::getDevice(const std::vector<const char*> &extens
 	if (this->instance == nullptr)
 		return nullptr;
 
-	uint32_t deviceCount;
-	vkEnumeratePhysicalDevices(this->instance, &deviceCount, nullptr);
+	uint32_t deviceCount = 0;
+	VkResult result      = vkEnumeratePhysicalDevices(this->instance, &deviceCount, nullptr);
 
-	if (deviceCount == 0)
+	if ((result != VK_SUCCESS) || (deviceCount < 1))
 		return nullptr;
 
 	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(this->instance, &deviceCount, devices.data());
 
-	if (devices.empty())
+	result = vkEnumeratePhysicalDevices(this->instance, &deviceCount, devices.data());
+
+	if ((result != VK_SUCCESS) || devices.empty())
 		return nullptr;
 
 	VkPhysicalDevice physicalDevice = nullptr;
@@ -1661,7 +1662,8 @@ bool VulkanContext::IsOK()
 
 void VulkanContext::release()
 {
-	vkDeviceWaitIdle(this->deviceContext);
+	if (this->deviceContext != nullptr)
+		vkDeviceWaitIdle(this->deviceContext);
 
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 		_DELETEP(ShaderManager::Programs[i]);
@@ -1731,8 +1733,10 @@ void VulkanContext::release()
 	_DELETEP(this->multisampling);
 	_DELETEP(this->depthStencilBuffer);
 
-	for (uint32_t i = 0; i < this->colorBlending->attachmentCount; i++)
-		_DELETEP(this->colorBlending->pAttachments);
+	if (this->colorBlending != nullptr) {
+		for (uint32_t i = 0; i < this->colorBlending->attachmentCount; i++)
+			_DELETEP(this->colorBlending->pAttachments);
+	}
 
 	_DELETEP(this->colorBlending);
 
@@ -1741,13 +1745,17 @@ void VulkanContext::release()
 		this->renderPass = nullptr;
 	}
 
-	for (uint32_t i = 0; i < this->viewportState->scissorCount; i++)
-		_DELETEP(this->viewportState->pScissors);
+	if (this->viewportState != nullptr)
+	{
+		for (uint32_t i = 0; i < this->viewportState->scissorCount; i++)
+			_DELETEP(this->viewportState->pScissors);
 
-	for (uint32_t i = 0; i < this->viewportState->viewportCount; i++)
-		_DELETEP(this->viewportState->pViewports);
+		for (uint32_t i = 0; i < this->viewportState->viewportCount; i++)
+			_DELETEP(this->viewportState->pViewports);
 
-	_DELETEP(this->viewportState);
+		_DELETEP(this->viewportState);
+	}
+
 	_DELETEP(this->swapChain);
 
 	if (this->deviceContext != nullptr) {

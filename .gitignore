@@ -14,3 +14,4 @@ dna.txt
 3rd/lzma1801
 3rd/wxWidgets-3.1.0
 3rd/VulkanSDK-*
+resources/shaders/*.spv

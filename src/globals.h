@@ -3,15 +3,15 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 #define GLEW_STATIC
-#define _UNICODE
 #define UNICODE
+#define _UNICODE
 
 // C++
 #include <fstream>
 #include <map>
 #include <set>
 
-// DIRECTX
+// DirectX
 #if defined _WINDOWS
 	#include <d3d11.h>
 	#include <d3d12.h>
@@ -42,7 +42,7 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtx/transform.hpp>
 
-// ASSIMP
+// AssImp
 #include <assimp/cimport.h>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -53,10 +53,10 @@
 // LZMA SDK
 #include <LzmaLib.h>
 
-// LIBNOISE
+// LibNoise
 #include <noise.h>
 
-// WXWIDGETS
+// WxWidgets
 #include <wx/app.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
