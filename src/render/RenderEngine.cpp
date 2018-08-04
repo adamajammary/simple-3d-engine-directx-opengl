@@ -50,11 +50,13 @@ void RenderEngine::Close()
 	if (RenderEngine::Canvas.Canvas != nullptr) {
 		RenderEngine::Canvas.Canvas->DestroyChildren();
 		RenderEngine::Canvas.Canvas->Destroy();
+		RenderEngine::Canvas.Canvas = nullptr;
 	}
 }
 
 void RenderEngine::Draw()
 {
+	// TODO: Move out to separate method
 	// WATER RENDER PASSES
 	for (auto water : RenderEngine::Waters)
 	{
@@ -190,7 +192,6 @@ int RenderEngine::drawHUDs(bool enableClipping, const glm::vec3 &clipMax, const 
 
 int RenderEngine::drawRenderables(bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
-	// TODO: VULKAN
 	if (RenderEngine::Renderables.empty())
 		return -1;
 
@@ -206,7 +207,6 @@ int RenderEngine::drawRenderables(bool enableClipping, const glm::vec3 &clipMax,
 		glDisable(GL_BLEND);
 		break;
 	case GRAPHICS_API_VULKAN:
-		//RenderEngine::Canvas.Vulkan->Draw(nullptr, ShaderManager::Programs[SHADER_ID_DEFAULT]);
 		break;
 	default:
 		break;
@@ -578,7 +578,6 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 
 int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 {
-	int result                 = -1;
 	RenderEngine::Ready        = false;
 	Utils::SelectedGraphicsAPI = api;
 
@@ -604,20 +603,28 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 	case GRAPHICS_API_DIRECTX12:
 		RenderEngine::Canvas.DX = new DXContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
 
-		if (!RenderEngine::Canvas.DX->IsOK())
-			return -2;
+		if (!RenderEngine::Canvas.DX->IsOK()) {
+			RenderEngine::Close();
+			return -1;
+		}
 
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
 		RenderEngine::Canvas.GL = new wxGLContext(RenderEngine::Canvas.Canvas);
 
-		if (!RenderEngine::Canvas.GL->IsOK())
+		if (!RenderEngine::Canvas.GL->IsOK()) {
+			RenderEngine::Close();
 			return -2;
+		}
 
 		RenderEngine::Canvas.Canvas->SetCurrent(*RenderEngine::Canvas.GL);
 
-		glewInit();
+		if (glewInit() != GLEW_OK) {
+			RenderEngine::Close();
+			return -3;
+		}
+
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 		
 		RenderEngine::SetVSync(RenderEngine::Canvas.Window->VSyncEnable->GetValue());
@@ -632,25 +639,34 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 	case GRAPHICS_API_VULKAN:
 		RenderEngine::Canvas.VK = new VKContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
 
-		if (!RenderEngine::Canvas.VK->IsOK())
-			return -2;
+		if (!RenderEngine::Canvas.VK->IsOK()) {
+			RenderEngine::Close();
+			return -4;
+		}
 
 		break;
 	default:
 		Utils::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
 		RenderEngine::Canvas.Window->SetStatusText("GRAPHICS_API_UNKNOWN: INVALID API");
-		return -2;
+		RenderEngine::Close();
+		return -5;
 	}
 
 	// RE-INITIALIZE ENGINE MODULES AND RESOURCES
-	if (InputManager::Init() != 0)
-		return -3;
+	if (InputManager::Init() != 0) {
+		RenderEngine::Close();
+		return -6;
+	}
 
-	if (ShaderManager::Init() != 0)
-		return -4;
+	if (ShaderManager::Init() != 0) {
+		RenderEngine::Close();
+		return -7;
+	}
 
-	if (RenderEngine::initResources() != 0)
-		return -5;
+	if (RenderEngine::initResources() != 0) {
+		RenderEngine::Close();
+		return -8;
+	}
 
 	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
 
