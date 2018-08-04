@@ -1,6 +1,6 @@
-#include "VulkanContext.h"
+#include "VKContext.h"
 
-VulkanContext::VulkanContext(GraphicsAPI api, bool vsync)
+VKContext::VKContext(GraphicsAPI api, bool vsync)
 {
 	this->isOK = this->init(vsync);
 
@@ -8,12 +8,12 @@ VulkanContext::VulkanContext(GraphicsAPI api, bool vsync)
 		this->release();
 }
 
-VulkanContext::~VulkanContext()
+VKContext::~VKContext()
 {
 	this->release();
 }
 
-void VulkanContext::Clear(float r, float g, float b, float a)
+void VKContext::Clear(float r, float g, float b, float a)
 {
 	//VkImageMemoryBarrier     barrierClearToPresent = {};
 	//VkImageMemoryBarrier     barrierPresentToClear = {};
@@ -87,7 +87,7 @@ void VulkanContext::Clear(float r, float g, float b, float a)
 	renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassInfo.framebuffer       = this->frameBuffers[this->imageIndex];
 	renderPassInfo.renderPass        = this->renderPass;
-	renderPassInfo.renderArea.extent = *this->swapChain->Size;
+	renderPassInfo.renderArea.extent = this->swapChain->Size;
 	renderPassInfo.pClearValues      = &clearColor;
 	renderPassInfo.clearValueCount   = 1;
 	//renderPassInfo.renderArea.offset = { 0, 0 };
@@ -95,7 +95,7 @@ void VulkanContext::Clear(float r, float g, float b, float a)
 	vkCmdBeginRenderPass(this->commandBuffers[this->imageIndex], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 }
 
-VkCommandBuffer VulkanContext::commandBufferBegin()
+VkCommandBuffer VKContext::commandBufferBegin()
 {
     //VkCommandBufferAllocateInfo  commandAllocInfo = {};
 	//VkCommandBuffer             commandBuffer    = nullptr;
@@ -120,7 +120,7 @@ VkCommandBuffer VulkanContext::commandBufferBegin()
     return commandBuffers[0];
 }
 
-void VulkanContext::commandBufferEnd(VkCommandBuffer commandBuffer)
+void VKContext::commandBufferEnd(VkCommandBuffer commandBuffer)
 {
 	VkSubmitInfo queueSubmitInfo = {};
 
@@ -130,13 +130,13 @@ void VulkanContext::commandBufferEnd(VkCommandBuffer commandBuffer)
 	queueSubmitInfo.commandBufferCount = 1;
 	queueSubmitInfo.pCommandBuffers    = &commandBuffer;
 
-	vkQueueSubmit(this->queues[VULKAN_QUEUE_GRAPHICS]->Queue, 1, &queueSubmitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(this->queues[VULKAN_QUEUE_GRAPHICS]->Queue);
+	vkQueueSubmit(this->queues[VK_QUEUE_GRAPHICS]->Queue, 1, &queueSubmitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(this->queues[VK_QUEUE_GRAPHICS]->Queue);
 
 	vkFreeCommandBuffers(this->deviceContext, this->commandPool, 1, &commandBuffer);
 }
 
-int VulkanContext::copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize)
+int VKContext::copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize)
 {
 	//VkCommandBufferBeginInfo     copyBeginInfo  = {};
 	//std::vector<VkCommandBuffer> copyBuffers    = this->initCommandBuffers(1);
@@ -174,7 +174,7 @@ int VulkanContext::copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer,
 	return 0;
 }
 
-int VulkanContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+int VKContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
 {
 	VkCommandBuffer commandBuffer = this->commandBufferBegin();
 
@@ -201,7 +201,7 @@ int VulkanContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t wi
 	return 0;
 }
 
-int VulkanContext::copyImage(VkImage image, VkFormat imageFormat, VkImageLayout oldLayout, VkImageLayout newLayout)
+int VKContext::copyImage(VkImage image, VkFormat imageFormat, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
 	VkCommandBuffer commandBuffer = this->commandBufferBegin();
 
@@ -258,7 +258,7 @@ int VulkanContext::copyImage(VkImage image, VkFormat imageFormat, VkImageLayout 
 	return 0;
 }
 
-int VulkanContext::createBuffer(
+int VKContext::createBuffer(
 	VkDeviceSize          size,
 	VkBufferUsageFlags    useFlags,
 	VkMemoryPropertyFlags memoryFlags,
@@ -297,7 +297,7 @@ int VulkanContext::createBuffer(
 	return 0;
 }
 
-int VulkanContext::createImage(
+int VKContext::createImage(
 	uint32_t              width,
 	uint32_t              height,
 	VkFormat              format,
@@ -350,7 +350,7 @@ int VulkanContext::createImage(
 	return 0;
 }
 
-int VulkanContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory)
+int VKContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory)
 {
 	VkBuffer              stagingBuffer         = nullptr;
 	VkDeviceMemory        stagingBufferMemory   = nullptr;
@@ -383,7 +383,7 @@ int VulkanContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuf
 	return 0;
 }
 
-int VulkanContext::CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule)
+int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule)
 {
 	#if defined _DEBUG
 		wxArrayString output;
@@ -411,7 +411,7 @@ int VulkanContext::CreateShaderModule(const wxString &shaderFile, const wxString
 	return 0;
 }
 
-int VulkanContext::CreateTexture(
+int VKContext::CreateTexture(
 	uint32_t        width,
 	uint32_t        height,
 	uint8_t*        imagePixels,
@@ -462,7 +462,7 @@ int VulkanContext::CreateTexture(
 	return 0;
 }
 
-int VulkanContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory)
+int VKContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory)
 {
 	//VkDeviceSize          bufferSize     = (sizeof(GLMatrixBuffer) + sizeof(GLDefaultBuffer));
 	VkBufferUsageFlags    bufferUseFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -479,7 +479,7 @@ int VulkanContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory*
 	return 0;
 }
 
-int VulkanContext::CreateVertexBuffer(
+int VKContext::CreateVertexBuffer(
 	const std::vector<float> &vertices,
 	const std::vector<float> &normals,
 	const std::vector<float> &texCoords,
@@ -572,13 +572,13 @@ int VulkanContext::CreateVertexBuffer(
 	return 0;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugLog(VkDebugReportFlagsEXT f, VkDebugReportObjectTypeEXT ot, uint64_t o, size_t l, int32_t c, const char* lp, const char* m, void* ud)
+VKAPI_ATTR VkBool32 VKAPI_CALL VKContext::debugLog(VkDebugReportFlagsEXT f, VkDebugReportObjectTypeEXT ot, uint64_t o, size_t l, int32_t c, const char* lp, const char* m, void* ud)
 {
 	wxLogDebug("%s\n", m);
 	return VK_FALSE;
 }
 
-void VulkanContext::DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory)
+void VKContext::DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory)
 {
 	if (*bufferMemory != nullptr) {
 		vkFreeMemory(this->deviceContext, *bufferMemory, nullptr);
@@ -591,7 +591,7 @@ void VulkanContext::DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory
 	}
 }
 
-void VulkanContext::DestroyPipeline(VkPipeline* pipeline)
+void VKContext::DestroyPipeline(VkPipeline* pipeline)
 {
 	if (*pipeline != nullptr) {
 		vkDestroyPipeline(this->deviceContext, *pipeline, nullptr);
@@ -599,7 +599,7 @@ void VulkanContext::DestroyPipeline(VkPipeline* pipeline)
 	}
 }
 
-void VulkanContext::DestroyShaderModule(VkShaderModule* shaderModule)
+void VKContext::DestroyShaderModule(VkShaderModule* shaderModule)
 {
 	if (*shaderModule != nullptr) {
 		vkDestroyShaderModule(this->deviceContext, *shaderModule, nullptr);
@@ -607,7 +607,7 @@ void VulkanContext::DestroyShaderModule(VkShaderModule* shaderModule)
 	}
 }
 
-void VulkanContext::DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory)
+void VKContext::DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory)
 {
 	if (*imageMemory != nullptr) {
 		vkFreeMemory(this->deviceContext, *imageMemory, nullptr);
@@ -620,7 +620,7 @@ void VulkanContext::DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory)
 	}
 }
 
-bool VulkanContext::deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions)
+bool VKContext::deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions)
 {
 	uint32_t extensionCount;
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
@@ -646,7 +646,7 @@ bool VulkanContext::deviceSupportsExtensions(VkPhysicalDevice device, const std:
 	return true;
 }
 
-int VulkanContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -694,7 +694,7 @@ int VulkanContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableCli
 	return 0;
 }
 
-wxString VulkanContext::getApiVersion(VkPhysicalDevice device)
+wxString VKContext::getApiVersion(VkPhysicalDevice device)
 {
 	if (device == nullptr)
 		return wxT("");
@@ -714,7 +714,7 @@ wxString VulkanContext::getApiVersion(VkPhysicalDevice device)
 	return wxString(apiVersion);
 }
 
-VkPhysicalDevice VulkanContext::getDevice(const std::vector<const char*> &extensions)
+VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions)
 {
 	if (this->instance == nullptr)
 		return nullptr;
@@ -748,7 +748,7 @@ VkPhysicalDevice VulkanContext::getDevice(const std::vector<const char*> &extens
 
 		this->queues = this->getDeviceQueueSupport(device);
 
-		if ((this->queues[VULKAN_QUEUE_GRAPHICS]->Index < 0) || (this->queues[VULKAN_QUEUE_PRESENTATION]->Index < 0))
+		if ((this->queues[VK_QUEUE_GRAPHICS]->Index < 0) || (this->queues[VK_QUEUE_PRESENTATION]->Index < 0))
 			continue;
 
 		if (!this->deviceSupportsExtensions(device, extensions))
@@ -762,7 +762,7 @@ VkPhysicalDevice VulkanContext::getDevice(const std::vector<const char*> &extens
 	return physicalDevice;
 }
 
-wxString VulkanContext::getDeviceName(VkPhysicalDevice device)
+wxString VKContext::getDeviceName(VkPhysicalDevice device)
 {
 	if (device == nullptr)
 		return wxT("");
@@ -793,9 +793,9 @@ wxString VulkanContext::getDeviceName(VkPhysicalDevice device)
 	return wxString(adapterName);
 }
 
-std::map<VulkanQueueType, VulkanQueue*> VulkanContext::getDeviceQueueSupport(VkPhysicalDevice device)
+std::vector<VKQueue*> VKContext::getDeviceQueueSupport(VkPhysicalDevice device)
 {
-	std::map<VulkanQueueType, VulkanQueue*> queueSupport;
+	std::vector<VKQueue*> queueSupport(NR_OF_VK_QUEUES);
 
 	uint32_t queueCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueCount, nullptr);
@@ -808,25 +808,25 @@ std::map<VulkanQueueType, VulkanQueue*> VulkanContext::getDeviceQueueSupport(VkP
 		if (queues[i].queueCount == 0)
 			continue;
 
-		if ((queues[0].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueSupport[VULKAN_QUEUE_GRAPHICS] == nullptr))
-			queueSupport[VULKAN_QUEUE_GRAPHICS] = new VulkanQueue(i);
+		if ((queues[0].queueFlags & VK_QUEUE_GRAPHICS_BIT) && (queueSupport[VK_QUEUE_GRAPHICS] == nullptr))
+			queueSupport[VK_QUEUE_GRAPHICS] = new VKQueue(i);
 
 		VkBool32 supportsPresentation = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, this->surface, &supportsPresentation);
 
-		if (supportsPresentation && (queueSupport[VULKAN_QUEUE_PRESENTATION] == nullptr))
-			queueSupport[VULKAN_QUEUE_PRESENTATION] = new VulkanQueue(i);
+		if (supportsPresentation && (queueSupport[VK_QUEUE_PRESENTATION] == nullptr))
+			queueSupport[VK_QUEUE_PRESENTATION] = new VKQueue(i);
 
-		if ((queueSupport[VULKAN_QUEUE_PRESENTATION] != nullptr) && (queueSupport[VULKAN_QUEUE_GRAPHICS] != nullptr))
+		if ((queueSupport[VK_QUEUE_PRESENTATION] != nullptr) && (queueSupport[VK_QUEUE_GRAPHICS] != nullptr))
 			break;
 	}
 
 	return queueSupport;
 }
 
-VulkanSwapChainSupport* VulkanContext::getDeviceSwapChainSupport(VkPhysicalDevice device)
+VKSwapChainSupport* VKContext::getDeviceSwapChainSupport(VkPhysicalDevice device)
 {
-	VulkanSwapChainSupport* swapChainSupport = new VulkanSwapChainSupport();
+	VKSwapChainSupport* swapChainSupport = new VKSwapChainSupport();
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, this->surface, &swapChainSupport->SurfaceCapabilities);
 
@@ -849,7 +849,7 @@ VulkanSwapChainSupport* VulkanContext::getDeviceSwapChainSupport(VkPhysicalDevic
 	return swapChainSupport;
 }
 
-uint32_t VulkanContext::getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+uint32_t VKContext::getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
 	VkPhysicalDeviceMemoryProperties memoryProperties;
 	vkGetPhysicalDeviceMemoryProperties(this->device, &memoryProperties);
@@ -862,7 +862,7 @@ uint32_t VulkanContext::getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
 	return -1;
 }
 
-VkPresentModeKHR VulkanContext::getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes)
+VkPresentModeKHR VKContext::getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes)
 {
 	std::vector<VkPresentModeKHR> prioritizedModes = {
 		VK_PRESENT_MODE_MAILBOX_KHR,
@@ -879,36 +879,36 @@ VkPresentModeKHR VulkanContext::getPresentationMode(const std::vector<VkPresentM
 	return (!presentationModes.empty() ? presentationModes[0] : VK_PRESENT_MODE_FIFO_KHR);
 }
 
-VkSurfaceFormatKHR* VulkanContext::getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &sufaceFormats)
+VkSurfaceFormatKHR VKContext::getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats)
 {
-	VkSurfaceFormatKHR* surfaceFormat = new VkSurfaceFormatKHR();
+	VkSurfaceFormatKHR surfaceFormat = {};//new VkSurfaceFormatKHR();
 
-	surfaceFormat->format     = VK_FORMAT_B8G8R8A8_UNORM;
-	surfaceFormat->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	surfaceFormat.format     = VK_FORMAT_B8G8R8A8_UNORM;
+	surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
-	for (auto format : sufaceFormats) {
-		if ((format.format == VK_FORMAT_UNDEFINED) || ((format.format == surfaceFormat->format) && (format.colorSpace == surfaceFormat->colorSpace)))
+	for (auto format : surfaceFormats) {
+		if ((format.format == VK_FORMAT_UNDEFINED) || ((format.format == surfaceFormat.format) && (format.colorSpace == surfaceFormat.colorSpace)))
 			return surfaceFormat;
 	}
 
-	if (!sufaceFormats.empty()) {
-		surfaceFormat->format     = sufaceFormats[0].format;
-		surfaceFormat->colorSpace = sufaceFormats[0].colorSpace;
-	} else {
-		_DELETEP(surfaceFormat);
+	if (!surfaceFormats.empty()) {
+		surfaceFormat.format     = surfaceFormats[0].format;
+		surfaceFormat.colorSpace = surfaceFormats[0].colorSpace;
+	//} else {
+		//_DELETEP(surfaceFormat);
 	}
 
 	return surfaceFormat;
 }
 
-VkExtent2D* VulkanContext::getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities)
+VkExtent2D VKContext::getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities)
 {
 	// Use the currently selected size if already detected
 	if (capabilities.currentExtent.width != UINT32_MAX)
-		return new VkExtent2D(capabilities.currentExtent);
+		return VkExtent2D(capabilities.currentExtent);
 
 	// Otherwise try to match the size as much as possible to the canvas size
-	VkExtent2D* size = new VkExtent2D();
+	VkExtent2D size = {};//new VkExtent2D();
 
 	uint32_t width     = (uint32_t)RenderEngine::Canvas.Size.GetWidth();
 	uint32_t height    = (uint32_t)RenderEngine::Canvas.Size.GetHeight();
@@ -917,13 +917,13 @@ VkExtent2D* VulkanContext::getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabi
 	uint32_t maxWidth  = capabilities.maxImageExtent.width;
 	uint32_t maxHeight = capabilities.maxImageExtent.height;
 
-	size->width  = std::max(minWidth,  std::min(maxWidth,  width));
-	size->height = std::max(minHeight, std::min(maxHeight, height));
+	size.width  = std::max(minWidth,  std::min(maxWidth,  width));
+	size.height = std::max(minHeight, std::min(maxHeight, height));
 
 	return size;
 }
 
-VkPipelineColorBlendStateCreateInfo* VulkanContext::initColorBlending()
+VkPipelineColorBlendStateCreateInfo* VKContext::initColorBlending()
 {
 
 	VkPipelineColorBlendAttachmentState* colorBlendAttachment = new VkPipelineColorBlendAttachmentState();
@@ -953,7 +953,7 @@ VkPipelineColorBlendStateCreateInfo* VulkanContext::initColorBlending()
 	return colorBlending;
 }
 
-std::vector<VkCommandBuffer> VulkanContext::initCommandBuffers(uint32_t bufferCount)
+std::vector<VkCommandBuffer> VKContext::initCommandBuffers(uint32_t bufferCount)
 {
 	// Command buffer allocation
 	VkCommandBufferAllocateInfo  allocateInfo   = {};
@@ -971,13 +971,13 @@ std::vector<VkCommandBuffer> VulkanContext::initCommandBuffers(uint32_t bufferCo
 	return commandBuffers;
 }
 
-VkCommandPool VulkanContext::initCommandPool()
+VkCommandPool VKContext::initCommandPool()
 {
 	VkCommandPoolCreateInfo commandPoolInfo = {};
 	VkCommandPool           commandPool     = nullptr;
 
 	commandPoolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	commandPoolInfo.queueFamilyIndex = this->queues[VULKAN_QUEUE_GRAPHICS]->Index;
+	commandPoolInfo.queueFamilyIndex = this->queues[VK_QUEUE_GRAPHICS]->Index;
 	commandPoolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
 	if (vkCreateCommandPool(this->deviceContext, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
@@ -986,7 +986,7 @@ VkCommandPool VulkanContext::initCommandPool()
 	return commandPool;
 }
 
-VkPipelineDepthStencilStateCreateInfo* VulkanContext::initDepthStencilBuffer()
+VkPipelineDepthStencilStateCreateInfo* VKContext::initDepthStencilBuffer()
 {
 	VkPipelineDepthStencilStateCreateInfo* depthStencilBuffer = new VkPipelineDepthStencilStateCreateInfo();
 
@@ -995,7 +995,7 @@ VkPipelineDepthStencilStateCreateInfo* VulkanContext::initDepthStencilBuffer()
 	return depthStencilBuffer;
 }
 
-VkDevice VulkanContext::initDeviceContext()
+VkDevice VKContext::initDeviceContext()
 {
 	if ((this->instance == nullptr) || (this->surface == nullptr))
 		return nullptr;
@@ -1012,7 +1012,7 @@ VkDevice VulkanContext::initDeviceContext()
 
 	// Get the unique queue indices for graphics and presentation (they may be the same)
 	std::set<uint32_t> uniqueQueueIndices = {
-		(uint32_t)this->queues[VULKAN_QUEUE_PRESENTATION]->Index, (uint32_t)this->queues[VULKAN_QUEUE_GRAPHICS]->Index
+		(uint32_t)this->queues[VK_QUEUE_PRESENTATION]->Index, (uint32_t)this->queues[VK_QUEUE_GRAPHICS]->Index
 	};
 
 	for (auto index : uniqueQueueIndices)
@@ -1044,13 +1044,13 @@ VkDevice VulkanContext::initDeviceContext()
 		return nullptr;
 
 	// Create the graphics and presentation queues
-	vkGetDeviceQueue(deviceContext, this->queues[VULKAN_QUEUE_GRAPHICS]->Index,     0, &this->queues[VULKAN_QUEUE_GRAPHICS]->Queue);
-	vkGetDeviceQueue(deviceContext, this->queues[VULKAN_QUEUE_PRESENTATION]->Index, 0, &this->queues[VULKAN_QUEUE_PRESENTATION]->Queue);
+	vkGetDeviceQueue(deviceContext, this->queues[VK_QUEUE_GRAPHICS]->Index,     0, &this->queues[VK_QUEUE_GRAPHICS]->Queue);
+	vkGetDeviceQueue(deviceContext, this->queues[VK_QUEUE_PRESENTATION]->Index, 0, &this->queues[VK_QUEUE_PRESENTATION]->Queue);
 
 	return deviceContext;
 }
 
-std::vector<VkFramebuffer> VulkanContext::initFramebuffers()
+std::vector<VkFramebuffer> VKContext::initFramebuffers()
 {
 	std::vector<VkFramebuffer> frameBuffers = std::vector<VkFramebuffer>(this->swapChain->ImageViews.size());
 
@@ -1062,8 +1062,8 @@ std::vector<VkFramebuffer> VulkanContext::initFramebuffers()
 		framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		framebufferInfo.attachmentCount = 1;
 		framebufferInfo.pAttachments    = attachments;
-		framebufferInfo.width           = this->swapChain->Size->width;
-		framebufferInfo.height          = this->swapChain->Size->height;
+		framebufferInfo.width           = this->swapChain->Size.width;
+		framebufferInfo.height          = this->swapChain->Size.height;
 		framebufferInfo.layers          = 1;
 		framebufferInfo.renderPass      = this->renderPass;
 
@@ -1074,7 +1074,7 @@ std::vector<VkFramebuffer> VulkanContext::initFramebuffers()
 
 	return frameBuffers;
 }
-VkInstance VulkanContext::initInstance()
+VkInstance VKContext::initInstance()
 {
 	VkApplicationInfo        appInfo      = {};
 	std::vector<const char*> extensions   = { "VK_KHR_surface" };
@@ -1111,7 +1111,7 @@ VkInstance VulkanContext::initInstance()
 
 		debugInfo.sType       = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
 		debugInfo.flags       = (VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT);
-		debugInfo.pfnCallback = VulkanContext::debugLog;
+		debugInfo.pfnCallback = VKContext::debugLog;
 
 		// Try to load the external method
 		PFN_vkCreateDebugReportCallbackEXT createDebugReportCallback = VK_NULL_HANDLE;
@@ -1127,7 +1127,7 @@ VkInstance VulkanContext::initInstance()
 	return instance;
 }
 
-VkPipelineMultisampleStateCreateInfo* VulkanContext::initMultisampling()
+VkPipelineMultisampleStateCreateInfo* VKContext::initMultisampling()
 {
 	VkPipelineMultisampleStateCreateInfo* multisampling = new VkPipelineMultisampleStateCreateInfo();
 
@@ -1143,7 +1143,7 @@ VkPipelineMultisampleStateCreateInfo* VulkanContext::initMultisampling()
 }
 
 //VkPipeline VulkanContext::initPipeline(VkShaderModule vulkanVS, VkShaderModule vulkanFS)
-bool VulkanContext::initPipeline(ShaderProgram* shaderProgram, VkPipeline &pipeline, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS])
+bool VKContext::initPipeline(ShaderProgram* shaderProgram, VkPipeline &pipeline, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS])
 {
 	if ((this->deviceContext == nullptr) || (shaderProgram == nullptr))
 		return false;
@@ -1215,7 +1215,7 @@ bool VulkanContext::initPipeline(ShaderProgram* shaderProgram, VkPipeline &pipel
 	return true;
 }
 
-VkPipelineLayout VulkanContext::initPipelineLayout()
+VkPipelineLayout VKContext::initPipelineLayout()
 {
 	if (this->deviceContext == nullptr)
 		return nullptr;
@@ -1235,7 +1235,7 @@ VkPipelineLayout VulkanContext::initPipelineLayout()
 	return pipelineLayout;
 }
 
-VkPipelineRasterizationStateCreateInfo* VulkanContext::initRasterizer()
+VkPipelineRasterizationStateCreateInfo* VKContext::initRasterizer()
 {
 	VkPipelineRasterizationStateCreateInfo* rasterizer = new VkPipelineRasterizationStateCreateInfo();
 
@@ -1257,7 +1257,7 @@ VkPipelineRasterizationStateCreateInfo* VulkanContext::initRasterizer()
 	return rasterizer;
 }
 
-VkRenderPass VulkanContext::initRenderPass()
+VkRenderPass VKContext::initRenderPass()
 {
 	VkAttachmentDescription colorAttachment    = {};
 	VkAttachmentReference   colorAttachmentRef = {};
@@ -1266,7 +1266,7 @@ VkRenderPass VulkanContext::initRenderPass()
 	VkSubpassDependency     subPassDependency  = {};
 	VkRenderPass            renderPass         = nullptr;
 
-	colorAttachment.format         = this->swapChain->SurfaceFormat->format;
+	colorAttachment.format         = this->swapChain->SurfaceFormat.format;
 	colorAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
 	//colorAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -1305,7 +1305,7 @@ VkRenderPass VulkanContext::initRenderPass()
 	return renderPass;
 }
 
-VkSurfaceKHR VulkanContext::initSurface()
+VkSurfaceKHR VKContext::initSurface()
 {
 	if (this->instance == nullptr)
 		return nullptr;
@@ -1336,7 +1336,7 @@ VkSurfaceKHR VulkanContext::initSurface()
 	return surface;
 }
 
-VulkanSwapchain* VulkanContext::initSwapChain(VulkanSwapChainSupport* swapChainSupport, VkSurfaceKHR surface)
+VKSwapchain* VKContext::initSwapChain(VKSwapChainSupport* swapChainSupport, VkSurfaceKHR surface)
 {
 	if ((swapChainSupport == nullptr) || (this->deviceContext == nullptr))
 		return nullptr;
@@ -1344,7 +1344,7 @@ VulkanSwapchain* VulkanContext::initSwapChain(VulkanSwapChainSupport* swapChainS
 	VkPresentModeKHR presentMode   = this->getPresentationMode(swapChainSupport->PresentModes);
 	uint32_t         maxImageCount = swapChainSupport->SurfaceCapabilities.maxImageCount;
 	uint32_t         imageCount    = (swapChainSupport->SurfaceCapabilities.minImageCount + 1);
-	VulkanSwapchain* swapChain     = new VulkanSwapchain(this->deviceContext);
+	VKSwapchain*     swapChain     = new VKSwapchain(this->deviceContext);
 
 	swapChain->SurfaceFormat = this->getSurfaceFormat(swapChainSupport->SurfaceFormats);
 	swapChain->Size          = this->getSurfaceSize(swapChainSupport->SurfaceCapabilities);
@@ -1364,19 +1364,19 @@ VulkanSwapchain* VulkanContext::initSwapChain(VulkanSwapChainSupport* swapChainS
 	swapChainInfo.presentMode      = presentMode;
 	swapChainInfo.surface          = surface;
 	swapChainInfo.minImageCount    = imageCount;
-	swapChainInfo.imageFormat      = swapChain->SurfaceFormat->format;
-	swapChainInfo.imageColorSpace  = swapChain->SurfaceFormat->colorSpace;
-	swapChainInfo.imageExtent      = *swapChain->Size;
+	swapChainInfo.imageFormat      = swapChain->SurfaceFormat.format;
+	swapChainInfo.imageColorSpace  = swapChain->SurfaceFormat.colorSpace;
+	swapChainInfo.imageExtent      = swapChain->Size;
 	swapChainInfo.imageArrayLayers = 1;
 	swapChainInfo.imageUsage       = (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 	swapChainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	// Use concurrenct share mode if the graphics and presentation queues are different
-	if (this->queues[VULKAN_QUEUE_PRESENTATION]->Queue != this->queues[VULKAN_QUEUE_GRAPHICS]->Queue)
+	if (this->queues[VK_QUEUE_PRESENTATION]->Queue != this->queues[VK_QUEUE_GRAPHICS]->Queue)
 	{
 		uint32_t queueIndices[] = {
-			(uint32_t)this->queues[VULKAN_QUEUE_PRESENTATION]->Index,
-			(uint32_t)this->queues[VULKAN_QUEUE_GRAPHICS]->Index
+			(uint32_t)this->queues[VK_QUEUE_PRESENTATION]->Index,
+			(uint32_t)this->queues[VK_QUEUE_GRAPHICS]->Index
 		};
 
 		swapChainInfo.imageSharingMode      = VK_SHARING_MODE_CONCURRENT;
@@ -1401,7 +1401,7 @@ VulkanSwapchain* VulkanContext::initSwapChain(VulkanSwapChainSupport* swapChainS
 		VkImageViewCreateInfo imageViewInfo = {};
 
 		imageViewInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		imageViewInfo.format                      = swapChain->SurfaceFormat->format;
+		imageViewInfo.format                      = swapChain->SurfaceFormat.format;
 		imageViewInfo.image                       = swapChain->Images[i];
 		imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		imageViewInfo.subresourceRange.levelCount = 1;
@@ -1415,7 +1415,7 @@ VulkanSwapchain* VulkanContext::initSwapChain(VulkanSwapChainSupport* swapChainS
 	return swapChain;
 }
 
-bool VulkanContext::initSync()
+bool VKContext::initSync()
 {
 	VkFenceCreateInfo     fenceInfo     = {};
 	VkSemaphoreCreateInfo semaphoreInfo = {};
@@ -1447,7 +1447,7 @@ bool VulkanContext::initSync()
 	return true;
 }
 
-VkPipelineViewportStateCreateInfo* VulkanContext::initViewportState()
+VkPipelineViewportStateCreateInfo* VKContext::initViewportState()
 {
 	VkRect2D*                          scissorRect   = new VkRect2D();
 	VkViewport*                        viewport      = new VkViewport();
@@ -1455,13 +1455,13 @@ VkPipelineViewportStateCreateInfo* VulkanContext::initViewportState()
 
 	viewport->x        = 0.0f;
 	viewport->y        = 0.0f;
-	viewport->width    = (float)this->swapChain->Size->width;
-	viewport->height   = (float)this->swapChain->Size->height;
+	viewport->width    = (float)this->swapChain->Size.width;
+	viewport->height   = (float)this->swapChain->Size.height;
 	viewport->minDepth = 0.0f;
 	viewport->maxDepth = 1.0f;
 
 	scissorRect->offset = { 0, 0 };
-	scissorRect->extent = *this->swapChain->Size;
+	scissorRect->extent = this->swapChain->Size;
 
 	viewportState->sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	viewportState->viewportCount = 1;
@@ -1473,7 +1473,7 @@ VkPipelineViewportStateCreateInfo* VulkanContext::initViewportState()
 }
 
 //VkDescriptorSetLayout VulkanContext::initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags)
-VkDescriptorSetLayout VulkanContext::initUniformLayout()
+VkDescriptorSetLayout VKContext::initUniformLayout()
 {
 	if (this->deviceContext == nullptr)
 		return nullptr;
@@ -1506,7 +1506,7 @@ VkDescriptorSetLayout VulkanContext::initUniformLayout()
 	return uniformLayout;
 }
 
-VkDescriptorPool VulkanContext::initUniformPool()
+VkDescriptorPool VKContext::initUniformPool()
 {
 	if (this->deviceContext == nullptr)
 		return nullptr;
@@ -1530,7 +1530,7 @@ VkDescriptorPool VulkanContext::initUniformPool()
 	return uniformPool;
 }
 
-VkDescriptorSet VulkanContext::initUniformSet()
+VkDescriptorSet VKContext::initUniformSet()
 {
 	if (this->deviceContext == nullptr)
 		return nullptr;
@@ -1550,7 +1550,7 @@ VkDescriptorSet VulkanContext::initUniformSet()
 	return uniformSet;
 }
 
-bool VulkanContext::init(bool vsync)
+bool VKContext::init(bool vsync)
 {
 	this->frameIndex = 0;
 
@@ -1658,12 +1658,12 @@ bool VulkanContext::init(bool vsync)
 	return true;
 }
 
-bool VulkanContext::IsOK()
+bool VKContext::IsOK()
 {
 	return this->isOK;
 }
 
-void VulkanContext::release()
+void VKContext::release()
 {
 	if (this->deviceContext != nullptr)
 		vkDeviceWaitIdle(this->deviceContext);
@@ -1752,7 +1752,7 @@ void VulkanContext::release()
 	}
 
 	for (auto queue : this->queues)
-		_DELETEP(queue.second);
+		_DELETEP(queue);
 
 	this->queues.clear();
 
@@ -1780,7 +1780,7 @@ void VulkanContext::release()
 	}
 }
 
-void VulkanContext::Present()
+void VKContext::Present()
 {
 	VkPresentInfoKHR     presentInfo        = {};
 	VkSemaphore          signalSemaphores[] = { this->semDrawComplete[this->frameIndex] };
@@ -1805,7 +1805,7 @@ void VulkanContext::Present()
 	submitInfo.waitSemaphoreCount   = 1;
 	submitInfo.pWaitDstStageMask    = waitStages;
 
-	vkQueueSubmit(this->queues[VULKAN_QUEUE_GRAPHICS]->Queue, 1, &submitInfo, this->frameFences[this->frameIndex]);
+	vkQueueSubmit(this->queues[VK_QUEUE_GRAPHICS]->Queue, 1, &submitInfo, this->frameFences[this->frameIndex]);
 
 	// PRESENT THE DRAWN BUFFER TO SCREEN
 	presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -1816,7 +1816,7 @@ void VulkanContext::Present()
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains    = swapChains;
 
-	VkResult result = vkQueuePresentKHR(this->queues[VULKAN_QUEUE_PRESENTATION]->Queue, &presentInfo);
+	VkResult result = vkQueuePresentKHR(this->queues[VK_QUEUE_PRESENTATION]->Queue, &presentInfo);
 
 	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR))
 		this->UpdateSwapChain();
@@ -1824,15 +1824,15 @@ void VulkanContext::Present()
 	this->frameIndex = ((this->frameIndex + 1) % MAX_CONCURRENT_FRAMES);
 
 	// WAIT FOR PRESENTATION TO FINISH
-	vkQueueWaitIdle(this->queues[VULKAN_QUEUE_PRESENTATION]->Queue);
+	vkQueueWaitIdle(this->queues[VK_QUEUE_PRESENTATION]->Queue);
 }
 
-void VulkanContext::SetVSync(bool enable)
+void VKContext::SetVSync(bool enable)
 {
 	this->vSync = enable;
 }
 
-bool VulkanContext::UpdateSwapChain()
+bool VKContext::UpdateSwapChain()
 {
 	this->release();
 

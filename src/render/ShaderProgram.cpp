@@ -35,8 +35,8 @@ ShaderProgram::~ShaderProgram()
 		glDeleteProgram(this->program);
 		//break;
 	//case GRAPHICS_API_VULKAN:
-	RenderEngine::Canvas.Vulkan->DestroyShaderModule(&this->vulkanFS);
-	RenderEngine::Canvas.Vulkan->DestroyShaderModule(&this->vulkanVS);
+	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanFS);
+	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanVS);
 	//RenderEngine::Canvas.Vulkan->DestroyPipeline(this->pipeline);
 		//break;
 	//default:
@@ -275,10 +275,10 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		if (RenderEngine::Canvas.Vulkan->CreateShaderModule(vs, wxT("vert"), &this->vulkanVS) != 0)
+		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, wxT("vert"), &this->vulkanVS) != 0)
 			return -2;
 
-		if (RenderEngine::Canvas.Vulkan->CreateShaderModule(fs, wxT("frag"), &this->vulkanFS) != 0)
+		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, wxT("frag"), &this->vulkanFS) != 0)
 			return -3;
 
 		//this->pipeline = RenderEngine::Canvas.Vulkan->InitPipeline(this->vulkanVS, this->vulkanFS);

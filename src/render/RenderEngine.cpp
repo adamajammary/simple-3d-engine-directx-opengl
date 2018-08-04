@@ -29,7 +29,7 @@ void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.Vulkan->Clear(r, g, b, a);
+		RenderEngine::Canvas.VK->Clear(r, g, b, a);
 		break;
 	}
 }
@@ -45,7 +45,7 @@ void RenderEngine::Close()
 
 	_DELETEP(RenderEngine::Canvas.DX);
 	_DELETEP(RenderEngine::Canvas.GL);
-	_DELETEP(RenderEngine::Canvas.Vulkan);
+	_DELETEP(RenderEngine::Canvas.VK);
 
 	if (RenderEngine::Canvas.Canvas != nullptr) {
 		RenderEngine::Canvas.Canvas->DestroyChildren();
@@ -117,11 +117,11 @@ void RenderEngine::Draw()
 
 	switch (Utils::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11: RenderEngine::Canvas.DX->Present11(); break;
-		case GRAPHICS_API_DIRECTX12: RenderEngine::Canvas.DX->Present12(); break;
+		case GRAPHICS_API_DIRECTX11: RenderEngine::Canvas.DX->Present11();       break;
+		case GRAPHICS_API_DIRECTX12: RenderEngine::Canvas.DX->Present12();       break;
 		#endif
-		case GRAPHICS_API_OPENGL: RenderEngine::Canvas.Canvas->SwapBuffers(); break;
-		case GRAPHICS_API_VULKAN: RenderEngine::Canvas.Vulkan->Present();     break;
+		case GRAPHICS_API_OPENGL:    RenderEngine::Canvas.Canvas->SwapBuffers(); break;
+		case GRAPHICS_API_VULKAN:    RenderEngine::Canvas.VK->Present();         break;
 	}
 }
 
@@ -443,7 +443,7 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, bool enab
 
 int RenderEngine::drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
-	return RenderEngine::Canvas.Vulkan->Draw(mesh, shaderProgram, enableClipping, clipMax, clipMin);
+	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, enableClipping, clipMax, clipMin);
 }
 
 int RenderEngine::Init(WindowFrame* window, const wxSize &size)
@@ -524,8 +524,8 @@ void RenderEngine::SetAspectRatio(const wxString &ratio)
 		(int)((float)RenderEngine::Canvas.Size.GetWidth() * RenderEngine::Canvas.AspectRatio)
 	);
 
-	if (RenderEngine::Canvas.Vulkan != nullptr)
-		RenderEngine::Canvas.Vulkan->UpdateSwapChain();
+	if (RenderEngine::Canvas.VK != nullptr)
+		RenderEngine::Canvas.VK->UpdateSwapChain();
 }
 
 void RenderEngine::SetCanvasSize(int width, int height)
@@ -638,9 +638,9 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.Vulkan = new VulkanContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
+		RenderEngine::Canvas.VK = new VKContext(api, RenderEngine::Canvas.Window->VSyncEnable->GetValue());
 
-		if (!RenderEngine::Canvas.Vulkan->IsOK())
+		if (!RenderEngine::Canvas.VK->IsOK())
 			return -2;
 
 		break;

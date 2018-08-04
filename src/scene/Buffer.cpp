@@ -49,7 +49,7 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.Vulkan->CreateIndexBuffer(indices, &this->indexBuffer, &this->indexBufferMemory);
+		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, &this->indexBuffer, &this->indexBufferMemory);
 		break;
 	default:
 		break;
@@ -105,8 +105,8 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.Vulkan->CreateVertexBuffer(vertices, normals, texCoords, this->pipelines, &this->vertexBuffer, &this->vertexBufferMemory);
-		RenderEngine::Canvas.Vulkan->CreateUniformBuffers(this->uniformBuffers, this->uniformBufferMemories);
+		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this->pipelines, &this->vertexBuffer, &this->vertexBufferMemory);
+		RenderEngine::Canvas.VK->CreateUniformBuffers(this->uniformBuffers, this->uniformBufferMemories);
 		break;
 	}
 }
@@ -164,17 +164,17 @@ Buffer::~Buffer()
 		//break;
 	//case GRAPHICS_API_VULKAN:
 	for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-		RenderEngine::Canvas.Vulkan->DestroyPipeline(&this->pipelines[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
 		//break;
 	//default:
 		//break;
 	//}
 
 	for (uint32_t i = 0; i < NR_OF_UNIFORM_BUFFERS; i++)
-		RenderEngine::Canvas.Vulkan->DestroyBuffer(&this->uniformBuffers[i], &this->uniformBufferMemories[i]);
+		RenderEngine::Canvas.VK->DestroyBuffer(&this->uniformBuffers[i], &this->uniformBufferMemories[i]);
 
-	RenderEngine::Canvas.Vulkan->DestroyBuffer(&this->indexBuffer,   &this->indexBufferMemory);
-	RenderEngine::Canvas.Vulkan->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,   &this->indexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
 }
 
 void Buffer::init()

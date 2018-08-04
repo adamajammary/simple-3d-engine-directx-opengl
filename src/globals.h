@@ -101,7 +101,7 @@ class Terrain;
 class Texture;
 class TimeManager;
 class Utils;
-class VulkanContext;
+class VKContext;
 class Water;
 class WaterFBO;
 class Window;
@@ -300,7 +300,7 @@ struct GLCanvas
 	wxGLContext*   GL          = nullptr;
 	wxPoint        Position    = wxPoint(0, 0);
 	wxSize         Size        = wxSize(0, 0);
-	VulkanContext* Vulkan      = nullptr;
+	VKContext*     VK          = nullptr;
 	WindowFrame*   Window      = nullptr;
 };
 
@@ -447,8 +447,8 @@ struct DXWaterBuffer
 #ifndef GE3D_DXCONTEXT_H
 	#include "render/DXContext.h"
 #endif
-#ifndef GE3D_VULKANCONTEXT_H
-	#include "render/VulkanContext.h"
+#ifndef GE3D_VKCONTEXT_H
+	#include "render/VKContext.h"
 #endif
 #ifndef GE3D_RENDERENGINE_H
 	#include "render/RenderEngine.h"

@@ -240,7 +240,7 @@ Texture::~Texture()
 	}
 		//break;
 	//case GRAPHICS_API_VULKAN:
-	RenderEngine::Canvas.Vulkan->DestroyTexture(&this->image, &this->imageMemory);
+	RenderEngine::Canvas.VK->DestroyTexture(&this->image, &this->imageMemory);
 		//break;
 	//}
 
@@ -439,7 +439,7 @@ void Texture::loadTextureImageVK(wxImage* image, bool cubemap, int index)
 	//if (this->transparent)
 	//	this->setAlphaBlending(true);
 
-	RenderEngine::Canvas.Vulkan->CreateTexture(
+	RenderEngine::Canvas.VK->CreateTexture(
 		(uint32_t)image2.GetWidth(), (uint32_t)image2.GetHeight(), pixels, &this->image, &this->imageMemory
 	);
 

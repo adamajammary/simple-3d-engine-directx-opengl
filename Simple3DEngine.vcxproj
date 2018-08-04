@@ -187,7 +187,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
     <ClCompile Include="src\render\RenderEngine.cpp" />
     <ClCompile Include="src\render\ShaderManager.cpp" />
     <ClCompile Include="src\render\ShaderProgram.cpp" />
-    <ClCompile Include="src\render\VulkanContext.cpp" />
+    <ClCompile Include="src\render\VKContext.cpp" />
     <ClCompile Include="src\scene\BoundingVolume.cpp" />
     <ClCompile Include="src\scene\Buffer.cpp" />
     <ClCompile Include="src\scene\Camera.cpp" />
@@ -218,7 +218,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
     <ClInclude Include="src\render\RenderEngine.h" />
     <ClInclude Include="src\render\ShaderManager.h" />
     <ClInclude Include="src\render\ShaderProgram.h" />
-    <ClInclude Include="src\render\VulkanContext.h" />
+    <ClInclude Include="src\render\VKContext.h" />
     <ClInclude Include="src\scene\BoundingVolume.h" />
     <ClInclude Include="src\scene\Buffer.h" />
     <ClInclude Include="src\scene\Camera.h" />

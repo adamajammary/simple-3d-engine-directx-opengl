@@ -2,30 +2,26 @@
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_VULKANCONTEXT_H
-#define GE3D_VULKANCONTEXT_H
+#ifndef GE3D_VKCONTEXT_H
+#define GE3D_VKCONTEXT_H
 
-enum VulkanQueueType { VULKAN_QUEUE_PRESENTATION, VULKAN_QUEUE_GRAPHICS, NR_OF_VULKAN_QUEUES };
-
-struct VulkanQueue
+enum VKQueueType
 {
-	int32_t Index;
+	VK_QUEUE_PRESENTATION, VK_QUEUE_GRAPHICS, NR_OF_VK_QUEUES
+};
+
+struct VKQueue
+{
+	int32_t Index = -1;
 	VkQueue Queue = nullptr;
 
-	VulkanQueue(int32_t index)
+	VKQueue(int32_t index)
 	{
 		this->Index = index;
 	}
 };
 
-/*struct VulkanQueues
-{
-	VulkanQueue* Graphics     = nullptr;
-	VulkanQueue* Presentation = nullptr;
-	size_t       NrOfQueues   = 0;
-};*/
-
-struct VulkanSwapchain
+struct VKSwapchain
 {
 private:
 	VkDevice deviceContext;
@@ -33,26 +29,19 @@ private:
 public:
 	std::vector<VkImage>     Images;
 	std::vector<VkImageView> ImageViews;
-	VkExtent2D*              Size;
-	VkSurfaceFormatKHR*      SurfaceFormat;
-	VkSwapchainKHR           SwapChain;
+	VkExtent2D               Size          = {};
+	VkSurfaceFormatKHR       SurfaceFormat = {};
+	VkSwapchainKHR           SwapChain     = nullptr;
 
-	VulkanSwapchain(VkDevice deviceContext)
+	VKSwapchain(VkDevice deviceContext)
 	{
 		this->deviceContext = deviceContext;
 	}
 
-	~VulkanSwapchain()
+	~VKSwapchain()
 	{
-		_DELETEP(this->Size);
-		_DELETEP(this->SurfaceFormat);
-
-		//for (auto image : this->Images) {
-		//	if (image != nullptr) {
-		//		vkDestroyImage(this->deviceContext, image, nullptr);
-		//		image = nullptr;
-		//	}
-		//}
+		//_DELETEP(this->Size);
+		//_DELETEP(this->SurfaceFormat);
 
 		for (auto imageView : this->ImageViews) {
 			if (imageView != nullptr) {
@@ -68,18 +57,18 @@ public:
 	}
 };
 
-struct VulkanSwapChainSupport
+struct VKSwapChainSupport
 {
-	VkSurfaceCapabilitiesKHR        SurfaceCapabilities;
+	VkSurfaceCapabilitiesKHR        SurfaceCapabilities = {};
 	std::vector<VkSurfaceFormatKHR> SurfaceFormats;
 	std::vector<VkPresentModeKHR>   PresentModes;
 };
 
-class VulkanContext
+class VKContext
 {
 public:
-	VulkanContext(GraphicsAPI api, bool vsync = true);
-	~VulkanContext();
+	VKContext(GraphicsAPI api, bool vsync = true);
+	~VKContext();
 
 private:
 	VkPipelineColorBlendStateCreateInfo*    colorBlending;
@@ -96,15 +85,15 @@ private:
 	bool                                    isOK;
 	VkPipelineMultisampleStateCreateInfo*   multisampling;
 	VkPipelineLayout                        pipelineLayout;
-	std::map<VulkanQueueType, VulkanQueue*> queues;
+	std::vector<VKQueue*>                   queues;
 	VkPipelineRasterizationStateCreateInfo* rasterizer;
 	VkRenderPass                            renderPass;
 	std::vector<VkSemaphore>                semDrawComplete;
 	std::vector<VkSemaphore>                semImageAvailable;
-	VkPipelineShaderStageCreateInfo*        shaderStages[2];
+	//VkPipelineShaderStageCreateInfo*        shaderStages[2];
 	VkSurfaceKHR                            surface;
-	VulkanSwapchain*                        swapChain;
-	VulkanSwapChainSupport*                 swapChainSupport;
+	VKSwapchain*                            swapChain;
+	VKSwapChainSupport*                     swapChainSupport;
 	VkDescriptorSetLayout                   uniformLayout;
 	VkDescriptorPool                        uniformPool;
 	VkDescriptorSet                         uniformSet;
@@ -144,12 +133,12 @@ private:
 	wxString                                getApiVersion(VkPhysicalDevice device);
 	VkPhysicalDevice                        getDevice(const std::vector<const char*> &extensions);
 	wxString                                getDeviceName(VkPhysicalDevice device);
-	std::map<VulkanQueueType, VulkanQueue*> getDeviceQueueSupport(VkPhysicalDevice device);
-	VulkanSwapChainSupport*                 getDeviceSwapChainSupport(VkPhysicalDevice device);
+	std::vector<VKQueue*>                   getDeviceQueueSupport(VkPhysicalDevice device);
+	VKSwapChainSupport*                     getDeviceSwapChainSupport(VkPhysicalDevice device);
 	uint32_t                                getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	VkPresentModeKHR                        getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
-	VkSurfaceFormatKHR*                     getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &sufaceFormats);
-	VkExtent2D*                             getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
+	VkSurfaceFormatKHR                      getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
+	VkExtent2D                              getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
 	VkPipelineColorBlendStateCreateInfo*    initColorBlending();
 	std::vector<VkCommandBuffer>            initCommandBuffers(uint32_t bufferCount);
 	VkCommandPool                           initCommandPool();
@@ -163,7 +152,7 @@ private:
 	VkPipelineLayout                        initPipelineLayout();
 	VkRenderPass                            initRenderPass();
 	VkSurfaceKHR                            initSurface();
-	VulkanSwapchain*                        initSwapChain(VulkanSwapChainSupport* swapChainSupport, VkSurfaceKHR surface);
+	VKSwapchain*                            initSwapChain(VKSwapChainSupport* swapChainSupport, VkSurfaceKHR surface);
 	bool                                    initSync();
 	//VkDescriptorSetLayout                   initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags);
 	VkDescriptorSetLayout                   initUniformLayout();

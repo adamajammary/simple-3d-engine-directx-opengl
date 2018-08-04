@@ -126,7 +126,7 @@
     <ClCompile Include="3rd\json11-master\json11.cpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClCompile>
-    <ClCompile Include="src\render\VulkanContext.cpp">
+    <ClCompile Include="src\render\VKContext.cpp">
       <Filter>Render</Filter>
     </ClCompile>
   </ItemGroup>
@@ -215,7 +215,7 @@
     <ClInclude Include="3rd\json11-master\json11.hpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClInclude>
-    <ClInclude Include="src\render\VulkanContext.h">
+    <ClInclude Include="src\render\VKContext.h">
       <Filter>Render</Filter>
     </ClInclude>
   </ItemGroup>
