@@ -107,14 +107,6 @@ void RenderEngine::Draw()
     RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
 	RenderEngine::drawScene();
 
-
-
-	//// TODO: VULKAN
-	//if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
-	//	RenderEngine::Canvas.Vulkan->Draw(nullptr, ShaderManager::Programs[SHADER_ID_DEFAULT]);
-
-
-
 	switch (Utils::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11: RenderEngine::Canvas.DX->Present11();       break;

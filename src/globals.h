@@ -237,8 +237,8 @@ enum UniformBufferType
 
 struct AssImpMesh
 {
-	aiMesh*        Mesh;
-	const aiScene* Scene;
+	aiMesh*        Mesh  = nullptr;
+	const aiScene* Scene = nullptr;
 	aiMatrix4x4    Transformation;
 };
 
@@ -251,9 +251,9 @@ struct GPUDescription
 
 struct Icon
 {
-	wxString File  = "";
+	wxString File  = wxT("");
 	IconType ID    = ID_ICON_UNKNOWN;
-	wxString Title = "";
+	wxString Title = wxT("");
 };
 
 struct Light
@@ -272,9 +272,9 @@ struct MouseState
 
 struct Resource
 {
-	wxString File   = "";
-	wxString Name   = "";
-	wxString Result = "";
+	wxString File   = wxT("");
+	wxString Name   = wxT("");
+	wxString Result = wxT("");
 };
 
 struct Time

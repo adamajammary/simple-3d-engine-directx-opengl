@@ -179,7 +179,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 		#if defined _DEBUG
 		if (error != nullptr) {
 			wxMessageBox((char*)error->GetBufferPointer());
-			error->Release();
+			_RELEASEP(error);
 		}
 		#endif
 
@@ -193,7 +193,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 		#if defined _DEBUG
 		if (error != nullptr) {
 			wxMessageBox((char*)error->GetBufferPointer());
-			error->Release();
+			_RELEASEP(error);
 		}
 		#endif
 
@@ -215,8 +215,7 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
 	for (int i = 0; i < NR_OF_SHADERS; i++) {
-		if (buffer->ConstantBuffersDX11[i] != nullptr)
-			buffer->ConstantBuffersDX11[i]->Release();
+		_RELEASEP(buffer->ConstantBuffersDX11[i]);
 	}
 
 	for (int i = 0; i < NR_OF_SHADERS; i++)
@@ -244,13 +243,11 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 	HRESULT                         result          = -1;
 
 	for (int i = 0; i < NR_OF_SHADERS; i++) {
-		if (buffer->ConstantBuffersDX12[i] != nullptr)
-			buffer->ConstantBuffersDX12[i]->Release();
+		_RELEASEP(buffer->ConstantBuffersDX12[i]);
 	}
 
 	for (int i = 0; i < NR_OF_SHADERS; i++) {
-		if (buffer->ConstantBufferHeapsDX12[i] != nullptr)
-			buffer->ConstantBufferHeapsDX12[i]->Release();
+		_RELEASEP(buffer->ConstantBufferHeapsDX12[i]);
 	}
 
 	bufferHeapDesc.NumDescriptors = (1 + MAX_TEXTURES);
@@ -1265,7 +1262,7 @@ bool DXContext::init11(bool vsync)
 
 	// ADAPTER
 	IDXGIAdapter* adapter = this->getAdapter11(factory);
-	factory->Release();
+	_RELEASEP(factory);
 
 	if (adapter == nullptr)
 		return false;
@@ -1306,7 +1303,7 @@ bool DXContext::init11(bool vsync)
 		return false;
 
 	result = this->renderDevice11->CreateRenderTargetView(colorBuffer, nullptr, &this->colorBuffer);
-	colorBuffer->Release();
+	_RELEASEP(colorBuffer);
 	
 	if (FAILED(result))
 		return false;
@@ -1336,8 +1333,8 @@ bool DXContext::init11(bool vsync)
 	depthStencilViewDesc.ViewDimension      = (depthStencilResourceDesc.SampleDesc.Count > 1 ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D);
 
 	result = this->renderDevice11->CreateDepthStencilView(depthStencilBuffer, &depthStencilViewDesc, &this->depthStencilBuffer11);
-	depthStencilBuffer->Release();
-	
+	_RELEASEP(depthStencilBuffer);
+
 	if (FAILED(result))
 		return false;
 
@@ -1389,7 +1386,7 @@ bool DXContext::init12(bool vsync)
 	IDXGIAdapter1* adapter = this->getAdapter12(factory);
 	
 	if (adapter == nullptr) {
-		factory->Release();
+		_RELEASEP(factory);
 		return false;
 	}
 
@@ -1397,7 +1394,7 @@ bool DXContext::init12(bool vsync)
 	result = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&this->renderDevice12));
 	
 	if (FAILED(result)) {
-		factory->Release();
+		_RELEASEP(factory);
 		return false;
 	}
 
@@ -1427,7 +1424,7 @@ bool DXContext::init12(bool vsync)
 	result = this->renderDevice12->CreateCommandQueue(&commandQueue, IID_PPV_ARGS(&this->commandQueue));
 	
 	if (FAILED(result)) {
-		factory->Release();
+		_RELEASEP(factory);
 		return false;
 	}
 
@@ -1449,8 +1446,8 @@ bool DXContext::init12(bool vsync)
 	IDXGISwapChain* swapChain = nullptr;
 
 	result = factory->CreateSwapChain(this->commandQueue, &swapChainDesc, &swapChain);
-	factory->Release();
-	
+	_RELEASEP(factory);
+
 	if (FAILED(result))
 		return false;
 
