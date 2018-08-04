@@ -7,8 +7,8 @@ Release
 x64
 dna.txt
 3rd/assimp-4.1.0
-3rd/glew-2.0.0
-3rd/glm-0.9.9-a2
+3rd/glew-2.1.0
+3rd/glm
 3rd/json11-master
 3rd/libnoisesrc-1.0.0
 3rd/lzma1801

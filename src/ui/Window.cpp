@@ -14,11 +14,11 @@ void Window::GameLoop(wxIdleEvent &event)
 
 int Window::OnExit()
 {
+	RenderEngine::Ready         = false;
 	RenderEngine::Canvas.Canvas = nullptr;
 	RenderEngine::Canvas.Window = nullptr;
 
 	RenderEngine::Close();
-	//SceneManager::Clear();
 	_DELETEP(RenderEngine::Camera);
 
 	return 0;
@@ -32,7 +32,7 @@ bool Window::OnInit()
 	// WINDOW
 	wxString title = wxString(Utils::APP_NAME).append(" ").append(Utils::APP_VERSION);
 
-	this->frame = new WindowFrame(title, wxDefaultPosition, wxSize(1510, 860), this);
+	this->frame = new WindowFrame(title, wxDefaultPosition, wxSize(1510, 800), this);
 	this->frame->Show(true);
 	//this->frame->Maximize(true);
 

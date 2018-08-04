@@ -387,7 +387,7 @@ int VulkanContext::CreateShaderModule(const wxString &shaderFile, const wxString
 {
 	#if defined _DEBUG
 		wxArrayString output;
-		wxString      glsValidator = wxString(VULKAN_SDK_BIN).append("/glslangValidator -V ");
+		wxString      glsValidator = wxString(std::getenv("VK_SDK_PATH")).append("/Bin/glslangValidator -V ");
 		wxString      command      = wxString(glsValidator + shaderFile + " -S " + stage + " -o " + shaderFile + ".spv");
 		long          result       = wxExecute(command, output, wxEXEC_SYNC);
 
@@ -734,8 +734,13 @@ VkPhysicalDevice VulkanContext::getDevice(const std::vector<const char*> &extens
 
 	VkPhysicalDevice physicalDevice = nullptr;
 
+	//for (int i = 0; i == 0; i++)
+	//for (int i = 1; i == 1; i++)
 	for (auto device : devices)
 	{
+		//VkPhysicalDevice device = devices[i];
+
+
 		this->swapChainSupport = this->getDeviceSwapChainSupport(device);
 
 		if (this->swapChainSupport->PresentModes.empty() || this->swapChainSupport->SurfaceFormats.empty())
@@ -1512,14 +1517,12 @@ VkDescriptorPool VulkanContext::initUniformPool()
 
 	// TODO: VULKAN
 	uniformPoolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	//uniformPoolSize.descriptorCount = NR_OF_UNIFORMS;
-	uniformPoolSize.descriptorCount = 1;
+	uniformPoolSize.descriptorCount = 2;
 
 	uniformPoolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 	uniformPoolInfo.poolSizeCount = 1;
 	uniformPoolInfo.pPoolSizes    = &uniformPoolSize;
-	//uniformPoolInfo.maxSets       = NR_OF_UNIFORMS;
-	uniformPoolInfo.maxSets       = 1;
+	uniformPoolInfo.maxSets       = uniformPoolSize.descriptorCount;
 
 	if (vkCreateDescriptorPool(this->deviceContext, &uniformPoolInfo, nullptr, &uniformPool) != VK_SUCCESS)
 		return nullptr;
@@ -1716,14 +1719,6 @@ void VulkanContext::release()
 		this->uniformPool = nullptr;
 	}
 
-	// TODO: VULKAN
-	//for (uint32_t i = 0; i < 2; i++)
-	//{
-	//	if (this->uniformLayouts[i] != nullptr) {
-	//		vkDestroyDescriptorSetLayout(this->deviceContext, this->uniformLayouts[i], nullptr);
-	//		this->uniformLayouts[i] = nullptr;
-	//	}
-	//}
 	if (this->uniformLayout != nullptr) {
 		vkDestroyDescriptorSetLayout(this->deviceContext, this->uniformLayout, nullptr);
 		this->uniformLayout = nullptr;
@@ -1733,10 +1728,8 @@ void VulkanContext::release()
 	_DELETEP(this->multisampling);
 	_DELETEP(this->depthStencilBuffer);
 
-	if (this->colorBlending != nullptr) {
-		for (uint32_t i = 0; i < this->colorBlending->attachmentCount; i++)
-			_DELETEP(this->colorBlending->pAttachments);
-	}
+	if (this->colorBlending != nullptr)
+		_DELETEP(this->colorBlending->pAttachments);
 
 	_DELETEP(this->colorBlending);
 
@@ -1745,14 +1738,9 @@ void VulkanContext::release()
 		this->renderPass = nullptr;
 	}
 
-	if (this->viewportState != nullptr)
-	{
-		for (uint32_t i = 0; i < this->viewportState->scissorCount; i++)
-			_DELETEP(this->viewportState->pScissors);
-
-		for (uint32_t i = 0; i < this->viewportState->viewportCount; i++)
-			_DELETEP(this->viewportState->pViewports);
-
+	if (this->viewportState != nullptr) {
+		_DELETEP(this->viewportState->pScissors);
+		_DELETEP(this->viewportState->pViewports);
 		_DELETEP(this->viewportState);
 	}
 
@@ -1765,6 +1753,8 @@ void VulkanContext::release()
 
 	for (auto queue : this->queues)
 		_DELETEP(queue.second);
+
+	this->queues.clear();
 
 	_DELETEP(this->swapChainSupport);
 
