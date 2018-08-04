@@ -173,7 +173,7 @@ Buffer::~Buffer()
 	for (uint32_t i = 0; i < NR_OF_UNIFORM_BUFFERS; i++)
 		RenderEngine::Canvas.VK->DestroyBuffer(&this->uniformBuffers[i], &this->uniformBufferMemories[i]);
 
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,   &this->indexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,  &this->indexBufferMemory);
 	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
 }
 

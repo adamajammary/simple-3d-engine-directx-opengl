@@ -54,10 +54,8 @@ void RenderEngine::Close()
 	}
 }
 
-void RenderEngine::Draw()
+void RenderEngine::createWaterFBOs()
 {
-	// TODO: Move out to separate method
-	// WATER RENDER PASSES
 	for (auto water : RenderEngine::Waters)
 	{
 		if (water == nullptr)
@@ -104,8 +102,11 @@ void RenderEngine::Draw()
 
 		parent->FBO()->UnbindRefraction();
 	}
-    
-    // DEFAULT RENDER PASS
+}
+
+void RenderEngine::Draw()
+{
+	RenderEngine::createWaterFBOs();
     RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
 	RenderEngine::drawScene();
 

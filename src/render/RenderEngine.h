@@ -46,6 +46,7 @@ public:
 
 private:
 	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr);
+	static void           createWaterFBOs();
 	static int            drawBoundingVolumes();
 	static int            drawSelected();
 	static int            drawHUDs(bool        enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
