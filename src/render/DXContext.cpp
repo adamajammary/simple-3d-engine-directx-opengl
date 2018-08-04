@@ -521,7 +521,7 @@ int DXContext::CreateTexture11(
 	srvDesc.Format = textureDesc.Format;
 
 	if (pixels.size() > 1) {
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.ViewDimension         = D3D11_SRV_DIMENSION_TEXTURECUBE;
 		srvDesc.TextureCube.MipLevels = textureDesc.MipLevels;
 		//srvDesc.TextureCube.MostDetailedMip = 0;
 	} else {
@@ -536,7 +536,7 @@ int DXContext::CreateTexture11(
 
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	//samplerDesc->ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	samplerDesc.MaxAnisotropy  = 1;
+	samplerDesc.MaxAnisotropy  = 16;
 	samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
 
 	result = this->renderDevice11->CreateSamplerState(&samplerDesc, sampler);
@@ -649,7 +649,7 @@ int DXContext::CreateTexture12(
 	
 	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	//samplerDesc->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	samplerDesc.MaxAnisotropy  = 1;
+	samplerDesc.MaxAnisotropy  = 16;
 	samplerDesc.MaxLOD         = D3D12_FLOAT32_MAX;
 
 	return 0;

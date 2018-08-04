@@ -590,22 +590,23 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	if ((deviceContext == nullptr) || (uniformSet == nullptr) || (mesh == nullptr))
 		return -1;
 
-	Buffer* vertexBuffer = mesh->VertexBuffer();
+	//Buffer* vertexBuffer = mesh->VertexBuffer();
 
-	if (vertexBuffer == nullptr)
-		return -1;
+	//if (vertexBuffer == nullptr)
+	//	return -1;
 
-	VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);
-	VkDeviceMemory uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_MATRIX);
+	//VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);
+	//VkDeviceMemory uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_MATRIX);
 
-	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
-		return -2;
+	//if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
+	//	return -2;
 
 	void*                  bufferMemData     = nullptr;
 	GLDefaultBuffer        defaultValues     = {};
 	GLMatrixBuffer         matrices          = {};
 	bool                   removeTranslation = (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name);
 	VkDescriptorBufferInfo uniformBufferInfo = {};
+	VkDescriptorImageInfo  uniformImageInfo[MAX_TEXTURES] = {};
 	VkWriteDescriptorSet   uniformWriteSet   = {};
 
 	// Initialize uniform buffer descriptor set
@@ -616,9 +617,19 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uniformWriteSet.descriptorCount = 1;
 	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
-	//uniformWriteSet.pImageInfo = nullptr;
-	//uniformWriteSet.pTexelBufferView = nullptr;
 	//uniformWriteSet.dstArrayElement = 0;
+
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -1;
+
+	// MATRIX BUFFER
+	VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);
+	VkDeviceMemory uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_MATRIX);
+
+	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
+		return -2;
 
 	// Update matrix values
 	matrices.Model      = mesh->Matrix();
@@ -639,6 +650,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 
 	switch (this->ID()) {
 	case SHADER_ID_DEFAULT:
+		// DEFAULT BUFFER
 		uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_DEFAULT);
 		uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_DEFAULT);
 
@@ -650,8 +662,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 		defaultValues.ClipMax        = clipMax;
 		defaultValues.ClipMin        = clipMin;
 		defaultValues.EnableClipping = enableClipping;
-		//defaultValues.IsTextured     = mesh->IsTextured();
-		defaultValues.IsTextured     = 0;
+		defaultValues.IsTextured     = mesh->IsTextured();
 		defaultValues.MaterialColor  = mesh->Color;
 		defaultValues.SunLight       = SceneManager::SunLight;
 
@@ -666,6 +677,23 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 		// Update the descriptor set for binding 1 (default buffer)
 		uniformBufferInfo.buffer   = uniformBuffer;
 		uniformWriteSet.dstBinding = 1;
+
+		vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
+
+		// TEXTURE SAMPLER
+		for (int i = 0; i < MAX_TEXTURES; i++) {
+			uniformImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			uniformImageInfo[i].imageView   = mesh->Textures[i]->ImageView();
+			uniformImageInfo[i].sampler     = mesh->Textures[i]->Sampler();
+		}
+
+		// Update the descriptor set for binding 2 (texture sampler)
+		uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		uniformWriteSet.descriptorCount = MAX_TEXTURES;
+		uniformWriteSet.dstBinding      = 2;
+		uniformWriteSet.pBufferInfo     = nullptr;
+		uniformWriteSet.pImageInfo      = uniformImageInfo;
+		//uniformWriteSet.pTexelBufferView = nullptr;
 
 		vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
 

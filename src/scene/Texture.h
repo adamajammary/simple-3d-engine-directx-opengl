@@ -29,7 +29,10 @@ private:
 	std::vector<wxString> imageFiles;
 	VkDeviceMemory        imageMemory;
 	VkImage               image;
+	VkImageView           imageView;
 	bool                  repeat;
+	VkSampler             sampler;
+	VkSamplerCreateInfo   samplerInfo;
 	bool                  transparent;
 	GLenum                type;
 
@@ -47,16 +50,18 @@ private:
 	#endif
 
 public:
-	bool     FlipY();
-	bool     Repeat();
-	bool     Transparent();
-	GLuint   ID();
-	wxString ImageFile(int index = 0);
-	bool     IsOK();
-	void     SetFlipY(bool newFlipY);
-	void     SetRepeat(bool newRepeat);
-	void     SetTransparent(bool newTransparent);
-	GLenum   Type();
+	bool        FlipY();
+	bool        Repeat();
+	bool        Transparent();
+	GLuint      ID();
+	wxString    ImageFile(int index = 0);
+	VkImageView ImageView();
+	bool        IsOK();
+	VkSampler   Sampler();
+	void        SetFlipY(bool newFlipY);
+	void        SetRepeat(bool newRepeat);
+	void        SetTransparent(bool newTransparent);
+	GLenum      Type();
 
 	#if defined _WINDOWS
 		ID3D11RenderTargetView*                ColorBuffer11();
@@ -72,13 +77,16 @@ public:
 
 private:
 	void loadTextureImageGL(wxImage* image, bool cubemap = false, int index = 0);
-	void loadTextureImageVK(wxImage* image, bool cubemap = false, int index = 0);
+	//void loadTextureImageVK(wxImage* image, bool cubemap = false, int index = 0);
 	void loadTextureImagesVK(const std::vector<wxImage*> &images);
 	void reload();
-	void setAlphaBlending(bool enable);
+	void setAlphaBlendingGL(bool enable);
 	void setFilteringGL(bool mipmap = true);
+	void setFilteringVK(VkSamplerCreateInfo &samplerInfo);
 	void setWrappingGL();
+	void setWrappingVK(VkSamplerCreateInfo &samplerInfo);
 	void setWrappingCubemapGL();
+	void setWrappingCubemapVK(VkSamplerCreateInfo &samplerInfo);
 
 	#if defined _WINDOWS
 		void loadTextureImagesDX(const std::vector<wxImage*> &images);

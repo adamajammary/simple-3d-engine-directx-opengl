@@ -36,7 +36,7 @@ layout(binding = 1) uniform DefaultBuffer {
 	vec2  TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 } db;
 
-/*layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];*/
+layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
 /*
 varying vec3 FragmentNormal;
@@ -68,12 +68,12 @@ void main()
 	vec3 lightColor = (db.Ambient + (db.SunLight.Color.rgb * dot(normalize(FragmentNormal), normalize(-db.SunLight.Direction))));
 
 	// TEXTURE
-	/*if (db.IsTextured) {
+	if (db.IsTextured) {
 		vec4 texelColor = texture(Textures[0], tiledCoordinates);
 		GL_FragColor    = vec4((texelColor.rgb * lightColor), texelColor.a);
-	} else {*/
+	} else {
 		GL_FragColor = vec4((db.MaterialColor.rgb * lightColor), db.MaterialColor.a);
-	/*}*/
+	}
 
 	//GL_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
 	//GL_FragColor = vec4(db.MaterialColor.rgb, 1.0);

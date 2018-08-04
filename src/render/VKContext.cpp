@@ -350,6 +350,25 @@ int VKContext::createImage(
 	return 0;
 }
 
+VkImageView VKContext::createImageView(VkImage image, VkFormat imageFormat)
+{
+	VkImageViewCreateInfo imageViewInfo = {};
+	VkImageView           imageView     = nullptr;
+
+	imageViewInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	imageViewInfo.format                      = imageFormat;
+	imageViewInfo.image                       = image;
+	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageViewInfo.subresourceRange.levelCount = 1;
+	imageViewInfo.subresourceRange.layerCount = 1;
+	imageViewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+
+	if (vkCreateImageView(this->deviceContext, &imageViewInfo, nullptr, &imageView) != VK_SUCCESS)
+		return nullptr;
+
+	return imageView;
+}
+
 int VKContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory)
 {
 	VkBuffer              stagingBuffer         = nullptr;
@@ -412,21 +431,22 @@ int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &st
 }
 
 int VKContext::CreateTexture(
-	uint32_t        width,
-	uint32_t        height,
-	uint8_t*        imagePixels,
-	VkImage*        textureImage,
-	VkDeviceMemory* textureImageMemory
+	uint32_t                    width,
+	uint32_t                    height,
+	const std::vector<uint8_t*> &imagePixels,
+	VkImage*                    textureImage,
+	VkDeviceMemory*             textureImageMemory,
+	VkImageView*                textureImageView,
+	VkSampler*                  sampler,
+	VkSamplerCreateInfo         &samplerInfo
 )
 {
 	VkBufferUsageFlags    bufferUseFlags      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags bufferMemFlags      = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	//VkFormat              imageFormat         = (hasAlpha ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8_UNORM);
 	VkFormat              imageFormat         = VK_FORMAT_R8G8B8A8_UNORM;
 	void*                 imageMemData        = nullptr;
 	VkMemoryPropertyFlags imageUseFlags       = (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	VkMemoryPropertyFlags imageMemFlags       = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	//VkDeviceSize          imageSize           = (width * height * (hasAlpha ? 4 : 3));
 	VkDeviceSize          imageSize           = (width * height * 4);
 	VkBuffer              stagingBuffer       = nullptr;
 	VkDeviceMemory        stagingBufferMemory = nullptr;
@@ -435,9 +455,11 @@ int VKContext::CreateTexture(
 	if (this->createBuffer(imageSize, bufferUseFlags, bufferMemFlags, &stagingBuffer, &stagingBufferMemory) < 0)
 		return -1;
 
+	// TODO: CUBEMAP 6 image pixels
+
 	// COPY IMAGE DATA TO STAGE BUFFER
 	vkMapMemory(this->deviceContext, stagingBufferMemory, 0, imageSize, 0, &imageMemData);
-		memcpy(imageMemData, imagePixels, (size_t)imageSize);
+		memcpy(imageMemData, imagePixels[0], (size_t)imageSize);
 	vkUnmapMemory(this->deviceContext, stagingBufferMemory);
 
 	// CREATE IMAGE
@@ -459,17 +481,36 @@ int VKContext::CreateTexture(
 	vkFreeMemory(this->deviceContext,    stagingBufferMemory, nullptr);
 	vkDestroyBuffer(this->deviceContext, stagingBuffer,       nullptr);
 
+	// IMAGE VIEW
+	*textureImageView = this->createImageView(*textureImage, imageFormat);
+
+	if (*textureImageView == nullptr)
+		return -6;
+
+	// SAMPLER
+	samplerInfo.sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+	samplerInfo.anisotropyEnable = VK_TRUE;
+	samplerInfo.maxAnisotropy    = 16;
+	samplerInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+	samplerInfo.mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+	//samplerInfo.unnormalizedCoordinates = VK_FALSE;
+	//samplerInfo.compareEnable = VK_FALSE;
+	//samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	//samplerInfo.mipLodBias = 0.0f;
+	//samplerInfo.minLod = 0.0f;
+	//samplerInfo.maxLod = 0.0f;
+
+	if (vkCreateSampler(this->deviceContext, &samplerInfo, nullptr, sampler) != VK_SUCCESS)
+		return -7;
+
 	return 0;
 }
 
 int VKContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory)
 {
-	//VkDeviceSize          bufferSize     = (sizeof(GLMatrixBuffer) + sizeof(GLDefaultBuffer));
 	VkBufferUsageFlags    bufferUseFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags bufferMemFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	// TODO: VULKAN
-	//for (int i = 0; i < NR_OF_SHADERS; i++)
 	if (this->createBuffer(sizeof(GLMatrixBuffer), bufferUseFlags, bufferMemFlags, &uniformBuffer[UNIFORM_BUFFER_MATRIX], &uniformBufferMemory[UNIFORM_BUFFER_MATRIX]) < 0)
 		return 1;
 
@@ -646,6 +687,19 @@ bool VKContext::deviceSupportsExtensions(VkPhysicalDevice device, const std::vec
 	return true;
 }
 
+bool VKContext::deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features)
+{
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+	bool                     supported      = true;
+
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	if (features.samplerAnisotropy)
+		supported = deviceFeatures.samplerAnisotropy;
+
+	return supported;
+}
+
 int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
@@ -714,7 +768,7 @@ wxString VKContext::getApiVersion(VkPhysicalDevice device)
 	return wxString(apiVersion);
 }
 
-VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions)
+VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features)
 {
 	if (this->instance == nullptr)
 		return nullptr;
@@ -751,7 +805,7 @@ VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions
 		if ((this->queues[VK_QUEUE_GRAPHICS]->Index < 0) || (this->queues[VK_QUEUE_PRESENTATION]->Index < 0))
 			continue;
 
-		if (!this->deviceSupportsExtensions(device, extensions))
+		if (!this->deviceSupportsExtensions(device, extensions) || !this->deviceSupportsFeatures(device, features))
 			continue;
 
 		physicalDevice = device;
@@ -1001,8 +1055,11 @@ VkDevice VKContext::initDeviceContext()
 		return nullptr;
 
 	std::vector<const char*> extensions = { "VK_KHR_swapchain" };
+	VkPhysicalDeviceFeatures features   = {};
 
-	this->device = this->getDevice(extensions);
+	features.samplerAnisotropy = VK_TRUE;
+
+	this->device = this->getDevice(extensions, features);
 
 	if (this->device == nullptr)
 		return nullptr;
@@ -1030,7 +1087,6 @@ VkDevice VKContext::initDeviceContext()
 	// Create a device context (logical device) from a physical device
 	VkDevice                 deviceContext = nullptr;
 	VkDeviceCreateInfo       deviceInfo    = {};
-	VkPhysicalDeviceFeatures features      = {};
 
 	deviceInfo.sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	deviceInfo.queueCreateInfoCount    = queueInfos.size();
@@ -1397,20 +1453,7 @@ VKSwapchain* VKContext::initSwapChain(VKSwapChainSupport* swapChainSupport, VkSu
 	swapChain->ImageViews.resize(swapChain->Images.size());
 
 	for (int i = 0; i < (int)swapChain->Images.size(); i++)
-	{
-		VkImageViewCreateInfo imageViewInfo = {};
-
-		imageViewInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		imageViewInfo.format                      = swapChain->SurfaceFormat.format;
-		imageViewInfo.image                       = swapChain->Images[i];
-		imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageViewInfo.subresourceRange.levelCount = 1;
-		imageViewInfo.subresourceRange.layerCount = 1;
-		imageViewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
-
-		if (vkCreateImageView(this->deviceContext, &imageViewInfo, nullptr, &swapChain->ImageViews[i]) != VK_SUCCESS)
-			swapChain->ImageViews[i] = nullptr;
-	}
+		swapChain->ImageViews[i] = this->createImageView(swapChain->Images[i], swapChain->SurfaceFormat.format);
 
 	return swapChain;
 }
@@ -1439,9 +1482,6 @@ bool VKContext::initSync()
 
 		if (vkCreateSemaphore(this->deviceContext, &semaphoreInfo, nullptr, &this->semImageAvailable[i]) != VK_SUCCESS)
 			return false;
-
-		//vkCreateSemaphore(this->deviceContext, &semaphoreInfo, nullptr, &this->semDrawComplete2);
-		//vkCreateSemaphore(this->deviceContext, &semaphoreInfo, nullptr, &this->semImageAvailable2);
 	}
 
 	return true;
@@ -1472,32 +1512,36 @@ VkPipelineViewportStateCreateInfo* VKContext::initViewportState()
 	return viewportState;
 }
 
-//VkDescriptorSetLayout VulkanContext::initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags)
 VkDescriptorSetLayout VKContext::initUniformLayout()
 {
 	if (this->deviceContext == nullptr)
 		return nullptr;
 
-	VkDescriptorSetLayoutBinding    uniformMatrixBinding  = {};
-	VkDescriptorSetLayoutBinding    uniformDefaultBinding = {};
-	VkDescriptorSetLayoutCreateInfo uniformLayoutInfo     = {};
-	VkDescriptorSetLayout           uniformLayout         = nullptr;
+	VkDescriptorSetLayoutBinding    uniformLayoutBindings[NR_OF_UNIFORM_BUFFERS + 1] = {};
+	VkDescriptorSetLayoutCreateInfo uniformLayoutInfo = {};
+	VkDescriptorSetLayout           uniformLayout     = nullptr;
+	const int                       UNIFORM_SAMPLER   = 2;
 
-	uniformMatrixBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformMatrixBinding.descriptorCount = 1;
-	uniformMatrixBinding.binding         = 0;
-	uniformMatrixBinding.stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-	//uniformLayoutBinding.pImmutableSamplers = nullptr;
+	// MATRIX BUFFER
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorCount = 1;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].binding         = UNIFORM_BUFFER_MATRIX;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
 
-	uniformDefaultBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformDefaultBinding.descriptorCount = 1;
-	uniformDefaultBinding.binding         = 1;
-	uniformDefaultBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+	// DEFAULT BUFFER
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorCount = 1;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].binding         = UNIFORM_BUFFER_DEFAULT;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-	VkDescriptorSetLayoutBinding uniformLayoutBindings[] = { uniformMatrixBinding, uniformDefaultBinding };
+	// TEXTURE SAMPLER
+	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorCount = MAX_TEXTURES;
+	uniformLayoutBindings[UNIFORM_SAMPLER].binding         = UNIFORM_SAMPLER;
+	uniformLayoutBindings[UNIFORM_SAMPLER].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 	uniformLayoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	uniformLayoutInfo.bindingCount = 2;
+	uniformLayoutInfo.bindingCount = (NR_OF_UNIFORM_BUFFERS + 1);
 	uniformLayoutInfo.pBindings    = uniformLayoutBindings;
 
 	if (vkCreateDescriptorSetLayout(this->deviceContext, &uniformLayoutInfo, nullptr, &uniformLayout) != VK_SUCCESS)
@@ -1511,18 +1555,20 @@ VkDescriptorPool VKContext::initUniformPool()
 	if (this->deviceContext == nullptr)
 		return nullptr;
 
-	VkDescriptorPoolCreateInfo uniformPoolInfo = {};
-	VkDescriptorPoolSize       uniformPoolSize = {};
-	VkDescriptorPool           uniformPool     = nullptr;
+	VkDescriptorPoolCreateInfo uniformPoolInfo     = {};
+	VkDescriptorPoolSize       uniformPoolSizes[2] = {};
+	VkDescriptorPool           uniformPool         = nullptr;
 
-	// TODO: VULKAN
-	uniformPoolSize.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformPoolSize.descriptorCount = 2;
+	uniformPoolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformPoolSizes[0].descriptorCount = NR_OF_UNIFORM_BUFFERS;
+
+	uniformPoolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformPoolSizes[1].descriptorCount = MAX_TEXTURES;
 
 	uniformPoolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	uniformPoolInfo.poolSizeCount = 1;
-	uniformPoolInfo.pPoolSizes    = &uniformPoolSize;
-	uniformPoolInfo.maxSets       = uniformPoolSize.descriptorCount;
+	uniformPoolInfo.poolSizeCount = 2;
+	uniformPoolInfo.pPoolSizes    = uniformPoolSizes;
+	uniformPoolInfo.maxSets       = 1;	// maximum number of descriptor sets that can be allocated from the pool
 
 	if (vkCreateDescriptorPool(this->deviceContext, &uniformPoolInfo, nullptr, &uniformPool) != VK_SUCCESS)
 		return nullptr;
@@ -1535,7 +1581,6 @@ VkDescriptorSet VKContext::initUniformSet()
 	if (this->deviceContext == nullptr)
 		return nullptr;
 
-	//VkDescriptorSetLayout       uniformSetLayouts[] = { this->uniformLayout };
 	VkDescriptorSetAllocateInfo uniformSetAllocInfo = {};
 	VkDescriptorSet             uniformSet          = nullptr;
 
@@ -1589,13 +1634,6 @@ bool VKContext::init(bool vsync)
 	this->depthStencilBuffer = this->initDepthStencilBuffer();
 	this->multisampling      = this->initMultisampling();
 	this->rasterizer         = this->initRasterizer();
-
-	// TODO: VULKAN
-	//this->uniformLayouts[0] = this->initUniformLayout(0, VK_SHADER_STAGE_VERTEX_BIT);
-	//this->uniformLayouts[1] = this->initUniformLayout(1, VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	//if ((this->uniformLayouts[0] == nullptr) || (this->uniformLayouts[1] == nullptr))
-	//	return false;
 
 	this->uniformLayout = this->initUniformLayout();
 

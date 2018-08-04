@@ -108,7 +108,7 @@ public:
 	void       Clear(float r, float g, float b, float a);
 	int        CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
 	int        CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	int        CreateTexture(uint32_t width, uint32_t height, uint8_t* imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory);
+	int        CreateTexture(uint32_t width, uint32_t height, const std::vector<uint8_t*> &imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, VkImageView* textureImageView, VkSampler* sampler, VkSamplerCreateInfo &samplerInfo);
 	int        CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
 	int        CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
 	void       DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
@@ -129,9 +129,11 @@ private:
 	int                                     copyImage(VkImage image, VkFormat imageFormat, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	int                                     createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkImage* textureImage, VkDeviceMemory* textureImageMemory);
+	VkImageView                             createImageView(VkImage image, VkFormat imageFormat);
 	bool                                    deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
+	bool                                    deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                                getApiVersion(VkPhysicalDevice device);
-	VkPhysicalDevice                        getDevice(const std::vector<const char*> &extensions);
+	VkPhysicalDevice                        getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
 	wxString                                getDeviceName(VkPhysicalDevice device);
 	std::vector<VKQueue*>                   getDeviceQueueSupport(VkPhysicalDevice device);
 	VKSwapChainSupport*                     getDeviceSwapChainSupport(VkPhysicalDevice device);
