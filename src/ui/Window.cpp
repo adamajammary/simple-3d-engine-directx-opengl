@@ -32,14 +32,14 @@ bool Window::OnInit()
 	// WINDOW
 	wxString title = wxString(Utils::APP_NAME).append(" ").append(Utils::APP_VERSION);
 
-	this->frame = new WindowFrame(title, wxDefaultPosition, wxSize(1510, 800), this);
+	this->frame = new WindowFrame(title, wxDefaultPosition, Utils::WINDOW_SIZE, this);
 	this->frame->Show(true);
 	//this->frame->Maximize(true);
 
 	// RENDER ENGINE
 	this->frame->SetStatusText("Initializing the Render Engine ...");
 
-	int result = RenderEngine::Init(this->frame, wxSize(640, 360));
+	int result = RenderEngine::Init(this->frame, Utils::RENDER_SIZE);
 
 	if (result != 0)
 	{

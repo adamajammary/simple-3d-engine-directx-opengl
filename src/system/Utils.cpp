@@ -28,7 +28,9 @@ const char*    Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
 const char*    Utils::TESTED             = "Tested on Windows 10 (64-bit)";
 const wxString Utils::DRAW_MODES[]       = { wxT("Filled"), wxT("Wireframe") };
 const wxString Utils::FOVS[]             = { wxT("45\u00B0"), wxT("60\u00B0"), wxT("75\u00B0"), wxT("90\u00B0") };
+const wxSize   Utils::RENDER_SIZE        = wxSize(640, 360);
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file  (*.scene)|*.scene";
+const wxSize   Utils::WINDOW_SIZE        = wxSize(1510, 800);
 
 const wxString Utils::GRAPHIC_APIS[] = {
 	#if defined _WINDOWS

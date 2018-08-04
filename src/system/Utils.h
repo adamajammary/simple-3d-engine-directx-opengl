@@ -28,12 +28,15 @@ public:
 	static const wxString               GRAPHIC_APIS[];
 	static const std::vector<Icon>      ICONS;
 	static const wxString               MODEL_FILE_FORMATS;
+	static const wxSize                 RENDER_SIZE;
 	static std::map<IconType, wxString> RESOURCE_MODELS;
 	static std::map<wxString, wxString> RESOURCE_IMAGES;
 	static const wxString               SCENE_FILE_FORMAT;
 	static const std::vector<Resource>  SHADER_RESOURCES_DX;
 	static const std::vector<Resource>  SHADER_RESOURCES_GL;
 	static const std::vector<Resource>  SHADER_RESOURCES_VULKAN;
+	static const wxSize                 WINDOW_SIZE;
+
 	static Texture*                     EmptyCubemap;
 	static Texture*                     EmptyTexture;
 	static GraphicsAPI                  SelectedGraphicsAPI;

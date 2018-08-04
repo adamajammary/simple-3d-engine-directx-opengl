@@ -466,10 +466,6 @@ int RenderEngine::initResources()
 
 	Utils::EmptyTexture = new Texture(emptyFile);
 	Utils::EmptyCubemap = new Texture(emptyFiles);
-
-	// TODO: FIX FOR VULKAN
-	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
-		return 0;
 	
 	if (!Utils::EmptyTexture->IsOK() || !Utils::EmptyCubemap->IsOK())
 		return -1;
