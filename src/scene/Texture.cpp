@@ -248,7 +248,7 @@ Texture::~Texture()
 	}
 		//break;
 	//case GRAPHICS_API_VULKAN:
-	RenderEngine::Canvas.VK->DestroyTexture(&this->image, &this->imageMemory);
+	RenderEngine::Canvas.VK->DestroyTexture(&this->image, &this->imageMemory, &this->imageView, &this->sampler);
 		//break;
 	//}
 

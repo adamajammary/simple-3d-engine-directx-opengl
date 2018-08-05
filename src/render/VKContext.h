@@ -5,6 +5,11 @@
 #ifndef GE3D_VKCONTEXT_H
 #define GE3D_VKCONTEXT_H
 
+enum VKAttachmentDesc
+{
+	VK_COLOR_ATTACHMENT, VK_DEPTH_STENCIL_ATTACHMENT, NR_OF_VK_ATTACHMENTS
+};
+
 enum VKQueueType
 {
 	VK_QUEUE_PRESENTATION, VK_QUEUE_GRAPHICS, NR_OF_VK_QUEUES
@@ -71,10 +76,13 @@ public:
 	~VKContext();
 
 private:
-	VkPipelineColorBlendStateCreateInfo*    colorBlending;
+	VkPipelineColorBlendStateCreateInfo*    colorBlendInfo;
 	std::vector<VkCommandBuffer>            commandBuffers;
 	VkCommandPool                           commandPool;
-	VkPipelineDepthStencilStateCreateInfo*  depthStencilBuffer;
+	std::vector<VkImage>                    depthBufferImages;
+	std::vector<VkDeviceMemory>             depthBufferImageMemories;
+	std::vector<VkImageView>                depthBufferImageViews;
+	VkPipelineDepthStencilStateCreateInfo*  depthStencilInfo;
 	VkPhysicalDevice                        device;
 	VkDevice                                deviceContext;
 	std::vector<VkFramebuffer>              frameBuffers;
@@ -83,10 +91,10 @@ private:
 	uint32_t                                imageIndex;
 	VkInstance                              instance;
 	bool                                    isOK;
-	VkPipelineMultisampleStateCreateInfo*   multisampling;
+	VkPipelineMultisampleStateCreateInfo*   multisampleInfo;
 	VkPipelineLayout                        pipelineLayout;
 	std::vector<VKQueue*>                   queues;
-	VkPipelineRasterizationStateCreateInfo* rasterizer;
+	VkPipelineRasterizationStateCreateInfo* rasterizationInfo;
 	VkRenderPass                            renderPass;
 	std::vector<VkSemaphore>                semDrawComplete;
 	std::vector<VkSemaphore>                semImageAvailable;
@@ -114,7 +122,7 @@ public:
 	void       DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void       DestroyPipeline(VkPipeline* pipeline);
 	void       DestroyShaderModule(VkShaderModule* shaderModule);
-	void       DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory);
+	void       DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
 	int        Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	bool       IsOK();
 	void       Present();
@@ -129,14 +137,16 @@ private:
 	int                                     copyImage(VkImage image, VkFormat imageFormat, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	int                                     createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkImage* textureImage, VkDeviceMemory* textureImageMemory);
-	VkImageView                             createImageView(VkImage image, VkFormat imageFormat);
+	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, VkImageAspectFlags aspectFlags);
 	bool                                    deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
 	bool                                    deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                                getApiVersion(VkPhysicalDevice device);
+	VkFormat                                getDepthBufferFormat();
 	VkPhysicalDevice                        getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
 	wxString                                getDeviceName(VkPhysicalDevice device);
 	std::vector<VKQueue*>                   getDeviceQueueSupport(VkPhysicalDevice device);
 	VKSwapChainSupport*                     getDeviceSwapChainSupport(VkPhysicalDevice device);
+	VkFormat                                getImageFormat(const std::vector<VkFormat> &formats, VkImageTiling imageTiling, VkFormatFeatureFlags features);
 	uint32_t                                getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 	VkPresentModeKHR                        getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
 	VkSurfaceFormatKHR                      getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
@@ -145,6 +155,7 @@ private:
 	std::vector<VkCommandBuffer>            initCommandBuffers(uint32_t bufferCount);
 	VkCommandPool                           initCommandPool();
 	VkPipelineDepthStencilStateCreateInfo*  initDepthStencilBuffer();
+	bool                                    initDepthStencilImages(std::vector<VkImage> &images, std::vector<VkDeviceMemory> &imageMemories, std::vector<VkImageView> &imageViews);
 	VkDevice                                initDeviceContext();
 	std::vector<VkFramebuffer>              initFramebuffers();
 	VkInstance                              initInstance();
