@@ -127,7 +127,6 @@ public:
 	bool       IsOK();
 	void       Present();
 	void       SetVSync(bool enable);
-	bool       UpdateSwapChain();
 
 private:
 	VkCommandBuffer                         commandBufferBegin();
@@ -174,6 +173,9 @@ private:
 	VkPipelineViewportStateCreateInfo*      initViewportState();
 	bool                                    init(bool vsync = true);
 	void                                    release();
+	void                                    releaseSwapChain(bool releaseSupport);
+	bool                                    resetSwapChain();
+	bool                                    updateSwapChain(bool updateSupport);
 
 	#if defined _DEBUG
 		static VKAPI_ATTR VkBool32 VKAPI_CALL debugLog(VkDebugReportFlagsEXT f, VkDebugReportObjectTypeEXT ot, uint64_t o, size_t l, int32_t c, const char* lp, const char* m, void* ud);

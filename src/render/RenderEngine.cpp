@@ -513,8 +513,8 @@ void RenderEngine::SetAspectRatio(const wxString &ratio)
 		(int)((float)RenderEngine::Canvas.Size.GetWidth() * RenderEngine::Canvas.AspectRatio)
 	);
 
-	if (RenderEngine::Canvas.VK != nullptr)
-		RenderEngine::Canvas.VK->UpdateSwapChain();
+	//if (RenderEngine::Canvas.VK != nullptr)
+	//	RenderEngine::Canvas.VK->UpdateSwapChain();
 }
 
 void RenderEngine::SetCanvasSize(int width, int height)
@@ -522,7 +522,9 @@ void RenderEngine::SetCanvasSize(int width, int height)
 	RenderEngine::Canvas.Size = wxSize(width, height);
 	RenderEngine::Canvas.Canvas->SetSize(RenderEngine::Canvas.Size);
 	RenderEngine::Camera->UpdateProjection();
-	glViewport(0, 0, width, height);
+
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+		glViewport(0, 0, width, height);
 }
 
 void RenderEngine::SetDrawMode(const wxString &mode)

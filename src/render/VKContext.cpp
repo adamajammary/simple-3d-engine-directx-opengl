@@ -36,7 +36,7 @@ void VKContext::Clear(float r, float g, float b, float a)
 	);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR)
-		this->UpdateSwapChain();
+		this->resetSwapChain();
 
 	// START RECORDING COMMAND BUFFER
 	beginCommandInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -835,7 +835,6 @@ VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions
 	{
 		//VkPhysicalDevice device = devices[i];
 
-
 		this->swapChainSupport = this->getDeviceSwapChainSupport(device);
 
 		if (this->swapChainSupport->PresentModes.empty() || this->swapChainSupport->SurfaceFormats.empty())
@@ -1032,6 +1031,11 @@ VkExtent2D VKContext::getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilitie
 
 	size.width  = std::max(minWidth,  std::min(maxWidth,  width));
 	size.height = std::max(minHeight, std::min(maxHeight, height));
+
+	//VkExtent2D size = {
+	//	(uint32_t)RenderEngine::Canvas.Size.GetWidth(),
+	//	(uint32_t)RenderEngine::Canvas.Size.GetHeight()
+	//};
 
 	return size;
 }
@@ -1723,18 +1727,6 @@ bool VKContext::init(bool vsync)
 	if (this->deviceContext == nullptr)
 		return false;
 
-	this->swapChain = this->initSwapChain(this->swapChainSupport, this->surface);
-
-	if (this->swapChain == nullptr)
-		return false;
-
-	this->viewportState = this->initViewportState();
-
-	this->renderPass = this->initRenderPass();
-
-	if (this->renderPass == nullptr)
-		return false;
-
 	this->uniformLayout = this->initUniformLayout();
 
 	if (this->uniformLayout == nullptr)
@@ -1750,28 +1742,40 @@ bool VKContext::init(bool vsync)
 	if (this->uniformSet == nullptr)
 		return false;
 
-	this->pipelineLayout = this->initPipelineLayout();
-
-	if (this->pipelineLayout == nullptr)
-		return false;
-
 	this->commandPool = this->initCommandPool();
 
 	if (this->commandPool == nullptr)
 		return false;
 
-	if (!this->initDepthStencilImages(this->depthBufferImages, this->depthBufferImageMemories, this->depthBufferImageViews))
+	if (!this->updateSwapChain(false))
 		return false;
 
-	this->frameBuffers = this->initFramebuffers();
+	//this->swapChain = this->initSwapChain(this->swapChainSupport, this->surface);
 
-	if (this->frameBuffers.empty())
-		return false;
+	//if (this->swapChain == nullptr)
+	//	return false;
 
-	this->commandBuffers = this->initCommandBuffers(this->frameBuffers.size());
+	this->viewportState = this->initViewportState();
 
-	if (this->commandBuffers.empty())
-		return false;
+	//this->renderPass = this->initRenderPass();
+
+	//if (this->renderPass == nullptr)
+	//	return false;
+
+	//this->pipelineLayout = this->initPipelineLayout();
+
+	//if (this->pipelineLayout == nullptr)
+	//	return false;
+
+	//this->frameBuffers = this->initFramebuffers();
+
+	//if (this->frameBuffers.empty())
+	//	return false;
+
+	//this->commandBuffers = this->initCommandBuffers(this->frameBuffers.size());
+
+	//if (this->commandBuffers.empty())
+	//	return false;
 
 	if (!this->initSync())
 		return false;
@@ -1847,29 +1851,11 @@ void VKContext::release()
 
 	this->semImageAvailable.clear();
 
-	if (!this->commandBuffers.empty()) {
-		vkFreeCommandBuffers(this->deviceContext, this->commandPool, (uint32_t)this->commandBuffers.size(), this->commandBuffers.data());
-		this->commandBuffers.clear();
-	}
-
-	for (auto frameBuffer : this->frameBuffers) {
-		if (frameBuffer != nullptr)
-			vkDestroyFramebuffer(this->deviceContext, frameBuffer, nullptr);
-	}
-
-	this->frameBuffers.clear();
-
-	for (size_t i = 0; i < this->swapChain->Images.size(); i++)
-		this->DestroyTexture(&this->depthBufferImages[i], &this->depthBufferImageMemories[i], &this->depthBufferImageViews[i], nullptr);
+	this->releaseSwapChain(false);
 
 	if (this->commandPool != nullptr) {
 		vkDestroyCommandPool(this->deviceContext, this->commandPool, nullptr);
 		this->commandPool = nullptr;
-	}
-
-	if (this->pipelineLayout != nullptr) {
-		vkDestroyPipelineLayout(this->deviceContext, this->pipelineLayout, nullptr);
-		this->pipelineLayout = nullptr;
 	}
 
 	if (this->uniformPool != nullptr) {
@@ -1882,10 +1868,27 @@ void VKContext::release()
 		this->uniformLayout = nullptr;
 	}
 
-	if (this->renderPass != nullptr) {
-		vkDestroyRenderPass(this->deviceContext, this->renderPass, nullptr);
-		this->renderPass = nullptr;
-	}
+	//if (!this->commandBuffers.empty()) {
+	//	vkFreeCommandBuffers(this->deviceContext, this->commandPool, (uint32_t)this->commandBuffers.size(), this->commandBuffers.data());
+	//	this->commandBuffers.clear();
+	//}
+
+	//for (auto frameBuffer : this->frameBuffers) {
+	//	if (frameBuffer != nullptr)
+	//		vkDestroyFramebuffer(this->deviceContext, frameBuffer, nullptr);
+	//}
+
+	//this->frameBuffers.clear();
+
+	//if (this->pipelineLayout != nullptr) {
+	//	vkDestroyPipelineLayout(this->deviceContext, this->pipelineLayout, nullptr);
+	//	this->pipelineLayout = nullptr;
+	//}
+
+	//if (this->renderPass != nullptr) {
+	//	vkDestroyRenderPass(this->deviceContext, this->renderPass, nullptr);
+	//	this->renderPass = nullptr;
+	//}
 
 	if (this->viewportState != nullptr) {
 		_DELETEP(this->viewportState->pScissors);
@@ -1893,7 +1896,7 @@ void VKContext::release()
 		_DELETEP(this->viewportState);
 	}
 
-	_DELETEP(this->swapChain);
+	//_DELETEP(this->swapChain);
 
 	if (this->deviceContext != nullptr) {
 		vkDestroyDevice(this->deviceContext, nullptr);
@@ -1927,6 +1930,43 @@ void VKContext::release()
 		vkDestroyInstance(this->instance, nullptr);
 		this->instance = nullptr;
 	}
+}
+
+void VKContext::releaseSwapChain(bool releaseSupport)
+{
+	if (!this->commandBuffers.empty()) {
+		vkFreeCommandBuffers(this->deviceContext, this->commandPool, (uint32_t)this->commandBuffers.size(), this->commandBuffers.data());
+		this->commandBuffers.clear();
+	}
+
+	for (auto frameBuffer : this->frameBuffers) {
+		if (frameBuffer != nullptr)
+			vkDestroyFramebuffer(this->deviceContext, frameBuffer, nullptr);
+	}
+
+	this->frameBuffers.clear();
+
+	if (this->swapChain != nullptr) {
+		for (size_t i = 0; i < this->swapChain->Images.size(); i++)
+			this->DestroyTexture(&this->depthBufferImages[i], &this->depthBufferImageMemories[i], &this->depthBufferImageViews[i], nullptr);
+	}
+
+	if (this->pipelineLayout != nullptr) {
+		vkDestroyPipelineLayout(this->deviceContext, this->pipelineLayout, nullptr);
+		this->pipelineLayout = nullptr;
+	}
+
+	//vkDestroyPipeline(device, graphicsPipeline, nullptr);
+
+	if (this->renderPass != nullptr) {
+		vkDestroyRenderPass(this->deviceContext, this->renderPass, nullptr);
+		this->renderPass = nullptr;
+	}
+
+	_DELETEP(this->swapChain);
+
+	if (releaseSupport)
+		_DELETEP(this->swapChainSupport);
 }
 
 void VKContext::Present()
@@ -1968,7 +2008,7 @@ void VKContext::Present()
 	VkResult result = vkQueuePresentKHR(this->queues[VK_QUEUE_PRESENTATION]->Queue, &presentInfo);
 
 	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR))
-		this->UpdateSwapChain();
+		this->resetSwapChain();
 
 	this->frameIndex = ((this->frameIndex + 1) % MAX_CONCURRENT_FRAMES);
 
@@ -1976,19 +2016,62 @@ void VKContext::Present()
 	vkQueueWaitIdle(this->queues[VK_QUEUE_PRESENTATION]->Queue);
 }
 
+bool VKContext::resetSwapChain()
+{
+	RenderEngine::Ready = false;
+
+	if (this->deviceContext != nullptr)
+		vkDeviceWaitIdle(this->deviceContext);
+
+	this->releaseSwapChain(true);
+
+	if (!this->updateSwapChain(true))
+		return false;
+
+	RenderEngine::Ready = true;
+
+	return true;
+}
+
 void VKContext::SetVSync(bool enable)
 {
 	this->vSync = enable;
 }
 
-bool VKContext::UpdateSwapChain()
+bool VKContext::updateSwapChain(bool updateSupport)
 {
-	this->release();
+	if (updateSupport)
+		this->swapChainSupport = this->getDeviceSwapChainSupport(this->device);
 
-	if (!this->init(this->vSync))
+	if (this->swapChainSupport == nullptr)
 		return false;
 
-	if (ShaderManager::Init() != 0)
+	this->swapChain = this->initSwapChain(this->swapChainSupport, this->surface);
+
+	if (this->swapChain == nullptr)
+		return false;
+
+	this->renderPass = this->initRenderPass();
+
+	if (this->renderPass == nullptr)
+		return false;
+
+	this->pipelineLayout = this->initPipelineLayout();
+
+	if (this->pipelineLayout == nullptr)
+		return false;
+
+	if (!this->initDepthStencilImages(this->depthBufferImages, this->depthBufferImageMemories, this->depthBufferImageViews))
+		return false;
+
+	this->frameBuffers = this->initFramebuffers();
+
+	if (this->frameBuffers.empty())
+		return false;
+
+	this->commandBuffers = this->initCommandBuffers(this->frameBuffers.size());
+
+	if (this->commandBuffers.empty())
 		return false;
 
 	return true;

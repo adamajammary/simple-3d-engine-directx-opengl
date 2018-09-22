@@ -622,14 +622,14 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	Buffer* vertexBuffer = mesh->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
-		return -1;
+		return -2;
 
 	// MATRIX BUFFER
 	VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);
 	VkDeviceMemory uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_MATRIX);
 
 	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
-		return -2;
+		return -3;
 
 	// Update matrix values
 	matrices.Model      = mesh->Matrix();
@@ -638,8 +638,12 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	matrices.MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
 
 	// Copy values to device local buffer
-	vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
-		memcpy(bufferMemData, &matrices, sizeof(matrices));
+	VkResult result = vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
+
+	if (result != VK_SUCCESS)
+		return -4;
+
+	memcpy(bufferMemData, &matrices, sizeof(matrices));
 	vkUnmapMemory(deviceContext, uniformBufferMemory);
 
 	// Update the descriptor set for binding 0 (matrix buffer)
@@ -655,7 +659,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 		uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_DEFAULT);
 
 		if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
-			return -2;
+			return -5;
 
 		// Update default values
 		defaultValues.Ambient        = SceneManager::AmbientLightIntensity;
@@ -670,8 +674,12 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 			defaultValues.TextureScales[i] = mesh->Textures[i]->Scale;
 
 		// Copy values to device local buffer
-		vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
-			memcpy(bufferMemData, &defaultValues, sizeof(defaultValues));
+		result = vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
+
+		if (result != VK_SUCCESS)
+			return -6;
+
+		memcpy(bufferMemData, &defaultValues, sizeof(defaultValues));
 		vkUnmapMemory(deviceContext, uniformBufferMemory);
 
 		// Update the descriptor set for binding 1 (default buffer)

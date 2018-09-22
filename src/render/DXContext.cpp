@@ -1603,6 +1603,8 @@ void DXContext::Present12()
 
 void DXContext::release()
 {
+	RenderEngine::Ready = false;
+
 	#if defined(_DEBUG)
 		ID3D11Debug*       debugDevice11 = nullptr;
 		ID3D12DebugDevice* debugDevice12 = nullptr;
@@ -1657,6 +1659,7 @@ void DXContext::release()
 	}
 	#endif
 
+	RenderEngine::Ready = true;
 }
 
 void DXContext::SetVSync(bool enable)
