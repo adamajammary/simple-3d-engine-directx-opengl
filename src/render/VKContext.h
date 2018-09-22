@@ -92,7 +92,7 @@ private:
 	VkInstance                              instance;
 	bool                                    isOK;
 	VkPipelineMultisampleStateCreateInfo*   multisampleInfo;
-	VkPipelineLayout                        pipelineLayout;
+	//VkPipelineLayout                        pipelineLayout;
 	std::vector<VKQueue*>                   queues;
 	VkPipelineRasterizationStateCreateInfo* rasterizationInfo;
 	VkRenderPass                            renderPass;
@@ -102,9 +102,9 @@ private:
 	VkSurfaceKHR                            surface;
 	VKSwapchain*                            swapChain;
 	VKSwapChainSupport*                     swapChainSupport;
-	VkDescriptorSetLayout                   uniformLayout;
-	VkDescriptorPool                        uniformPool;
-	VkDescriptorSet                         uniformSet;
+	//VkDescriptorSetLayout                   uniformLayout;
+	//VkDescriptorPool                        uniformPool;
+	//VkDescriptorSet                         uniformSet;
 	VkPipelineViewportStateCreateInfo*      viewportState;
 	bool                                    vSync;
 
@@ -115,18 +115,23 @@ private:
 public:
 	void       Clear(float r, float g, float b, float a);
 	int        CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
+	int        CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout);
 	int        CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
 	int        CreateTexture(uint32_t width, uint32_t height, const std::vector<uint8_t*> &imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, VkImageView* textureImageView, VkSampler* sampler, VkSamplerCreateInfo &samplerInfo);
 	int        CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
-	int        CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
+	int        CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
+	int        CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkPipelineLayout pipelineLayout, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
 	void       DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void       DestroyPipeline(VkPipeline* pipeline);
+	void       DestroyPipelineLayout(VkPipelineLayout* pipelineLayout);
 	void       DestroyShaderModule(VkShaderModule* shaderModule);
 	void       DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
+	void       DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
 	int        Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	bool       IsOK();
 	void       Present();
 	void       SetVSync(bool enable);
+	void       UpdatePipelines();
 
 private:
 	VkCommandBuffer                         commandBufferBegin();
@@ -137,6 +142,9 @@ private:
 	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	int                                     createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkImage* textureImage, VkDeviceMemory* textureImageMemory);
 	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, VkImageAspectFlags aspectFlags);
+	int                                     createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
+	int                                     createUniformLayout(VkDescriptorSetLayout* uniformLayout);
+	int                                     createUniformPool(VkDescriptorPool* uniformPool);
 	bool                                    deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
 	bool                                    deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                                getApiVersion(VkPhysicalDevice device);
@@ -160,16 +168,11 @@ private:
 	VkInstance                              initInstance();
 	VkPipelineMultisampleStateCreateInfo*   initMultisampling();
 	VkPipelineRasterizationStateCreateInfo* initRasterizer();
-	bool                                    initPipeline(ShaderProgram* shaderProgram, VkPipeline &pipeline, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
-	VkPipelineLayout                        initPipelineLayout();
 	VkRenderPass                            initRenderPass();
 	VkSurfaceKHR                            initSurface();
 	VKSwapchain*                            initSwapChain(VKSwapChainSupport* swapChainSupport, VkSurfaceKHR surface);
 	bool                                    initSync();
 	//VkDescriptorSetLayout                   initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags);
-	VkDescriptorSetLayout                   initUniformLayout();
-	VkDescriptorPool                        initUniformPool();
-	VkDescriptorSet                         initUniformSet();
 	VkPipelineViewportStateCreateInfo*      initViewportState();
 	bool                                    init(bool vsync = true);
 	void                                    release();

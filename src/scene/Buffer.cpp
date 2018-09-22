@@ -87,28 +87,27 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 
 	switch (Utils::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->CreateVertexBuffer11(
-			vertices, normals, texCoords, &this->bufferDX11, this->bufferStride,
-			this->InputLayoutsDX11, this->RasterizerStatesDX11, this->DepthStencilStatesDX11, this->BlendStatesDX11
-		);
-
+		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, &this->bufferDX11, this->bufferStride,this->InputLayoutsDX11, this->RasterizerStatesDX11, this->DepthStencilStatesDX11, this->BlendStatesDX11);
 		RenderEngine::Canvas.DX->CreateConstantBuffers11(this);
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->CreateVertexBuffer12(
-			vertices, normals, texCoords, &this->bufferDX12, this->bufferStride,
-			this->vertexBufferViewDX12, this->PipelineStatesDX12, this->RootSignaturesDX12
-		);
-
+		RenderEngine::Canvas.DX->CreateVertexBuffer12(vertices, normals, texCoords, &this->bufferDX12, this->bufferStride,this->vertexBufferViewDX12, this->PipelineStatesDX12, this->RootSignaturesDX12);
 		RenderEngine::Canvas.DX->CreateConstantBuffers12(this);
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this->pipelines, &this->vertexBuffer, &this->vertexBufferMemory);
+		RenderEngine::Canvas.VK->CreateUniformSet(&this->uniformSet, &this->uniformPool, &this->uniformLayout);
+		RenderEngine::Canvas.VK->CreatePipelineLayout(&this->pipelineLayout, this->uniformLayout);
+		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory);
 		RenderEngine::Canvas.VK->CreateUniformBuffers(this->uniformBuffers, this->uniformBufferMemories);
+
 		break;
 	}
+
+	this->normals   = normals;
+	this->texCoords = texCoords;
+	this->vertices  = vertices;
 }
 
 Buffer::Buffer()
@@ -130,51 +129,42 @@ Buffer::Buffer()
 
 Buffer::~Buffer()
 {
-	//switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
-	//case GRAPHICS_API_DIRECTX11:
-	for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-	{
-		_RELEASEP(this->ConstantBuffersDX11[i]);
-		_RELEASEP(this->ConstantBuffersDX12[i]);
-		_RELEASEP(this->SamplerHeapsDX12[i]);
-		_RELEASEP(this->ConstantBufferHeapsDX12[i]);
+		for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
+		{
+			_RELEASEP(this->ConstantBuffersDX11[i]);
+			_RELEASEP(this->ConstantBuffersDX12[i]);
+			_RELEASEP(this->SamplerHeapsDX12[i]);
+			_RELEASEP(this->ConstantBufferHeapsDX12[i]);
 
-		_RELEASEP(this->DepthStencilStatesDX11[i]);
-		_RELEASEP(this->BlendStatesDX11[i]);
-		_RELEASEP(this->RasterizerStatesDX11[i]);
-		_RELEASEP(this->InputLayoutsDX11[i]);
+			_RELEASEP(this->DepthStencilStatesDX11[i]);
+			_RELEASEP(this->BlendStatesDX11[i]);
+			_RELEASEP(this->RasterizerStatesDX11[i]);
+			_RELEASEP(this->InputLayoutsDX11[i]);
 
-		_RELEASEP(this->PipelineStatesDX12[i]);
-		_RELEASEP(this->RootSignaturesDX12[i]);
-	}
+			_RELEASEP(this->PipelineStatesDX12[i]);
+			_RELEASEP(this->RootSignaturesDX12[i]);
+		}
 
-	_RELEASEP(this->bufferDX11);
-	_RELEASEP(this->bufferDX12);
-
-		//break;
-	//case GRAPHICS_API_DIRECTX12:
-		//break;
+		_RELEASEP(this->bufferDX11);
+		_RELEASEP(this->bufferDX12);
 	#endif
-	//case GRAPHICS_API_OPENGL:
+
 	if (this->id > 0) {
 		glDeleteBuffers(1, &this->id);
 		this->id = 0;
 	}
-		//break;
-	//case GRAPHICS_API_VULKAN:
-	for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
-		//break;
-	//default:
-		//break;
-	//}
 
 	for (uint32_t i = 0; i < NR_OF_UNIFORM_BUFFERS; i++)
 		RenderEngine::Canvas.VK->DestroyBuffer(&this->uniformBuffers[i], &this->uniformBufferMemories[i]);
 
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,  &this->indexBufferMemory);
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
+	for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
+
+	RenderEngine::Canvas.VK->DestroyPipelineLayout(&this->pipelineLayout);
+	RenderEngine::Canvas.VK->DestroyUniformSet(&this->uniformPool, &this->uniformLayout);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,     &this->indexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer,    &this->vertexBufferMemory);
 }
 
 void Buffer::init()
@@ -238,6 +228,11 @@ VkPipeline Buffer::Pipeline(ShaderID shaderID)
 	return (((shaderID >= 0) || (shaderID < NR_OF_SHADERS)) ? this->pipelines[shaderID] : nullptr);
 }
 
+VkPipelineLayout Buffer::PipelineLayout()
+{
+	return this->pipelineLayout;
+}
+
 VkBuffer Buffer::UniformBuffer(UniformBufferType uniformBuffer)
 {
 	return (((uniformBuffer >= 0) || (uniformBuffer < NR_OF_UNIFORM_BUFFERS)) ? this->uniformBuffers[uniformBuffer] : nullptr);
@@ -246,6 +241,25 @@ VkBuffer Buffer::UniformBuffer(UniformBufferType uniformBuffer)
 VkDeviceMemory Buffer::UniformBufferMemory(UniformBufferType uniformBuffer)
 {
 	return (((uniformBuffer >= 0) || (uniformBuffer < NR_OF_UNIFORM_BUFFERS)) ? this->uniformBufferMemories[uniformBuffer] : nullptr);
+}
+
+VkDescriptorSet Buffer::UniformSet()
+{
+	return this->uniformSet;
+}
+
+void Buffer::UpdatePipelines()
+{
+	// TODO: VULKAN
+	//for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
+	for (uint32_t i = SHADER_ID_DEFAULT; i < (SHADER_ID_DEFAULT + 1); i++)
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
+
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
+
+	RenderEngine::Canvas.VK->CreateVertexBuffer(
+		this->vertices, this->normals, this->texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory
+	);
 }
 
 VkBuffer Buffer::VertexBuffer()

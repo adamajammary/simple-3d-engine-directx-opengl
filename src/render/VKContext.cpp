@@ -424,6 +424,101 @@ int VKContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer*
 	return 0;
 }
 
+//VkPipeline VulkanContext::initPipeline(VkShaderModule vulkanVS, VkShaderModule vulkanFS)
+int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS])
+{
+	if ((this->deviceContext == nullptr) || (shaderProgram == nullptr))
+		return -1;
+
+	VkPipelineShaderStageCreateInfo fsStageInfo = {};
+	VkPipelineShaderStageCreateInfo vsStageInfo = {};
+
+	vsStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vsStageInfo.stage  = VK_SHADER_STAGE_VERTEX_BIT;
+	vsStageInfo.module = shaderProgram->VulkanVS();
+	vsStageInfo.pName  = "main";
+	//vsStageInfo.pSpecializationInfo = nullptr;
+
+	fsStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fsStageInfo.stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fsStageInfo.module = shaderProgram->VulkanFS();
+	fsStageInfo.pName  = "main";
+	//fsStageInfo.pSpecializationInfo = nullptr;
+
+	VkPipelineShaderStageCreateInfo        shaderStages[] = { vsStageInfo, fsStageInfo };
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly  = {};
+	VkPipelineVertexInputStateCreateInfo   vertexInput    = {};
+	VkGraphicsPipelineCreateInfo           pipelineInfo   = {};
+	//VkPipeline                             pipeline       = nullptr;
+
+	vertexInput.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInput.vertexAttributeDescriptionCount = NR_OF_ATTRIBS;
+	vertexInput.pVertexAttributeDescriptions    = attribsDesc;
+	vertexInput.vertexBindingDescriptionCount   = 1;
+	vertexInput.pVertexBindingDescriptions      = &attribsBindingDesc;
+
+	inputAssembly.sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+	inputAssembly.topology = (VkPrimitiveTopology)RenderEngine::DrawMode;
+	//inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+	pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	pipelineInfo.stageCount          = 2;
+	pipelineInfo.pStages             = shaderStages;
+	pipelineInfo.pColorBlendState    = this->colorBlendInfo;
+	pipelineInfo.pDepthStencilState  = this->depthStencilInfo;
+	//pipelineInfo.pDynamicState       = nullptr;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	pipelineInfo.pMultisampleState   = this->multisampleInfo;
+	pipelineInfo.pRasterizationState = this->rasterizationInfo;
+	pipelineInfo.pVertexInputState   = &vertexInput;
+	pipelineInfo.pViewportState      = this->viewportState;
+	//pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
+	pipelineInfo.basePipelineIndex   = -1;
+	pipelineInfo.layout              = pipelineLayout;
+	pipelineInfo.renderPass          = this->renderPass;
+	//pipelineInfo.subpass             = 0;
+
+	//switch((ShaderID)i) {
+	//case SHADER_ID_HUD:
+	//	break;
+	//case SHADER_ID_SKYBOX:
+	//	break;
+	//case SHADER_ID_WATER:
+	//	break;
+	//case SHADER_ID_SOLID:
+	//	break;
+	//default:
+	//	break;
+	//}
+
+	if (vkCreateGraphicsPipelines(this->deviceContext, nullptr, 1, &pipelineInfo, nullptr, pipeline) != VK_SUCCESS)
+		return -2;
+
+	return 0;
+}
+
+int VKContext::CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout)
+{
+	if (this->deviceContext == nullptr)
+		return -1;
+
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
+	//VkPipelineLayout           pipelineLayout     = nullptr;
+
+	pipelineLayoutInfo.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts    = &uniformLayout;
+	//pipelineLayoutInfo.pushConstantRangeCount = 0;
+	//pipelineLayoutInfo.pPushConstantRanges    = 0;
+
+	if (vkCreatePipelineLayout(this->deviceContext, &pipelineLayoutInfo, nullptr, pipelineLayout) != VK_SUCCESS)
+		return -2;
+
+	return 0;
+}
+
 int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule)
 {
 	#if defined _DEBUG
@@ -534,7 +629,7 @@ int VKContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uni
 	VkMemoryPropertyFlags bufferMemFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	if (this->createBuffer(sizeof(GLMatrixBuffer), bufferUseFlags, bufferMemFlags, &uniformBuffer[UNIFORM_BUFFER_MATRIX], &uniformBufferMemory[UNIFORM_BUFFER_MATRIX]) < 0)
-		return 1;
+		return -1;
 
 	if (this->createBuffer(sizeof(GLDefaultBuffer), bufferUseFlags, bufferMemFlags, &uniformBuffer[UNIFORM_BUFFER_DEFAULT], &uniformBufferMemory[UNIFORM_BUFFER_DEFAULT]) < 0)
 		return -2;
@@ -542,13 +637,103 @@ int VKContext::CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uni
 	return 0;
 }
 
+int VKContext::createUniformLayout(VkDescriptorSetLayout* uniformLayout)
+{
+	if (this->deviceContext == nullptr)
+		return -1;
+
+	VkDescriptorSetLayoutBinding    uniformLayoutBindings[NR_OF_UNIFORM_BUFFERS + 1] = {};
+	VkDescriptorSetLayoutCreateInfo uniformLayoutInfo = {};
+	//VkDescriptorSetLayout           uniformLayout     = nullptr;
+	const int                       UNIFORM_SAMPLER   = 2;
+
+	// MATRIX BUFFER
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorCount = 1;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].binding         = UNIFORM_BUFFER_MATRIX;
+	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
+
+	// DEFAULT BUFFER
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorCount = 1;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].binding         = UNIFORM_BUFFER_DEFAULT;
+	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// TEXTURE SAMPLER
+	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorCount = MAX_TEXTURES;
+	uniformLayoutBindings[UNIFORM_SAMPLER].binding         = UNIFORM_SAMPLER;
+	uniformLayoutBindings[UNIFORM_SAMPLER].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	uniformLayoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	uniformLayoutInfo.bindingCount = (NR_OF_UNIFORM_BUFFERS + 1);
+	uniformLayoutInfo.pBindings    = uniformLayoutBindings;
+
+	if (vkCreateDescriptorSetLayout(this->deviceContext, &uniformLayoutInfo, nullptr, uniformLayout) != VK_SUCCESS)
+		return -2;
+
+	return 0;
+}
+
+int VKContext::createUniformPool(VkDescriptorPool* uniformPool)
+{
+	if (this->deviceContext == nullptr)
+		return -1;
+
+	VkDescriptorPoolCreateInfo uniformPoolInfo     = {};
+	VkDescriptorPoolSize       uniformPoolSizes[2] = {};
+	//VkDescriptorPool           uniformPool         = nullptr;
+
+	uniformPoolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformPoolSizes[0].descriptorCount = NR_OF_UNIFORM_BUFFERS;
+
+	uniformPoolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformPoolSizes[1].descriptorCount = MAX_TEXTURES;
+
+	uniformPoolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	uniformPoolInfo.poolSizeCount = 2;
+	uniformPoolInfo.pPoolSizes    = uniformPoolSizes;
+	uniformPoolInfo.maxSets       = 1;	// maximum number of descriptor sets that can be allocated from the pool
+
+	if (vkCreateDescriptorPool(this->deviceContext, &uniformPoolInfo, nullptr, uniformPool) != VK_SUCCESS)
+		return -2;
+
+	return 0;
+}
+
+int VKContext::CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout)
+{
+	if (this->deviceContext == nullptr)
+		return -1;
+
+	if (this->createUniformLayout(uniformLayout) != 0)
+		return false;
+
+	if (this->createUniformPool(uniformPool) != 0)
+		return false;
+
+	VkDescriptorSetAllocateInfo uniformSetAllocInfo = {};
+	//VkDescriptorSet             uniformSet          = nullptr;
+
+	uniformSetAllocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	uniformSetAllocInfo.descriptorSetCount = 1;
+	uniformSetAllocInfo.pSetLayouts        = uniformLayout;
+	uniformSetAllocInfo.descriptorPool     = *uniformPool;
+
+	if (vkAllocateDescriptorSets(this->deviceContext, &uniformSetAllocInfo, uniformSet) != VK_SUCCESS)
+		return -2;
+
+	return 0;
+}
+
 int VKContext::CreateVertexBuffer(
-	const std::vector<float> &vertices,
-	const std::vector<float> &normals,
-	const std::vector<float> &texCoords,
-	VkPipeline*              pipelines,
-	VkBuffer*                vertexBuffer,
-	VkDeviceMemory*          vertexBufferMemory
+	const std::vector<float>      &vertices,
+	const std::vector<float>      &normals,
+	const std::vector<float>      &texCoords,
+	VkPipeline*                   pipelines,
+	VkPipelineLayout              pipelineLayout,
+	VkBuffer*                     vertexBuffer,
+	VkDeviceMemory*               vertexBufferMemory
 )
 {
 	VkBuffer              stagingBuffer         = nullptr;
@@ -628,7 +813,7 @@ int VKContext::CreateVertexBuffer(
 	// TODO: VULKAN
 	//for (int i = 0; i < NR_OF_SHADERS; i++)
 	for (int i = SHADER_ID_DEFAULT; i < (SHADER_ID_DEFAULT + 1); i++) {
-		if (!this->initPipeline(ShaderManager::Programs[i], pipelines[i], attribsBindingDesc, attribsDesc))
+		if (this->createPipeline(ShaderManager::Programs[i], &pipelines[i], pipelineLayout, attribsBindingDesc, attribsDesc) != 0)
 			return -4;
 	}
 
@@ -662,6 +847,14 @@ void VKContext::DestroyPipeline(VkPipeline* pipeline)
 	}
 }
 
+void VKContext::DestroyPipelineLayout(VkPipelineLayout* pipelineLayout)
+{
+	if (*pipelineLayout != nullptr) {
+		vkDestroyPipelineLayout(this->deviceContext, *pipelineLayout, nullptr);
+		*pipelineLayout = nullptr;
+	}
+}
+
 void VKContext::DestroyShaderModule(VkShaderModule* shaderModule)
 {
 	if (*shaderModule != nullptr) {
@@ -690,6 +883,19 @@ void VKContext::DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkIm
 	if (*image != nullptr) {
 		vkDestroyImage(this->deviceContext, *image, nullptr);
 		*image = nullptr;
+	}
+}
+
+void VKContext::DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout)
+{
+	if (*uniformPool != nullptr) {
+		vkDestroyDescriptorPool(this->deviceContext, *uniformPool, nullptr);
+		*uniformPool = nullptr;
+	}
+
+	if (*uniformLayout != nullptr) {
+		vkDestroyDescriptorSetLayout(this->deviceContext, *uniformLayout, nullptr);
+		*uniformLayout = nullptr;
 	}
 }
 
@@ -737,25 +943,24 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClippin
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*  indexBuffer  = mesh->IndexBuffer();
-	Buffer*  vertexBuffer = mesh->VertexBuffer();
-	//ID3DBlob*  fragmentShader = shaderProgram->FS();
-	//ID3DBlob*  vertexShader   = shaderProgram->VS();
-	ShaderID shaderID     = shaderProgram->ID();
+	Buffer*         indexBuffer  = mesh->IndexBuffer();
+	Buffer*         vertexBuffer = mesh->VertexBuffer();
+	ShaderID        shaderID     = shaderProgram->ID();
 
-	//if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 	if ((indexBuffer == nullptr) && (vertexBuffer == nullptr))
 		return -2;
 
-	VkPipeline   pipeline              = vertexBuffer->Pipeline(shaderID);
-	VkBuffer     vertexBuffers[]       = { vertexBuffer->VertexBuffer() };
-	VkDeviceSize vertexBufferOffsets[] = { 0 };
+	VkPipeline       pipeline              = vertexBuffer->Pipeline(shaderID);
+	VkPipelineLayout pipelineLayout        = vertexBuffer->PipelineLayout();
+	VkDescriptorSet  uniformSet            = vertexBuffer->UniformSet();
+	VkBuffer         vertexBuffers[]       = { vertexBuffer->VertexBuffer() };
+	VkDeviceSize     vertexBufferOffsets[] = { 0 };
 
-	if ((pipeline == nullptr) || (vertexBuffers[0] == nullptr))
+	if ((pipeline == nullptr) || (pipelineLayout == nullptr) || (vertexBuffers[0] == nullptr) || (uniformSet == nullptr))
 		return -3;
 
 	// UPDATE UNIFORM VALUES
-	if (shaderProgram->UpdateUniformsVK(this->deviceContext, this->uniformSet, mesh, enableClipping, clipMax, clipMin) != 0)
+	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, enableClipping, clipMax, clipMin) != 0)
 		return -4;
 
 	// BIND SHADER TO PIPELINE
@@ -768,8 +973,7 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClippin
 	// TODO: SLOW
 	// BIND UNIFORMS
 	vkCmdBindDescriptorSets(
-		this->commandBuffers[this->imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS,
-		this->pipelineLayout, 0, 1, &this->uniformSet, 0, nullptr
+		this->commandBuffers[this->imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uniformSet, 0, nullptr
 	);
 
 	// DRAW
@@ -1299,99 +1503,6 @@ VkPipelineMultisampleStateCreateInfo* VKContext::initMultisampling()
 	return multisampleInfo;
 }
 
-//VkPipeline VulkanContext::initPipeline(VkShaderModule vulkanVS, VkShaderModule vulkanFS)
-bool VKContext::initPipeline(ShaderProgram* shaderProgram, VkPipeline &pipeline, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS])
-{
-	if ((this->deviceContext == nullptr) || (shaderProgram == nullptr))
-		return false;
-
-	VkPipelineShaderStageCreateInfo fsStageInfo = {};
-	VkPipelineShaderStageCreateInfo vsStageInfo = {};
-
-	vsStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	vsStageInfo.stage  = VK_SHADER_STAGE_VERTEX_BIT;
-	vsStageInfo.module = shaderProgram->VulkanVS();
-	vsStageInfo.pName  = "main";
-	//vsStageInfo.pSpecializationInfo = nullptr;
-
-	fsStageInfo.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	fsStageInfo.stage  = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fsStageInfo.module = shaderProgram->VulkanFS();
-	fsStageInfo.pName  = "main";
-	//fsStageInfo.pSpecializationInfo = nullptr;
-
-	VkPipelineShaderStageCreateInfo        shaderStages[] = { vsStageInfo, fsStageInfo };
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly  = {};
-	VkPipelineVertexInputStateCreateInfo   vertexInput    = {};
-	VkGraphicsPipelineCreateInfo           pipelineInfo   = {};
-	//VkPipeline                             pipeline       = nullptr;
-
-	vertexInput.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInput.vertexAttributeDescriptionCount = NR_OF_ATTRIBS;
-	vertexInput.pVertexAttributeDescriptions    = attribsDesc;
-	vertexInput.vertexBindingDescriptionCount   = 1;
-	vertexInput.pVertexBindingDescriptions      = &attribsBindingDesc;
-
-	inputAssembly.sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-	//inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-	pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount          = 2;
-	pipelineInfo.pStages             = shaderStages;
-	pipelineInfo.pColorBlendState    = this->colorBlendInfo;
-	pipelineInfo.pDepthStencilState  = this->depthStencilInfo;
-	//pipelineInfo.pDynamicState       = nullptr;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pMultisampleState   = this->multisampleInfo;
-	pipelineInfo.pRasterizationState = this->rasterizationInfo;
-	pipelineInfo.pVertexInputState   = &vertexInput;
-	pipelineInfo.pViewportState      = this->viewportState;
-	//pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
-	pipelineInfo.basePipelineIndex   = -1;
-	pipelineInfo.layout              = this->pipelineLayout;
-	pipelineInfo.renderPass          = this->renderPass;
-	//pipelineInfo.subpass             = 0;
-
-	//switch((ShaderID)i) {
-	//case SHADER_ID_HUD:
-	//	break;
-	//case SHADER_ID_SKYBOX:
-	//	break;
-	//case SHADER_ID_WATER:
-	//	break;
-	//case SHADER_ID_SOLID:
-	//	break;
-	//default:
-	//	break;
-	//}
-
-	if (vkCreateGraphicsPipelines(this->deviceContext, nullptr, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
-		return nullptr;
-
-	return true;
-}
-
-VkPipelineLayout VKContext::initPipelineLayout()
-{
-	if (this->deviceContext == nullptr)
-		return nullptr;
-
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
-	VkPipelineLayout           pipelineLayout     = nullptr;
-
-	pipelineLayoutInfo.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts    = &this->uniformLayout;
-	//pipelineLayoutInfo.pushConstantRangeCount = 0;
-	//pipelineLayoutInfo.pPushConstantRanges    = 0;
-
-	if (vkCreatePipelineLayout(this->deviceContext, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
-		return nullptr;
-
-	return pipelineLayout;
-}
-
 VkPipelineRasterizationStateCreateInfo* VKContext::initRasterizer()
 {
 	VkPipelineRasterizationStateCreateInfo* rasterizationInfo = new VkPipelineRasterizationStateCreateInfo();
@@ -1625,89 +1736,6 @@ VkPipelineViewportStateCreateInfo* VKContext::initViewportState()
 	return viewportState;
 }
 
-VkDescriptorSetLayout VKContext::initUniformLayout()
-{
-	if (this->deviceContext == nullptr)
-		return nullptr;
-
-	VkDescriptorSetLayoutBinding    uniformLayoutBindings[NR_OF_UNIFORM_BUFFERS + 1] = {};
-	VkDescriptorSetLayoutCreateInfo uniformLayoutInfo = {};
-	VkDescriptorSetLayout           uniformLayout     = nullptr;
-	const int                       UNIFORM_SAMPLER   = 2;
-
-	// MATRIX BUFFER
-	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].descriptorCount = 1;
-	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].binding         = UNIFORM_BUFFER_MATRIX;
-	uniformLayoutBindings[UNIFORM_BUFFER_MATRIX].stageFlags      = VK_SHADER_STAGE_VERTEX_BIT;
-
-	// DEFAULT BUFFER
-	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].descriptorCount = 1;
-	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].binding         = UNIFORM_BUFFER_DEFAULT;
-	uniformLayoutBindings[UNIFORM_BUFFER_DEFAULT].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	// TEXTURE SAMPLER
-	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	uniformLayoutBindings[UNIFORM_SAMPLER].descriptorCount = MAX_TEXTURES;
-	uniformLayoutBindings[UNIFORM_SAMPLER].binding         = UNIFORM_SAMPLER;
-	uniformLayoutBindings[UNIFORM_SAMPLER].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-	uniformLayoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	uniformLayoutInfo.bindingCount = (NR_OF_UNIFORM_BUFFERS + 1);
-	uniformLayoutInfo.pBindings    = uniformLayoutBindings;
-
-	if (vkCreateDescriptorSetLayout(this->deviceContext, &uniformLayoutInfo, nullptr, &uniformLayout) != VK_SUCCESS)
-		return nullptr;
-
-	return uniformLayout;
-}
-
-VkDescriptorPool VKContext::initUniformPool()
-{
-	if (this->deviceContext == nullptr)
-		return nullptr;
-
-	VkDescriptorPoolCreateInfo uniformPoolInfo     = {};
-	VkDescriptorPoolSize       uniformPoolSizes[2] = {};
-	VkDescriptorPool           uniformPool         = nullptr;
-
-	uniformPoolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformPoolSizes[0].descriptorCount = NR_OF_UNIFORM_BUFFERS;
-
-	uniformPoolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	uniformPoolSizes[1].descriptorCount = MAX_TEXTURES;
-
-	uniformPoolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	uniformPoolInfo.poolSizeCount = 2;
-	uniformPoolInfo.pPoolSizes    = uniformPoolSizes;
-	uniformPoolInfo.maxSets       = 1;	// maximum number of descriptor sets that can be allocated from the pool
-
-	if (vkCreateDescriptorPool(this->deviceContext, &uniformPoolInfo, nullptr, &uniformPool) != VK_SUCCESS)
-		return nullptr;
-
-	return uniformPool;
-}
-
-VkDescriptorSet VKContext::initUniformSet()
-{
-	if (this->deviceContext == nullptr)
-		return nullptr;
-
-	VkDescriptorSetAllocateInfo uniformSetAllocInfo = {};
-	VkDescriptorSet             uniformSet          = nullptr;
-
-	uniformSetAllocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	uniformSetAllocInfo.descriptorSetCount = 1;
-	uniformSetAllocInfo.pSetLayouts        = &this->uniformLayout;
-	uniformSetAllocInfo.descriptorPool     = this->uniformPool;
-
-	if (vkAllocateDescriptorSets(this->deviceContext, &uniformSetAllocInfo, &uniformSet) != VK_SUCCESS)
-		return nullptr;
-
-	return uniformSet;
-}
-
 bool VKContext::init(bool vsync)
 {
 	this->frameIndex = 0;
@@ -1727,20 +1755,15 @@ bool VKContext::init(bool vsync)
 	if (this->deviceContext == nullptr)
 		return false;
 
-	this->uniformLayout = this->initUniformLayout();
+	//this->uniformLayout = this->initUniformLayout();
 
-	if (this->uniformLayout == nullptr)
-		return false;
+	//if (this->uniformLayout == nullptr)
+	//	return false;
 
-	this->uniformPool = this->initUniformPool();
+	//this->uniformPool = this->initUniformPool();
 
-	if (this->uniformPool == nullptr)
-		return false;
-
-	this->uniformSet = this->initUniformSet();
-
-	if (this->uniformSet == nullptr)
-		return false;
+	//if (this->uniformPool == nullptr)
+	//	return false;
 
 	this->commandPool = this->initCommandPool();
 
@@ -1813,6 +1836,53 @@ bool VKContext::IsOK()
 	return this->isOK;
 }
 
+void VKContext::Present()
+{
+	VkPresentInfoKHR     presentInfo        = {};
+	VkSemaphore          signalSemaphores[] = { this->semDrawComplete[this->frameIndex] };
+	VkSubmitInfo         submitInfo         = {};
+	VkSwapchainKHR       swapChains[]       = { this->swapChain->SwapChain };
+	VkSemaphore          waitSemaphores[]   = { this->semImageAvailable[this->frameIndex] };
+	VkPipelineStageFlags waitStages[]       = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+	// STOP RENDER PASS
+	vkCmdEndRenderPass(this->commandBuffers[this->imageIndex]);
+
+	// STOP RECORDING COMMAND BUFFER
+	vkEndCommandBuffer(this->commandBuffers[this->imageIndex]);
+
+	// SUBMIT DRAW COMMAND TO QUEUE
+	submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.pCommandBuffers      = &this->commandBuffers[this->imageIndex];
+	submitInfo.commandBufferCount   = 1;
+	submitInfo.pSignalSemaphores    = signalSemaphores;
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores      = waitSemaphores;
+	submitInfo.waitSemaphoreCount   = 1;
+	submitInfo.pWaitDstStageMask    = waitStages;
+
+	vkQueueSubmit(this->queues[VK_QUEUE_GRAPHICS]->Queue, 1, &submitInfo, this->frameFences[this->frameIndex]);
+
+	// PRESENT THE DRAWN BUFFER TO SCREEN
+	presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.pWaitSemaphores    = signalSemaphores;
+	presentInfo.waitSemaphoreCount = 1;
+
+	presentInfo.pImageIndices  = &this->imageIndex;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains    = swapChains;
+
+	VkResult result = vkQueuePresentKHR(this->queues[VK_QUEUE_PRESENTATION]->Queue, &presentInfo);
+
+	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR))
+		this->resetSwapChain();
+
+	this->frameIndex = ((this->frameIndex + 1) % MAX_CONCURRENT_FRAMES);
+
+	// WAIT FOR PRESENTATION TO FINISH
+	vkQueueWaitIdle(this->queues[VK_QUEUE_PRESENTATION]->Queue);
+}
+
 void VKContext::release()
 {
 	if (this->deviceContext != nullptr)
@@ -1858,15 +1928,15 @@ void VKContext::release()
 		this->commandPool = nullptr;
 	}
 
-	if (this->uniformPool != nullptr) {
-		vkDestroyDescriptorPool(this->deviceContext, this->uniformPool, nullptr);
-		this->uniformPool = nullptr;
-	}
+	//if (this->uniformPool != nullptr) {
+	//	vkDestroyDescriptorPool(this->deviceContext, this->uniformPool, nullptr);
+	//	this->uniformPool = nullptr;
+	//}
 
-	if (this->uniformLayout != nullptr) {
-		vkDestroyDescriptorSetLayout(this->deviceContext, this->uniformLayout, nullptr);
-		this->uniformLayout = nullptr;
-	}
+	//if (this->uniformLayout != nullptr) {
+	//	vkDestroyDescriptorSetLayout(this->deviceContext, this->uniformLayout, nullptr);
+	//	this->uniformLayout = nullptr;
+	//}
 
 	//if (!this->commandBuffers.empty()) {
 	//	vkFreeCommandBuffers(this->deviceContext, this->commandPool, (uint32_t)this->commandBuffers.size(), this->commandBuffers.data());
@@ -1951,11 +2021,6 @@ void VKContext::releaseSwapChain(bool releaseSupport)
 			this->DestroyTexture(&this->depthBufferImages[i], &this->depthBufferImageMemories[i], &this->depthBufferImageViews[i], nullptr);
 	}
 
-	if (this->pipelineLayout != nullptr) {
-		vkDestroyPipelineLayout(this->deviceContext, this->pipelineLayout, nullptr);
-		this->pipelineLayout = nullptr;
-	}
-
 	//vkDestroyPipeline(device, graphicsPipeline, nullptr);
 
 	if (this->renderPass != nullptr) {
@@ -1967,53 +2032,6 @@ void VKContext::releaseSwapChain(bool releaseSupport)
 
 	if (releaseSupport)
 		_DELETEP(this->swapChainSupport);
-}
-
-void VKContext::Present()
-{
-	VkPresentInfoKHR     presentInfo        = {};
-	VkSemaphore          signalSemaphores[] = { this->semDrawComplete[this->frameIndex] };
-	VkSubmitInfo         submitInfo         = {};
-	VkSwapchainKHR       swapChains[]       = { this->swapChain->SwapChain };
-	VkSemaphore          waitSemaphores[]   = { this->semImageAvailable[this->frameIndex] };
-	VkPipelineStageFlags waitStages[]       = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-	// STOP RENDER PASS
-	vkCmdEndRenderPass(this->commandBuffers[this->imageIndex]);
-
-	// STOP RECORDING COMMAND BUFFER
-	vkEndCommandBuffer(this->commandBuffers[this->imageIndex]);
-
-	// SUBMIT DRAW COMMAND TO QUEUE
-	submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.pCommandBuffers      = &this->commandBuffers[this->imageIndex];
-	submitInfo.commandBufferCount   = 1;
-	submitInfo.pSignalSemaphores    = signalSemaphores;
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores      = waitSemaphores;
-	submitInfo.waitSemaphoreCount   = 1;
-	submitInfo.pWaitDstStageMask    = waitStages;
-
-	vkQueueSubmit(this->queues[VK_QUEUE_GRAPHICS]->Queue, 1, &submitInfo, this->frameFences[this->frameIndex]);
-
-	// PRESENT THE DRAWN BUFFER TO SCREEN
-	presentInfo.sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.pWaitSemaphores    = signalSemaphores;
-	presentInfo.waitSemaphoreCount = 1;
-
-	presentInfo.pImageIndices  = &this->imageIndex;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains    = swapChains;
-
-	VkResult result = vkQueuePresentKHR(this->queues[VK_QUEUE_PRESENTATION]->Queue, &presentInfo);
-
-	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR))
-		this->resetSwapChain();
-
-	this->frameIndex = ((this->frameIndex + 1) % MAX_CONCURRENT_FRAMES);
-
-	// WAIT FOR PRESENTATION TO FINISH
-	vkQueueWaitIdle(this->queues[VK_QUEUE_PRESENTATION]->Queue);
 }
 
 bool VKContext::resetSwapChain()
@@ -2038,6 +2056,21 @@ void VKContext::SetVSync(bool enable)
 	this->vSync = enable;
 }
 
+void VKContext::UpdatePipelines()
+{
+	RenderEngine::Ready = false;
+
+	for (auto renderable : RenderEngine::Renderables)
+	{
+		Buffer* vertexBuffer = renderable->VertexBuffer();
+
+		if (vertexBuffer != nullptr)
+			vertexBuffer->UpdatePipelines();
+	}
+
+	RenderEngine::Ready = true;
+}
+
 bool VKContext::updateSwapChain(bool updateSupport)
 {
 	if (updateSupport)
@@ -2054,11 +2087,6 @@ bool VKContext::updateSwapChain(bool updateSupport)
 	this->renderPass = this->initRenderPass();
 
 	if (this->renderPass == nullptr)
-		return false;
-
-	this->pipelineLayout = this->initPipelineLayout();
-
-	if (this->pipelineLayout == nullptr)
 		return false;
 
 	if (!this->initDepthStencilImages(this->depthBufferImages, this->depthBufferImageMemories, this->depthBufferImageViews))

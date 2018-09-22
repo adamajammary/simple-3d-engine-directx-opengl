@@ -42,7 +42,7 @@ public:
 	GLuint         Program();
 	int            UpdateAttribsGL(Mesh* mesh);
 	int            UpdateUniformsGL(Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	int            UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet uniformSet, Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	VkShaderModule VulkanFS();
 	VkShaderModule VulkanVS();
 
@@ -58,8 +58,8 @@ public:
 
 private:
 	int  loadShaderGL(GLuint type, const wxString &sourceText);
-	void setAttribs();
-	void setUniforms();
+	void setAttribsGL();
+	void setUniformsGL();
 
 	#if defined _WINDOWS
 		DXLightBuffer  getBufferLight();

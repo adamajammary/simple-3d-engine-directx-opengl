@@ -127,25 +127,34 @@ int RenderEngine::drawBoundingVolumes()
 
 	uint16_t oldDrawMode = RenderEngine::DrawMode;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::DrawMode = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		RenderEngine::DrawMode = GL_LINE_STRIP;
+	RenderEngine::SetDrawMode(Utils::DRAW_MODES[DRAW_MODE_WIREFRAME]);
 
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
 		glEnable(GL_DEPTH_TEST);
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_BLEND);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//case GRAPHICS_API_DIRECTX12:
+	//	RenderEngine::DrawMode = D3D_PRIMITIVE_TOPOLOGY_LINESTRIP;
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	RenderEngine::DrawMode = GL_LINE_STRIP;
+
+	//	glEnable(GL_DEPTH_TEST);
+	//	glDisable(GL_CULL_FACE);
+	//	glDisable(GL_BLEND);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_SOLID);
 
@@ -163,23 +172,35 @@ int RenderEngine::drawHUDs(bool enableClipping, const glm::vec3 &clipMax, const 
 	if (RenderEngine::HUDs.empty())
 		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
 		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CCW);
-		glEnable(GL_BLEND);     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glFrontFace(GL_CCW);
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//	break;
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	glDisable(GL_DEPTH_TEST);
+	//	glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	//	glEnable(GL_BLEND);     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_HUD);
 
@@ -196,22 +217,34 @@ int RenderEngine::drawRenderables(bool enableClipping, const glm::vec3 &clipMax,
 	if (RenderEngine::Renderables.empty())
 		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
-		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glFrontFace(GL_CCW);
+
 		glDisable(GL_BLEND);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+	//	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	//	glDisable(GL_BLEND);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_DEFAULT);
 
@@ -274,23 +307,33 @@ int RenderEngine::drawSkybox(bool enableClipping, const glm::vec3 &clipMax, cons
 	if (RenderEngine::Skybox == nullptr)
 		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL);
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+
 		glDisable(GL_CULL_FACE);
+
 		glDisable(GL_BLEND);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//	break;
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL);
+	//	glDisable(GL_CULL_FACE);
+	//	glDisable(GL_BLEND);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_SKYBOX);
     RenderEngine::drawMesh(RenderEngine::Skybox, shaderProgram, enableClipping, clipMax, clipMin);
@@ -304,23 +347,35 @@ int RenderEngine::drawTerrains(bool enableClipping, const glm::vec3 &clipMax, co
 	if (RenderEngine::Terrains.empty())
 		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
-		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glFrontFace(GL_CCW);
+
 		glDisable(GL_BLEND);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//	break;
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+	//	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	//	glDisable(GL_BLEND);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_TERRAIN);
 
@@ -337,23 +392,35 @@ int RenderEngine::drawWaters(bool enableClipping, const glm::vec3 &clipMax, cons
 	if (RenderEngine::Waters.empty())
 		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
-		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
+
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+		glFrontFace(GL_CCW);
+
 		glDisable(GL_BLEND);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	//switch (Utils::SelectedGraphicsAPI) {
+	//#if defined _WINDOWS
+	//case GRAPHICS_API_DIRECTX11:
+	//	break;
+	//case GRAPHICS_API_DIRECTX12:
+	//	break;
+	//#endif
+	//case GRAPHICS_API_OPENGL:
+	//	glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+	//	glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+	//	glDisable(GL_BLEND);
+	//	break;
+	//case GRAPHICS_API_VULKAN:
+	//	break;
+	//default:
+	//	break;
+	//}
 
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, SHADER_ID_WATER);
 
@@ -379,22 +446,13 @@ void RenderEngine::drawScene(bool enableClipping, const glm::vec3 &clipMax, cons
 void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
 	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::drawMeshDX11(mesh, shaderProgram, enableClipping, clipMax, clipMin);
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::drawMeshDX12(mesh, shaderProgram, enableClipping, clipMax, clipMin);
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		RenderEngine::drawMeshGL(mesh, shaderProgram, enableClipping, clipMax, clipMin);
-		break;
-	case GRAPHICS_API_VULKAN:
-		RenderEngine::drawMeshVulkan(mesh, shaderProgram, enableClipping, clipMax, clipMin);
-		break;
-	default:
-		break;
+		#if defined _WINDOWS
+		case GRAPHICS_API_DIRECTX11: RenderEngine::drawMeshDX11(mesh, shaderProgram, enableClipping, clipMax, clipMin); break;
+		case GRAPHICS_API_DIRECTX12: RenderEngine::drawMeshDX12(mesh, shaderProgram, enableClipping, clipMax, clipMin); break;
+		#endif
+		case GRAPHICS_API_OPENGL: RenderEngine::drawMeshGL(mesh, shaderProgram, enableClipping, clipMax, clipMin);     break;
+		case GRAPHICS_API_VULKAN: RenderEngine::drawMeshVulkan(mesh, shaderProgram, enableClipping, clipMax, clipMin); break;
+		default: break;
 	}
 }
 
@@ -545,6 +603,15 @@ void RenderEngine::SetDrawMode(const wxString &mode)
 			RenderEngine::DrawMode = GL_TRIANGLES;
 		else if (mode == Utils::DRAW_MODES[DRAW_MODE_WIREFRAME])
 			RenderEngine::DrawMode = GL_LINE_STRIP;
+
+		break;
+	case GRAPHICS_API_VULKAN:
+		if (mode == Utils::DRAW_MODES[DRAW_MODE_FILLED])
+			RenderEngine::DrawMode = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		else if (mode == Utils::DRAW_MODES[DRAW_MODE_WIREFRAME])
+			RenderEngine::DrawMode = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+
+		RenderEngine::Canvas.VK->UpdatePipelines();
 
 		break;
 	}

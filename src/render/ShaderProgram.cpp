@@ -270,28 +270,20 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 		if (this->Link() != 0)
 			return -4;
 
-		this->setAttribs();
-		this->setUniforms();
+		this->setAttribsGL();
+		this->setUniformsGL();
 
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, wxT("vert"), &this->vulkanVS) != 0)
-			return -2;
+			return -5;
 
 		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, wxT("frag"), &this->vulkanFS) != 0)
-			return -3;
-
-		//this->pipeline = RenderEngine::Canvas.Vulkan->InitPipeline(this->vulkanVS, this->vulkanFS);
-
-		//if (this->pipeline == nullptr)
-		//	return -4;
-
-		//this->setAttribs();
-		//this->setUniforms();
+			return -6;
 
 		break;
 	default:
-		return -2;
+		return -7;
 	}
 
 	return 0;
@@ -379,94 +371,76 @@ GLuint ShaderProgram::Program()
     return this->program;
 }
 
-void ShaderProgram::setAttribs()
+void ShaderProgram::setAttribsGL()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	case GRAPHICS_API_OPENGL:
-		glUseProgram(this->program);
+	glUseProgram(this->program);
 
-		// ATTRIBS (BUFFERS)
-		this->Attribs[ATTRIB_NORMAL]    = glGetAttribLocation(this->program, "VertexNormal");
-		this->Attribs[ATTRIB_POSITION]  = glGetAttribLocation(this->program, "VertexPosition");
-		this->Attribs[ATTRIB_TEXCOORDS] = glGetAttribLocation(this->program, "VertexTextureCoords");
+	// ATTRIBS (BUFFERS)
+	this->Attribs[ATTRIB_NORMAL]    = glGetAttribLocation(this->program, "VertexNormal");
+	this->Attribs[ATTRIB_POSITION]  = glGetAttribLocation(this->program, "VertexPosition");
+	this->Attribs[ATTRIB_TEXCOORDS] = glGetAttribLocation(this->program, "VertexTextureCoords");
 
-		glUseProgram(0);
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
-	}
+	glUseProgram(0);
 }
 
-void ShaderProgram::setUniforms()
+void ShaderProgram::setUniformsGL()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	case GRAPHICS_API_OPENGL:
-		glUseProgram(this->program);
+	glUseProgram(this->program);
 
-		// MATRIX BUFFER
-		this->Uniforms[MATRIX_BUFFER] = glGetUniformBlockIndex(this->program, "MatrixBuffer");
-		glGenBuffers(1, &this->UniformBuffers[MATRIX_BUFFER]);
+	// MATRIX BUFFER
+	this->Uniforms[MATRIX_BUFFER] = glGetUniformBlockIndex(this->program, "MatrixBuffer");
+	glGenBuffers(1, &this->UniformBuffers[MATRIX_BUFFER]);
 
-		// DEFAULT BUFFER
-		this->Uniforms[DEFAULT_BUFFER] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
-		glGenBuffers(1, &this->UniformBuffers[DEFAULT_BUFFER]);
+	// DEFAULT BUFFER
+	this->Uniforms[DEFAULT_BUFFER] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
+	glGenBuffers(1, &this->UniformBuffers[DEFAULT_BUFFER]);
 
-		// MATRICES
-		//this->Uniforms[MATRIX_MODEL]      = glGetUniformLocation(this->program, "MatrixModel");
-		//this->Uniforms[MATRIX_VIEW]       = glGetUniformLocation(this->program, "MatrixView");
-		//this->Uniforms[MATRIX_PROJECTION] = glGetUniformLocation(this->program, "MatrixProjection");
-		//this->Uniforms[MATRIX_MVP]        = glGetUniformLocation(this->program, "MatrixMVP");
+	// MATRICES
+	//this->Uniforms[MATRIX_MODEL]      = glGetUniformLocation(this->program, "MatrixModel");
+	//this->Uniforms[MATRIX_VIEW]       = glGetUniformLocation(this->program, "MatrixView");
+	//this->Uniforms[MATRIX_PROJECTION] = glGetUniformLocation(this->program, "MatrixProjection");
+	//this->Uniforms[MATRIX_MVP]        = glGetUniformLocation(this->program, "MatrixMVP");
 
-		// CAMERA
-		this->Uniforms[CAMERA_POSITION] = glGetUniformLocation(this->program, "CameraMain.Position");
-		this->Uniforms[CAMERA_NEAR]     = glGetUniformLocation(this->program, "CameraMain.Near");
-		this->Uniforms[CAMERA_FAR]      = glGetUniformLocation(this->program, "CameraMain.Far");
+	// CAMERA
+	this->Uniforms[CAMERA_POSITION] = glGetUniformLocation(this->program, "CameraMain.Position");
+	this->Uniforms[CAMERA_NEAR]     = glGetUniformLocation(this->program, "CameraMain.Near");
+	this->Uniforms[CAMERA_FAR]      = glGetUniformLocation(this->program, "CameraMain.Far");
 
-		// CLIPPING
-		//this->Uniforms[ENABLE_CLIPPING] = glGetUniformLocation(this->program, "EnableClipping");
-		//this->Uniforms[CLIP_MAX]        = glGetUniformLocation(this->program, "ClipMax");
-		//this->Uniforms[CLIP_MIN]        = glGetUniformLocation(this->program, "ClipMin");
+	// CLIPPING
+	//this->Uniforms[ENABLE_CLIPPING] = glGetUniformLocation(this->program, "EnableClipping");
+	//this->Uniforms[CLIP_MAX]        = glGetUniformLocation(this->program, "ClipMax");
+	//this->Uniforms[CLIP_MIN]        = glGetUniformLocation(this->program, "ClipMin");
 
-		// AMBIENT LIGHT
-		//this->Uniforms[AMBIENT_LIGHT_INTENSITY] = glGetUniformLocation(this->program, "AmbientLightIntensity");
-		//this->Uniforms[AMBIENT_LIGHT_INTENSITY] = glGetUniformLocation(this->program, "Ambient");
+	// AMBIENT LIGHT
+	//this->Uniforms[AMBIENT_LIGHT_INTENSITY] = glGetUniformLocation(this->program, "AmbientLightIntensity");
+	//this->Uniforms[AMBIENT_LIGHT_INTENSITY] = glGetUniformLocation(this->program, "Ambient");
 
-		// DIRECIONAL LIGHT
-		//this->Uniforms[SUNLIGHT_COLOR]      = glGetUniformLocation(this->program, "SunLight.Color");
-		//this->Uniforms[SUNLIGHT_DIRECTION]  = glGetUniformLocation(this->program, "SunLight.Direction");
-		//this->Uniforms[SUNLIGHT_POSITION]   = glGetUniformLocation(this->program, "SunLight.Position");
-		//this->Uniforms[SUNLIGHT_REFLECTION] = glGetUniformLocation(this->program, "SunLight.Reflection");
-		//this->Uniforms[SUNLIGHT_SHINE]      = glGetUniformLocation(this->program, "SunLight.Shine");
+	// DIRECIONAL LIGHT
+	//this->Uniforms[SUNLIGHT_COLOR]      = glGetUniformLocation(this->program, "SunLight.Color");
+	//this->Uniforms[SUNLIGHT_DIRECTION]  = glGetUniformLocation(this->program, "SunLight.Direction");
+	//this->Uniforms[SUNLIGHT_POSITION]   = glGetUniformLocation(this->program, "SunLight.Position");
+	//this->Uniforms[SUNLIGHT_REFLECTION] = glGetUniformLocation(this->program, "SunLight.Reflection");
+	//this->Uniforms[SUNLIGHT_SHINE]      = glGetUniformLocation(this->program, "SunLight.Shine");
         
-		// MATERIAL COLOR
-		//this->Uniforms[MATERIAL_COLOR] = glGetUniformLocation(this->program, "MaterialColor");
-		this->Uniforms[SOLID_COLOR]    = glGetUniformLocation(this->program, "SolidColor");
-		//this->Uniforms[IS_TEXTURED]    = glGetUniformLocation(this->program, "IsTextured");
+	// MATERIAL COLOR
+	//this->Uniforms[MATERIAL_COLOR] = glGetUniformLocation(this->program, "MaterialColor");
+	this->Uniforms[SOLID_COLOR]    = glGetUniformLocation(this->program, "SolidColor");
+	//this->Uniforms[IS_TEXTURED]    = glGetUniformLocation(this->program, "IsTextured");
 
-		// WATER
-		this->Uniforms[MOVE_FACTOR]   = glGetUniformLocation(this->program, "MoveFactor");
-		this->Uniforms[WAVE_STRENGTH] = glGetUniformLocation(this->program, "WaveStrength");
+	// WATER
+	this->Uniforms[MOVE_FACTOR]   = glGetUniformLocation(this->program, "MoveFactor");
+	this->Uniforms[WAVE_STRENGTH] = glGetUniformLocation(this->program, "WaveStrength");
 
-		// HUD
-		this->Uniforms[IS_TRANSPARENT] = glGetUniformLocation(this->program, "IsTransparent");
+	// HUD
+	this->Uniforms[IS_TRANSPARENT] = glGetUniformLocation(this->program, "IsTransparent");
 
-		// BIND TEXTURES
-		for (int i = 0; i < MAX_TEXTURES; i++) {
-			this->Uniforms[TEXTURES0       + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
-			//this->Uniforms[TEXTURE_SCALES0 + i] = glGetUniformLocation(this->program, wxString("TextureScales[" + std::to_string(i) + "]").c_str());
-		}
-
-		glUseProgram(0);
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
+	// BIND TEXTURES
+	for (int i = 0; i < MAX_TEXTURES; i++) {
+		this->Uniforms[TEXTURES0       + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
+		//this->Uniforms[TEXTURE_SCALES0 + i] = glGetUniformLocation(this->program, wxString("TextureScales[" + std::to_string(i) + "]").c_str());
 	}
+
+	glUseProgram(0);
 }
 
 int ShaderProgram::UpdateAttribsGL(Mesh* mesh)
@@ -585,9 +559,9 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet uniformSet, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
 {
-	if ((deviceContext == nullptr) || (uniformSet == nullptr) || (mesh == nullptr))
+	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
 
 	//Buffer* vertexBuffer = mesh->VertexBuffer();
@@ -601,12 +575,18 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	//if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
 	//	return -2;
 
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -2;
+
 	void*                  bufferMemData     = nullptr;
 	GLDefaultBuffer        defaultValues     = {};
 	GLMatrixBuffer         matrices          = {};
 	bool                   removeTranslation = (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name);
 	VkDescriptorBufferInfo uniformBufferInfo = {};
 	VkDescriptorImageInfo  uniformImageInfo[MAX_TEXTURES] = {};
+	VkDescriptorSet        uniformSet        = vertexBuffer->UniformSet();
 	VkWriteDescriptorSet   uniformWriteSet   = {};
 
 	// Initialize uniform buffer descriptor set
@@ -618,11 +598,6 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, VkDescriptorSet unif
 	uniformWriteSet.descriptorCount = 1;
 	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
 	//uniformWriteSet.dstArrayElement = 0;
-
-	Buffer* vertexBuffer = mesh->VertexBuffer();
-
-	if (vertexBuffer == nullptr)
-		return -2;
 
 	// MATRIX BUFFER
 	VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);

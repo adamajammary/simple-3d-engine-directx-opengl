@@ -9,8 +9,8 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 	this->indexBuffer          = nullptr;
 	this->normalBuffer         = nullptr;
 	this->textureCoordsBuffer  = nullptr;
-	this->vertexBuffer         = nullptr;
 	this->type                 = parent->Type();
+	this->vertexBuffer         = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -24,8 +24,8 @@ Mesh::Mesh() : Component("")
 	this->indexBuffer          = nullptr;
 	this->normalBuffer         = nullptr;
 	this->textureCoordsBuffer  = nullptr;
-	this->vertexBuffer         = nullptr;
 	this->type                 = COMPONENT_MESH;
+	this->vertexBuffer         = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -194,8 +194,11 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
     this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
 
-	this->loadModelData(mesh);
-	this->setModelData();
+	if (!this->loadModelData(mesh))
+		return false;
+
+	if (!this->setModelData())
+		return false;
 
     // http://assimp.sourceforge.net/lib_html/classai_matrix4x4t.html
 	RenderEngine::Canvas.Window->SetStatusText("Decomposing the Transformation Matrix ...");
