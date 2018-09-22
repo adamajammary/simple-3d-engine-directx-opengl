@@ -123,11 +123,11 @@
     <ClCompile Include="src\render\DXContext.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="3rd\json11-master\json11.cpp">
-      <Filter>Resource Files\Libraries</Filter>
-    </ClCompile>
     <ClCompile Include="src\render\VKContext.cpp">
       <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="3rd\json11-1.0.0\json11.cpp">
+      <Filter>Resource Files\Libraries</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -212,11 +212,11 @@
     <ClInclude Include="src\render\DXContext.h">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="3rd\json11-master\json11.hpp">
-      <Filter>Resource Files\Libraries</Filter>
-    </ClInclude>
     <ClInclude Include="src\render\VKContext.h">
       <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\json11-1.0.0\json11.hpp">
+      <Filter>Resource Files\Libraries</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

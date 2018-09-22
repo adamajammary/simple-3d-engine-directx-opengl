@@ -2,7 +2,6 @@
 #define GE3D_GLOBALS_H
 
 #define _CRT_SECURE_NO_WARNINGS
-#define GLEW_STATIC
 #define UNICODE
 #define _UNICODE
 
@@ -22,6 +21,8 @@
 #endif
 
 // OpenGL
+//#define GLEW_STATIC
+
 #include <GL/glew.h>
 #if defined _WINDOWS
 	#include <wglext.h>
@@ -38,6 +39,7 @@
 // GLM - OpenGL Mathematics
 #define GLM_FORCE_RADIANS
 //#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -50,7 +52,7 @@
 #include <assimp/postprocess.h>
 
 // JSON
-#include <json11-master/json11.hpp>
+#include <json11-1.0.0/json11.hpp>
 
 // LZMA SDK
 #include <LzmaLib.h>
@@ -59,6 +61,8 @@
 #include <noise.h>
 
 // WxWidgets
+#define WXUSINGDLL
+
 #include <wx/app.h>
 #include <wx/button.h>
 #include <wx/checkbox.h>
