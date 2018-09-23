@@ -564,17 +564,6 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool ena
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
 
-	//Buffer* vertexBuffer = mesh->VertexBuffer();
-
-	//if (vertexBuffer == nullptr)
-	//	return -1;
-
-	//VkBuffer       uniformBuffer       = vertexBuffer->UniformBuffer(UNIFORM_BUFFER_MATRIX);
-	//VkDeviceMemory uniformBufferMemory = vertexBuffer->UniformBufferMemory(UNIFORM_BUFFER_MATRIX);
-
-	//if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr))
-	//	return -2;
-
 	Buffer* vertexBuffer = mesh->VertexBuffer();
 
 	if (vertexBuffer == nullptr)

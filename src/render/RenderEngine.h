@@ -41,7 +41,6 @@ public:
 	static void SetCanvasSize(int width, int height);
 	static void SetDrawMode(const wxString &mode);
 	static int  SetGraphicsAPI(const wxString &api);
-	static int  SetGraphicsAPI(GraphicsAPI api);
 	static void SetVSync(bool enable);
 
 private:
@@ -61,6 +60,7 @@ private:
 	static int            drawMeshGL(Mesh*     mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	static int            drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	static int            initResources();
+	static int            setGraphicsAPI(GraphicsAPI api);
 	static ShaderProgram* setShaderProgram(bool enable, ShaderID program = SHADER_ID_UNKNOWN);
 
 };

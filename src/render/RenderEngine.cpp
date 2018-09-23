@@ -507,9 +507,9 @@ int RenderEngine::Init(WindowFrame* window, const wxSize &size)
 	RenderEngine::Canvas.Window      = window;
 
 	#if defined _WINDOWS
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_DIRECTX11);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_DIRECTX11);
 	#else
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_OPENGL);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_OPENGL);
 	#endif
 
 	if (result != 0)
@@ -571,8 +571,8 @@ void RenderEngine::SetAspectRatio(const wxString &ratio)
 		(int)((float)RenderEngine::Canvas.Size.GetWidth() * RenderEngine::Canvas.AspectRatio)
 	);
 
-	//if (RenderEngine::Canvas.VK != nullptr)
-	//	RenderEngine::Canvas.VK->UpdateSwapChain();
+	if (RenderEngine::Canvas.VK != nullptr)
+		RenderEngine::Canvas.VK->ResetSwapChain();
 }
 
 void RenderEngine::SetCanvasSize(int width, int height)
@@ -611,7 +611,8 @@ void RenderEngine::SetDrawMode(const wxString &mode)
 		else if (mode == Utils::DRAW_MODES[DRAW_MODE_WIREFRAME])
 			RenderEngine::DrawMode = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 
-		RenderEngine::Canvas.VK->UpdatePipelines();
+		if (RenderEngine::Canvas.VK != nullptr)
+			RenderEngine::Canvas.VK->ResetPipelines();
 
 		break;
 	}
@@ -623,26 +624,26 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 	int         result  = -1;
 
 	if (api == "DirectX 11")
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_DIRECTX11);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_DIRECTX11);
 	else if (api == "DirectX 12")
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_DIRECTX12);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_DIRECTX12);
 	else if (api == "OpenGL")
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_OPENGL);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_OPENGL);
 	else if (api == "Vulkan")
-		result = RenderEngine::SetGraphicsAPI(GRAPHICS_API_VULKAN);
+		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_VULKAN);
 
 	if (result != 0)
 	{
 		wxMessageBox("ERROR: Failed to initialize the " + api + " graphics engine.");
 
-		RenderEngine::SetGraphicsAPI(lastAPI);
+		RenderEngine::setGraphicsAPI(lastAPI);
 		RenderEngine::Canvas.Window->SetGraphicsAPI(lastAPI);
 	}
 
 	return result;
 }
 
-int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
+int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 {
 	RenderEngine::Ready        = false;
 	Utils::SelectedGraphicsAPI = api;
@@ -661,6 +662,8 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 	);
 
 	RenderEngine::Canvas.Window->SetCanvas(RenderEngine::Canvas.Canvas);
+
+	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
 
 	// RE-CREATE THE GRAPHICS CONTEXT
 	switch (api) {
@@ -734,7 +737,7 @@ int RenderEngine::SetGraphicsAPI(GraphicsAPI api)
 		return -8;
 	}
 
-	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
+	//RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
 
 	RenderEngine::Ready = true;
 
@@ -777,6 +780,7 @@ void RenderEngine::SetVSync(bool enable)
 	#endif
 		break;
 	case GRAPHICS_API_VULKAN:
+		RenderEngine::Canvas.VK->SetVSync(enable);
 		break;
 	default:
 		break;

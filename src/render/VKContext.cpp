@@ -36,7 +36,7 @@ void VKContext::Clear(float r, float g, float b, float a)
 	);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR)
-		this->resetSwapChain();
+		this->ResetSwapChain();
 
 	// START RECORDING COMMAND BUFFER
 	beginCommandInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -1054,6 +1054,9 @@ VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions
 
 		physicalDevice = device;
 
+		if (std::find(this->swapChainSupport->PresentModes.begin(), this->swapChainSupport->PresentModes.end(), VK_PRESENT_MODE_IMMEDIATE_KHR) == this->swapChainSupport->PresentModes.end())
+			continue;
+
 		break;
 	}
 
@@ -1180,24 +1183,17 @@ uint32_t VKContext::getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags pro
 
 VkPresentModeKHR VKContext::getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes)
 {
-	std::vector<VkPresentModeKHR> prioritizedModes = {
-		VK_PRESENT_MODE_MAILBOX_KHR,
-		VK_PRESENT_MODE_IMMEDIATE_KHR,
-		VK_PRESENT_MODE_FIFO_KHR,
-		VK_PRESENT_MODE_FIFO_RELAXED_KHR
-	};
+	VkPresentModeKHR presentMode = (this->vSync ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR);
 
-	for (auto priMode : prioritizedModes) {
-		if (std::find(presentationModes.begin(), presentationModes.end(), priMode) != presentationModes.end())
-			return priMode;
-	}
+	if (std::find(presentationModes.begin(), presentationModes.end(), presentMode) != presentationModes.end())
+		return presentMode;
 
-	return (!presentationModes.empty() ? presentationModes[0] : VK_PRESENT_MODE_FIFO_KHR);
+	return VK_PRESENT_MODE_FIFO_KHR;
 }
 
 VkSurfaceFormatKHR VKContext::getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats)
 {
-	VkSurfaceFormatKHR surfaceFormat = {};//new VkSurfaceFormatKHR();
+	VkSurfaceFormatKHR surfaceFormat = {};
 
 	surfaceFormat.format     = VK_FORMAT_B8G8R8A8_UNORM;
 	surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -1210,8 +1206,6 @@ VkSurfaceFormatKHR VKContext::getSurfaceFormat(const std::vector<VkSurfaceFormat
 	if (!surfaceFormats.empty()) {
 		surfaceFormat.format     = surfaceFormats[0].format;
 		surfaceFormat.colorSpace = surfaceFormats[0].colorSpace;
-	//} else {
-		//_DELETEP(surfaceFormat);
 	}
 
 	return surfaceFormat;
@@ -1224,7 +1218,7 @@ VkExtent2D VKContext::getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilitie
 		return VkExtent2D(capabilities.currentExtent);
 
 	// Otherwise try to match the size as much as possible to the canvas size
-	VkExtent2D size = {};//new VkExtent2D();
+	VkExtent2D size = {};
 
 	uint32_t width     = (uint32_t)RenderEngine::Canvas.Size.GetWidth();
 	uint32_t height    = (uint32_t)RenderEngine::Canvas.Size.GetHeight();
@@ -1362,6 +1356,7 @@ VkDevice VKContext::initDeviceContext()
 	std::vector<const char*> extensions = { "VK_KHR_swapchain" };
 	VkPhysicalDeviceFeatures features   = {};
 
+	features.fillModeNonSolid  = VK_TRUE;
 	features.samplerAnisotropy = VK_TRUE;
 
 	this->device = this->getDevice(extensions, features);
@@ -1508,15 +1503,18 @@ VkPipelineRasterizationStateCreateInfo* VKContext::initRasterizer()
 	VkPipelineRasterizationStateCreateInfo* rasterizationInfo = new VkPipelineRasterizationStateCreateInfo();
 
 	rasterizationInfo->sType     = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	//rasterizer.depthClampEnable        = VK_FALSE;
-	//rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	//rasterizer.polygonMode             = VK_POLYGON_MODE_FILL;
-	//rasterizer.polygonMode             = VK_POLYGON_MODE_LINE;
-	//rasterizer.polygonMode             = VK_POLYGON_MODE_POINT;
 	rasterizationInfo->lineWidth = 1.0f;
 	rasterizationInfo->cullMode  = VK_CULL_MODE_BACK_BIT;
-	//rasterizer->frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizationInfo->frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+	if ((VkPrimitiveTopology)RenderEngine::DrawMode == VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+		rasterizationInfo->polygonMode = VK_POLYGON_MODE_FILL;
+	else
+		rasterizationInfo->polygonMode = VK_POLYGON_MODE_LINE;
+
+	//rasterizer.depthClampEnable        = VK_FALSE;
+	//rasterizer.rasterizerDiscardEnable = VK_FALSE;
+	//rasterizer->frontFace              = VK_FRONT_FACE_CLOCKWISE;
 	//rasterizer.depthBiasEnable         = VK_FALSE;
 	//rasterizer.depthBiasConstantFactor = 0.0f;
 	//rasterizer.depthBiasClamp          = 0.0f;
@@ -1739,6 +1737,7 @@ VkPipelineViewportStateCreateInfo* VKContext::initViewportState()
 bool VKContext::init(bool vsync)
 {
 	this->frameIndex = 0;
+	this->vSync      = vsync;
 
 	this->instance = this->initInstance();
 
@@ -1755,16 +1754,6 @@ bool VKContext::init(bool vsync)
 	if (this->deviceContext == nullptr)
 		return false;
 
-	//this->uniformLayout = this->initUniformLayout();
-
-	//if (this->uniformLayout == nullptr)
-	//	return false;
-
-	//this->uniformPool = this->initUniformPool();
-
-	//if (this->uniformPool == nullptr)
-	//	return false;
-
 	this->commandPool = this->initCommandPool();
 
 	if (this->commandPool == nullptr)
@@ -1773,32 +1762,7 @@ bool VKContext::init(bool vsync)
 	if (!this->updateSwapChain(false))
 		return false;
 
-	//this->swapChain = this->initSwapChain(this->swapChainSupport, this->surface);
-
-	//if (this->swapChain == nullptr)
-	//	return false;
-
 	this->viewportState = this->initViewportState();
-
-	//this->renderPass = this->initRenderPass();
-
-	//if (this->renderPass == nullptr)
-	//	return false;
-
-	//this->pipelineLayout = this->initPipelineLayout();
-
-	//if (this->pipelineLayout == nullptr)
-	//	return false;
-
-	//this->frameBuffers = this->initFramebuffers();
-
-	//if (this->frameBuffers.empty())
-	//	return false;
-
-	//this->commandBuffers = this->initCommandBuffers(this->frameBuffers.size());
-
-	//if (this->commandBuffers.empty())
-	//	return false;
 
 	if (!this->initSync())
 		return false;
@@ -1821,8 +1785,6 @@ bool VKContext::init(bool vsync)
 	dynamicState.dynamicStateCount = 2;
 	dynamicState.pDynamicStates    = dynamicStates;
 	*/
-
-	this->SetVSync(vsync);
 
 	RenderEngine::GPU.Vendor   = wxT("");
 	RenderEngine::GPU.Renderer = this->getDeviceName(this->device);
@@ -1875,7 +1837,7 @@ void VKContext::Present()
 	VkResult result = vkQueuePresentKHR(this->queues[VK_QUEUE_PRESENTATION]->Queue, &presentInfo);
 
 	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR))
-		this->resetSwapChain();
+		this->ResetSwapChain();
 
 	this->frameIndex = ((this->frameIndex + 1) % MAX_CONCURRENT_FRAMES);
 
@@ -1928,49 +1890,17 @@ void VKContext::release()
 		this->commandPool = nullptr;
 	}
 
-	//if (this->uniformPool != nullptr) {
-	//	vkDestroyDescriptorPool(this->deviceContext, this->uniformPool, nullptr);
-	//	this->uniformPool = nullptr;
-	//}
-
-	//if (this->uniformLayout != nullptr) {
-	//	vkDestroyDescriptorSetLayout(this->deviceContext, this->uniformLayout, nullptr);
-	//	this->uniformLayout = nullptr;
-	//}
-
-	//if (!this->commandBuffers.empty()) {
-	//	vkFreeCommandBuffers(this->deviceContext, this->commandPool, (uint32_t)this->commandBuffers.size(), this->commandBuffers.data());
-	//	this->commandBuffers.clear();
-	//}
-
-	//for (auto frameBuffer : this->frameBuffers) {
-	//	if (frameBuffer != nullptr)
-	//		vkDestroyFramebuffer(this->deviceContext, frameBuffer, nullptr);
-	//}
-
-	//this->frameBuffers.clear();
-
-	//if (this->pipelineLayout != nullptr) {
-	//	vkDestroyPipelineLayout(this->deviceContext, this->pipelineLayout, nullptr);
-	//	this->pipelineLayout = nullptr;
-	//}
-
-	//if (this->renderPass != nullptr) {
-	//	vkDestroyRenderPass(this->deviceContext, this->renderPass, nullptr);
-	//	this->renderPass = nullptr;
-	//}
-
 	if (this->viewportState != nullptr) {
 		_DELETEP(this->viewportState->pScissors);
 		_DELETEP(this->viewportState->pViewports);
 		_DELETEP(this->viewportState);
 	}
 
-	//_DELETEP(this->swapChain);
+	_DELETEP(this->swapChainSupport);
 
-	if (this->deviceContext != nullptr) {
-		vkDestroyDevice(this->deviceContext, nullptr);
-		this->deviceContext = nullptr;
+	if (this->surface != nullptr) {
+		vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
+		this->surface = nullptr;
 	}
 
 	for (auto queue : this->queues)
@@ -1978,11 +1908,9 @@ void VKContext::release()
 
 	this->queues.clear();
 
-	_DELETEP(this->swapChainSupport);
-
-	if (this->surface != nullptr) {
-		vkDestroySurfaceKHR(this->instance, this->surface, nullptr);
-		this->surface = nullptr;
+	if (this->deviceContext != nullptr) {
+		vkDestroyDevice(this->deviceContext, nullptr);
+		this->deviceContext = nullptr;
 	}
 
 	#if defined _DEBUG
@@ -2021,8 +1949,6 @@ void VKContext::releaseSwapChain(bool releaseSupport)
 			this->DestroyTexture(&this->depthBufferImages[i], &this->depthBufferImageMemories[i], &this->depthBufferImageViews[i], nullptr);
 	}
 
-	//vkDestroyPipeline(device, graphicsPipeline, nullptr);
-
 	if (this->renderPass != nullptr) {
 		vkDestroyRenderPass(this->deviceContext, this->renderPass, nullptr);
 		this->renderPass = nullptr;
@@ -2034,7 +1960,27 @@ void VKContext::releaseSwapChain(bool releaseSupport)
 		_DELETEP(this->swapChainSupport);
 }
 
-bool VKContext::resetSwapChain()
+void VKContext::ResetPipelines()
+{
+	RenderEngine::Ready = false;
+
+	this->colorBlendInfo    = this->initColorBlending();
+	this->depthStencilInfo  = this->initDepthStencilBuffer();
+	this->multisampleInfo   = this->initMultisampling();
+	this->rasterizationInfo = this->initRasterizer();
+
+	for (auto renderable : RenderEngine::Renderables)
+	{
+		Buffer* vertexBuffer = renderable->VertexBuffer();
+
+		if (vertexBuffer != nullptr)
+			vertexBuffer->ResetPipelines();
+	}
+
+	RenderEngine::Ready = true;
+}
+
+bool VKContext::ResetSwapChain()
 {
 	RenderEngine::Ready = false;
 
@@ -2054,21 +2000,8 @@ bool VKContext::resetSwapChain()
 void VKContext::SetVSync(bool enable)
 {
 	this->vSync = enable;
-}
 
-void VKContext::UpdatePipelines()
-{
-	RenderEngine::Ready = false;
-
-	for (auto renderable : RenderEngine::Renderables)
-	{
-		Buffer* vertexBuffer = renderable->VertexBuffer();
-
-		if (vertexBuffer != nullptr)
-			vertexBuffer->UpdatePipelines();
-	}
-
-	RenderEngine::Ready = true;
+	this->ResetSwapChain();
 }
 
 bool VKContext::updateSwapChain(bool updateSupport)

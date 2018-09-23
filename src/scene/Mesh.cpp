@@ -2,15 +2,15 @@
 
 Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 {
-	this->boundingVolume       = nullptr;
-	this->isSelected           = false;
-	this->maxScale             = 0.0f;
-	this->Parent               = parent;
-	this->indexBuffer          = nullptr;
-	this->normalBuffer         = nullptr;
-	this->textureCoordsBuffer  = nullptr;
-	this->type                 = parent->Type();
-	this->vertexBuffer         = nullptr;
+	this->boundingVolume      = nullptr;
+	this->isSelected          = false;
+	this->maxScale            = 0.0f;
+	this->Parent              = parent;
+	this->indexBuffer         = nullptr;
+	this->normalBuffer        = nullptr;
+	this->textureCoordsBuffer = nullptr;
+	this->type                = parent->Type();
+	this->vertexBuffer        = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -18,14 +18,14 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 
 Mesh::Mesh() : Component("")
 {
-	this->boundingVolume       = nullptr;
-	this->isSelected           = false;
-	this->maxScale             = 0.0f;
-	this->indexBuffer          = nullptr;
-	this->normalBuffer         = nullptr;
-	this->textureCoordsBuffer  = nullptr;
-	this->type                 = COMPONENT_MESH;
-	this->vertexBuffer         = nullptr;
+	this->boundingVolume      = nullptr;
+	this->isSelected          = false;
+	this->maxScale            = 0.0f;
+	this->indexBuffer         = nullptr;
+	this->normalBuffer        = nullptr;
+	this->textureCoordsBuffer = nullptr;
+	this->type                = COMPONENT_MESH;
+	this->vertexBuffer        = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -42,6 +42,8 @@ Mesh::~Mesh()
 	_DELETEP(this->normalBuffer);
 	_DELETEP(this->textureCoordsBuffer);
 	_DELETEP(this->vertexBuffer);
+
+	_DELETEP(this->boundingVolume);
 }
 
 void Mesh::BindBuffer(GLuint bufferID, GLuint shaderAttrib, GLsizei size, GLenum arrayType, GLboolean normalized, const GLvoid* offset)

@@ -233,6 +233,20 @@ VkPipelineLayout Buffer::PipelineLayout()
 	return this->pipelineLayout;
 }
 
+void Buffer::ResetPipelines()
+{
+	// TODO: VULKAN
+	//for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
+	for (uint32_t i = SHADER_ID_DEFAULT; i < (SHADER_ID_DEFAULT + 1); i++)
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
+
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
+
+	RenderEngine::Canvas.VK->CreateVertexBuffer(
+		this->vertices, this->normals, this->texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory
+	);
+}
+
 VkBuffer Buffer::UniformBuffer(UniformBufferType uniformBuffer)
 {
 	return (((uniformBuffer >= 0) || (uniformBuffer < NR_OF_UNIFORM_BUFFERS)) ? this->uniformBuffers[uniformBuffer] : nullptr);
@@ -246,20 +260,6 @@ VkDeviceMemory Buffer::UniformBufferMemory(UniformBufferType uniformBuffer)
 VkDescriptorSet Buffer::UniformSet()
 {
 	return this->uniformSet;
-}
-
-void Buffer::UpdatePipelines()
-{
-	// TODO: VULKAN
-	//for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-	for (uint32_t i = SHADER_ID_DEFAULT; i < (SHADER_ID_DEFAULT + 1); i++)
-		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
-
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
-
-	RenderEngine::Canvas.VK->CreateVertexBuffer(
-		this->vertices, this->normals, this->texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory
-	);
 }
 
 VkBuffer Buffer::VertexBuffer()

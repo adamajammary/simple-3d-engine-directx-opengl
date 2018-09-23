@@ -130,8 +130,9 @@ public:
 	int        Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
 	bool       IsOK();
 	void       Present();
+	void       ResetPipelines();
+	bool       ResetSwapChain();
 	void       SetVSync(bool enable);
-	void       UpdatePipelines();
 
 private:
 	VkCommandBuffer                         commandBufferBegin();
@@ -177,7 +178,6 @@ private:
 	bool                                    init(bool vsync = true);
 	void                                    release();
 	void                                    releaseSwapChain(bool releaseSupport);
-	bool                                    resetSwapChain();
 	bool                                    updateSwapChain(bool updateSupport);
 
 	#if defined _DEBUG

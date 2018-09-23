@@ -69,10 +69,10 @@ public:
 	VkBuffer                     IndexBuffer();
 	VkPipeline                   Pipeline(ShaderID shaderID);
 	VkPipelineLayout             PipelineLayout();
+	void                         ResetPipelines();
 	VkBuffer                     UniformBuffer(UniformBufferType uniformBuffer);
 	VkDeviceMemory               UniformBufferMemory(UniformBufferType uniformBuffer);
 	VkDescriptorSet              UniformSet();
-	void                         UpdatePipelines();
 	VkBuffer                     VertexBuffer();
 
 	#if defined _WINDOWS
