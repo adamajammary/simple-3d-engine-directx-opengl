@@ -275,10 +275,10 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, wxT("vert"), &this->vulkanVS) != 0)
+		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, "vert", &this->vulkanVS) != 0)
 			return -5;
 
-		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, wxT("frag"), &this->vulkanFS) != 0)
+		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, "frag", &this->vulkanFS) != 0)
 			return -6;
 
 		break;

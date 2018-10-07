@@ -13,20 +13,21 @@ private:
 
 public:
 	static const wxChar*                ALIGNMENTS[];
-	static const char*                  APP_NAME;
+	static const wxString               APP_NAME;
 	static const uint8_t                APP_VERSION_MAJOR;
 	static const uint8_t                APP_VERSION_MINOR;
 	static const uint8_t                APP_VERSION_PATCH;
-	static const char*                  APP_VERSION;
+	static const wxString               APP_VERSION;
 	static const wxString               ASPECT_RATIOS[];
 	static const wxChar*                BOUNDING_VOLUMES[];
-	static const char*                  COPYRIGHT;
-	static const char*                  TESTED;
+	static const wxString               COPYRIGHT;
+	static const wxString               TESTED;
 	static const wxString               DRAW_MODES[];
 	static const wxChar*                FONTS[];
 	static const wxString               FOVS[];
 	static const wxString               GRAPHIC_APIS[];
 	static const std::vector<Icon>      ICONS;
+	static const wxString               IMAGE_FILE_FORMATS;
 	static const wxString               MODEL_FILE_FORMATS;
 	static const wxSize                 RENDER_SIZE;
 	static std::map<IconType, wxString> RESOURCE_MODELS;
@@ -48,7 +49,7 @@ public:
 	static GLenum                   GetImageFormat(wxImage* image);
 	static GLsizei                  GetStride(GLsizei size, GLenum arrayType);
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
-	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_PNG);
+	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_ANY);
 	static std::vector<AssImpMesh*> LoadModelFile(const wxString &file);
 	static std::vector<Mesh*>       LoadModelFile(const wxString &file, Component* parent);
 	static wxString                 LoadTextFile(const  wxString &file);

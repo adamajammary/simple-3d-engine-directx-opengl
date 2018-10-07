@@ -987,7 +987,7 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClippin
 wxString VKContext::getApiVersion(VkPhysicalDevice device)
 {
 	if (device == nullptr)
-		return wxT("");
+		return "";
 
 	VkPhysicalDeviceProperties properties = {};
 	vkGetPhysicalDeviceProperties(device, &properties);
@@ -1066,7 +1066,7 @@ VkPhysicalDevice VKContext::getDevice(const std::vector<const char*> &extensions
 wxString VKContext::getDeviceName(VkPhysicalDevice device)
 {
 	if (device == nullptr)
-		return wxT("");
+		return "";
 
 	VkPhysicalDeviceProperties properties = {};
 	vkGetPhysicalDeviceProperties(device, &properties);
@@ -1077,7 +1077,7 @@ wxString VKContext::getDeviceName(VkPhysicalDevice device)
 		case 0x1002: vendor = "AMD";    break;
 		case 0x10DE: vendor = "NVIDIA"; break;
 		case 0x8086: vendor = "Intel";  break;
-		default:     vendor = wxT("");  break;
+		default:     vendor = "";  break;
 	}
 
 	char adapterName[BUFFER_SIZE] = {};
@@ -1786,7 +1786,7 @@ bool VKContext::init(bool vsync)
 	dynamicState.pDynamicStates    = dynamicStates;
 	*/
 
-	RenderEngine::GPU.Vendor   = wxT("");
+	RenderEngine::GPU.Vendor   = "";
 	RenderEngine::GPU.Renderer = this->getDeviceName(this->device);
 	RenderEngine::GPU.Version  = this->getApiVersion(this->device);
 

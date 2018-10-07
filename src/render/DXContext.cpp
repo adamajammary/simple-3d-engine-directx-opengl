@@ -1353,9 +1353,9 @@ bool DXContext::init11(bool vsync)
 	if (FAILED(result))
 		return false;
 
-	RenderEngine::GPU.Vendor   = wxT("");
+	RenderEngine::GPU.Vendor   = "";
 	RenderEngine::GPU.Renderer = adapterDesc.Description;
-	RenderEngine::GPU.Version  = wxT("DirectX 11");
+	RenderEngine::GPU.Version  = "DirectX 11";
 
 	return SUCCEEDED(result);
 }
@@ -1576,9 +1576,9 @@ bool DXContext::init12(bool vsync)
 	if (FAILED(result))
 		return false;
 
-	RenderEngine::GPU.Vendor   = wxT("");
+	RenderEngine::GPU.Vendor   = "";
 	RenderEngine::GPU.Renderer = adapterDesc.Description;
-	RenderEngine::GPU.Version  = wxT("DirectX 12");
+	RenderEngine::GPU.Version  = "DirectX 12";
 
 	return SUCCEEDED(result);
 }

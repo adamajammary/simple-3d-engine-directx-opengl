@@ -250,16 +250,16 @@ struct AssImpMesh
 
 struct GPUDescription
 {
-	wxString Renderer = wxT("");
-	wxString Vendor   = wxT("");
-	wxString Version  = wxT("");
+	wxString Renderer = "";
+	wxString Vendor   = "";
+	wxString Version  = "";
 };
 
 struct Icon
 {
-	wxString File  = wxT("");
+	wxString File  = "";
 	IconType ID    = ID_ICON_UNKNOWN;
-	wxString Title = wxT("");
+	wxString Title = "";
 };
 
 struct Light
@@ -278,9 +278,9 @@ struct MouseState
 
 struct Resource
 {
-	wxString File   = wxT("");
-	wxString Name   = wxT("");
-	wxString Result = wxT("");
+	wxString File   = "";
+	wxString Name   = "";
+	wxString Result = "";
 };
 
 struct Time

@@ -17,28 +17,29 @@ const wxChar* Utils::ALIGNMENTS[] = {
 	nullptr
 };
 
-const char*    Utils::APP_NAME           = "Simple 3D Engine";
+const wxString Utils::APP_NAME           = "Simple 3D Engine";
 const uint8_t  Utils::APP_VERSION_MAJOR  = 1;
 const uint8_t  Utils::APP_VERSION_MINOR  = 0;
 const uint8_t  Utils::APP_VERSION_PATCH  = 0;
-const char*    Utils::APP_VERSION        = "1.0.0";
-const wxString Utils::ASPECT_RATIOS[]    = { wxT("16:9"), wxT("4:3") };
+const wxString Utils::APP_VERSION        = "1.0.0";
+const wxString Utils::ASPECT_RATIOS[]    = { "16:9", "4:3" };
 const wxChar*  Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
-const char*    Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
-const char*    Utils::TESTED             = "Tested on Windows 10 (64-bit)";
-const wxString Utils::DRAW_MODES[]       = { wxT("Filled"), wxT("Wireframe") };
-const wxString Utils::FOVS[]             = { wxT("45\u00B0"), wxT("60\u00B0"), wxT("75\u00B0"), wxT("90\u00B0") };
+const wxString Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
+const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
+const wxString Utils::DRAW_MODES[]       = { "Filled", "Wireframe" };
+const wxString Utils::FOVS[]             = { "45\u00B0", "60\u00B0", "75\u00B0", "90\u00B0" };
+const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
 const wxSize   Utils::RENDER_SIZE        = wxSize(640, 360);
-const wxString Utils::SCENE_FILE_FORMAT  = "Scene file  (*.scene)|*.scene";
+const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
 const wxSize   Utils::WINDOW_SIZE        = wxSize(1510, 800);
 
 const wxString Utils::GRAPHIC_APIS[] = {
 	#if defined _WINDOWS
-	wxT("DirectX 11"),
-	wxT("DirectX 12"),
+	"DirectX 11",
+	"DirectX 12",
 	#endif
-	wxT("OpenGL"),
-	wxT("Vulkan")
+	"OpenGL",
+	"Vulkan"
 };
 
 const wxChar* Utils::FONTS[] = {
@@ -404,10 +405,10 @@ std::vector<Mesh*> Utils::LoadModelFile(const wxString &file, Component* parent)
 wxString Utils::LoadTextFile(const wxString &file)
 {
 	if (file.empty())
-		return wxT("");
+		return "";
 
 	std::wstring   line;
-	wxString       result = wxT("");
+	wxString       result = "";
 	std::wifstream fileStream(file.wc_str());
 
 	if (!fileStream.good())
@@ -415,11 +416,11 @@ wxString Utils::LoadTextFile(const wxString &file)
 		wxMessageBox("ERROR: Failed to load " + file, RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		fileStream.close();
 
-		return wxT("");
+		return "";
 	}
 
 	while (std::getline(fileStream, line))
-		result.append(line + wxT("\n"));
+		result.append(line + "\n");
 
 	fileStream.close();
 
@@ -429,8 +430,8 @@ wxString Utils::LoadTextFile(const wxString &file)
 wxString Utils::OpenFileDialog(const wxString &fileFormats, bool save)
 {
 	long         flags        = (save ? (wxFD_SAVE | wxFD_OVERWRITE_PROMPT) : (wxFD_OPEN | wxFD_FILE_MUST_EXIST));
-	wxString     selectedFile = wxT("");
-	wxFileDialog fileDialog(RenderEngine::Canvas.Window, wxT(""), wxT(""), wxT(""), fileFormats, flags);
+	wxString     selectedFile = "";
+	wxFileDialog fileDialog(RenderEngine::Canvas.Window, "", "", "", fileFormats, flags);
 
 	if (fileDialog.ShowModal() != wxID_CANCEL)
 		selectedFile = fileDialog.GetPath();;

@@ -143,6 +143,7 @@ bool Mesh::LoadArrays(std::vector<unsigned int> &indices, std::vector<float> &no
 	return this->IsOK();
 }
 
+// TODO: Optimize by checking for duplicate vertices
 bool Mesh::loadModelData(aiMesh* mesh)
 {
 	if (mesh == nullptr)

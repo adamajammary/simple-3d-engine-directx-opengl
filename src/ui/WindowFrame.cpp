@@ -298,29 +298,35 @@ void WindowFrame::InitDetails()
 	{
 		this->propertyGrid->Clear();
 
+		// NAME
 		this->propertyGrid->Append(new wxStringProperty("Name", "ID_NAME", static_cast<wxString>(selected->Name)));
 
+		// LOCATION
 		if (selected->Type() != COMPONENT_SKYBOX) {
 			glm::vec3 position = selected->Position();
 			this->addPropertyXYZ("Location", "ID_LOCATION", position[0], position[1], position[2], -100.0f, 100.0f, 0.01f);
 		}
 
+		// ROTATION
 		if (selected->Type() != COMPONENT_SKYBOX) {
 			glm::vec3 rotation = selected->Rotation();
 			this->addPropertyXYZ("Rotation (rad)", "ID_ROTATION", rotation[0], rotation[1], rotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 		}
 
+		// SCALE
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			glm::vec3 scale = selected->Scale();
 			this->addPropertyXYZ("Scale", "ID_SCALE", scale[0], scale[1], scale[2], -100.0f, 100.0f, 0.01f);
 		}
 
+		// AUTO-ROTATE
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			glm::vec3 autoRotation = selected->AutoRotation;
 			this->addPropertyXYZ("Auto-Rotate (rad)", "ID_AUTO_ROTATION", autoRotation[0], autoRotation[1], autoRotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 			this->addPropertyCheckbox("Enable", "ID_ENABLE_AUTO_ROTATION", selected->AutoRotate);
 		}
 
+		// MATERIAL
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			this->propertyGrid->Append(new wxPropertyCategory("Material"));
 			this->propertyGrid->Append(new wxColourProperty((selected->Type() == COMPONENT_HUD ? "Background" : "Color"), "ID_COLOR", Utils::ToWxColour(selected->Color)));
@@ -328,22 +334,30 @@ void WindowFrame::InitDetails()
 
 		if (selected->Type() == COMPONENT_HUD)
 		{
+			// MATERIAL
 			this->addPropertyRange("Opacity (alpha)", "ID_OPACITY",      (selected->Color.a * 255.0f), 0.0f, 255.0f, 1.0f);
 			this->addPropertyCheckbox("Transparency", "ID_TRANSPARENCY", dynamic_cast<HUD*>(selected->Parent)->Transparent);
 
+			// TEXT
 			this->propertyGrid->Append(new wxPropertyCategory("Text"));
+
 			this->propertyGrid->Append(new wxStringProperty("Text", "ID_TEXT", "HUD"));
 			this->addPropertyEnum("Alignment", "ID_TEXT_ALIGNMENT", Utils::ALIGNMENTS, dynamic_cast<HUD*>(selected->Parent)->TextAlign);
 			this->addPropertyEnum("Font",      "ID_TEXT_FONT",      Utils::FONTS,      dynamic_cast<HUD*>(selected->Parent)->TextFont);
 			this->addPropertyRange("Size",     "ID_TEXT_SIZE",      dynamic_cast<HUD*>(selected->Parent)->TextSize, 10.0f, 100.0f, 1.0f);
 			this->propertyGrid->Append(new wxColourProperty("Color", "ID_TEXT_COLOR",  dynamic_cast<HUD*>(selected->Parent)->TextColor));
 			
+			// TEXTURE
 			this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+
 			this->propertyGrid->Append(new wxImageFileProperty("Texture", "ID_HUD_TEXTURE", selected->Textures[0]->ImageFile()));
+			this->propertyGrid->SetPropertyAttribute("ID_HUD_TEXTURE", wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
 			this->addPropertyCheckbox(" Remove Texture", "ID_HUD_REMOVE_TEXTURE", false);
 		}
 		else if (selected->Type() != COMPONENT_CAMERA)
 		{
+			// TEXTURE
 			wxString label, imageFile;
 			wxString skyboxLabels[]  = { "Right", "Left", "Top", "Bottom", "Back", "Front" };
 			wxString terrainLabels[] = { "Background", "Red",  "Green", "Blue", "Blend Map", "" };
@@ -382,7 +396,10 @@ void WindowFrame::InitDetails()
 				}
 
 				this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+				
 				this->propertyGrid->Append(new wxImageFileProperty(label, wxString("ID_TEXTURE_" + std::to_string(i)), imageFile));
+				this->propertyGrid->SetPropertyAttribute(wxString("ID_TEXTURE_" + std::to_string(i)), wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
 				this->addPropertyCheckbox(" Remove Texture", wxString("ID_REMOVE_TEXTURE_" + std::to_string(i)), false);
 
 				if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
@@ -395,6 +412,7 @@ void WindowFrame::InitDetails()
 			}
 		}
 
+		// PHYSICS
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
 		{
 			BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
@@ -404,6 +422,7 @@ void WindowFrame::InitDetails()
 			this->addPropertyEnum("Bounding Volume", "ID_BOUNDING_VOLUME", Utils::BOUNDING_VOLUMES, Utils::BOUNDING_VOLUMES[volumeType]);
 		}
 
+		// TERRAIN
 		if (selected->Type() == COMPONENT_TERRAIN)
 		{
 			this->propertyGrid->Append(new wxPropertyCategory("Terrain"));
@@ -413,6 +432,7 @@ void WindowFrame::InitDetails()
 			this->addPropertyRange("Redistribution", "ID_TERRAIN_REDISTRIBUTION", dynamic_cast<Terrain*>(selected->Parent)->Redistribution(), 0.01f, 10.0f,  0.01f);
 		}
 
+		// WATER
 		if (selected->Type() == COMPONENT_WATER)
 		{
 			WaterFBO* fbo = dynamic_cast<Water*>(selected->Parent)->FBO();

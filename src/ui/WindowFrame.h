@@ -12,7 +12,7 @@ public:
 
 public:
 	Window*     Parent;
-	char        Title[BUFFER_SIZE];
+	wchar_t     Title[BUFFER_SIZE];
 	wxCheckBox* VSyncEnable;
 
 private:
