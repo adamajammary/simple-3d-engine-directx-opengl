@@ -60,8 +60,8 @@ void FrameBuffer::Bind()
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		RenderEngine::Canvas.DX->Bind12(
-			this->colorTexture->Resource12(),
-			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->colorTexture->ColorBuffer12()->GetCPUDescriptorHandleForHeapStart()),
+			this->colorTexture->Resource12,
+			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->colorTexture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart()),
 			nullptr,
 			this->colorTexture->ColorBufferViewPort12(), nullptr
 		);
@@ -85,7 +85,7 @@ void FrameBuffer::Unbind()
 		RenderEngine::Canvas.DX->Unbind11();
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->Unbind12(this->colorTexture->Resource12());
+		RenderEngine::Canvas.DX->Unbind12(this->colorTexture->Resource12);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:

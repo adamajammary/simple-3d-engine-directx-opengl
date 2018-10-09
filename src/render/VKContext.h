@@ -117,7 +117,8 @@ public:
 	int        CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
 	int        CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout);
 	int        CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	int        CreateTexture(uint32_t width, uint32_t height, const std::vector<uint8_t*> &imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, VkImageView* textureImageView, VkSampler* sampler, VkSamplerCreateInfo &samplerInfo);
+	//int        CreateTexture(uint32_t width, uint32_t height, const std::vector<uint8_t*> &imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, VkImageView* textureImageView, VkSampler* sampler, VkSamplerCreateInfo &samplerInfo);
+	int        CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
 	int        CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
 	int        CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
 	int        CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkPipelineLayout pipelineLayout, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
@@ -139,10 +140,11 @@ private:
 	void                                    commandBufferEnd(VkCommandBuffer commandBuffer);
 	int                                     copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
 	int                                     copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	int                                     copyImage(VkImage image, VkFormat imageFormat, VkImageLayout oldLayout, VkImageLayout newLayout);
+	int                                     copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	int                                     createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkImage* textureImage, VkDeviceMemory* textureImageMemory);
-	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, VkImageAspectFlags aspectFlags);
+	int                                     createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
+	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
+	int                                     createMipMaps(VkImage image, VkFormat imageFormat, int32_t width, int32_t height, uint32_t mipLevels);
 	int                                     createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
 	int                                     createUniformLayout(VkDescriptorSetLayout* uniformLayout);
 	int                                     createUniformPool(VkDescriptorPool* uniformPool);

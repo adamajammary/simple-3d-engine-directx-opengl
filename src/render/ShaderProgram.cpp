@@ -655,8 +655,8 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool ena
 		// TEXTURE SAMPLER
 		for (int i = 0; i < MAX_TEXTURES; i++) {
 			uniformImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			uniformImageInfo[i].imageView   = mesh->Textures[i]->ImageView();
-			uniformImageInfo[i].sampler     = mesh->Textures[i]->Sampler();
+			uniformImageInfo[i].imageView   = mesh->Textures[i]->ImageView;
+			uniformImageInfo[i].sampler     = mesh->Textures[i]->Sampler;
 		}
 
 		// Update the descriptor set for binding 2 (texture sampler)

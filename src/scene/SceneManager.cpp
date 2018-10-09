@@ -77,8 +77,15 @@ void SceneManager::Clear()
 
 int SceneManager::GetComponentIndex(Component* component)
 {
-	for (int i = 0; i < (int)SceneManager::Components.size(); i++) {
-		if (SceneManager::Components[i] == component)
+	if (component == nullptr)
+		return -1;
+
+	for (int i = 0; i < (int)SceneManager::Components.size(); i++)
+	{
+		if (SceneManager::Components[i] == nullptr)
+			continue;
+
+		if ((SceneManager::Components[i]->Name == component->Name) && (SceneManager::Components[i]->Type() == component->Type()))
 			return i;
 	}
 
@@ -266,8 +273,13 @@ Skybox* SceneManager::LoadSkybox()
     if ((skybox == nullptr) || !skybox->IsValid())
 		return nullptr;
 
-    if (RenderEngine::Skybox != nullptr)
-		SceneManager::Components.erase(SceneManager::Components.begin() + SceneManager::GetComponentIndex(RenderEngine::Skybox));
+	if (RenderEngine::Skybox != nullptr)
+	{
+		int index = SceneManager::GetComponentIndex(RenderEngine::Skybox);
+
+		SceneManager::Components.erase(SceneManager::Components.begin() + index);
+		RenderEngine::Canvas.Window->RemoveComponent(index);
+	}
 
 	SceneManager::AddComponent(skybox);
 

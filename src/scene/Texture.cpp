@@ -143,9 +143,9 @@ Texture::Texture(D3D11_FILTER filter, DXGI_FORMAT format, int width, int height)
 	samplerDesc11.Filter   = filter;
 	samplerDesc11.AddressU = samplerDesc11.AddressV = samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
 
-	RenderEngine::Canvas.DX->CreateTextureBuffer11(
-		width, height, format, &this->colorBuffer11, &this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
-	);
+	RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+	//	width, height, format, &this->colorBuffer11, &this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
+	//);
 }
 
 // 2D FRAMEBUFFER TEXTURE (DIRECTX 12)
@@ -161,12 +161,12 @@ Texture::Texture(D3D12_FILTER filter, DXGI_FORMAT format, int width, int height)
 	this->colorBufferViewPort12.MinDepth = 0.0f;
 	this->colorBufferViewPort12.MaxDepth = 1.0f;
 
-	this->samplerDesc12.Filter   = filter;
-	this->samplerDesc12.AddressU = this->samplerDesc12.AddressV = this->samplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	this->SamplerDesc12.Filter   = filter;
+	this->SamplerDesc12.AddressU = this->SamplerDesc12.AddressV = this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
-	RenderEngine::Canvas.DX->CreateTextureBuffer12(
-		width, height, format, &this->colorBuffer12, &this->resource12, this->srvDesc12, this->samplerDesc12
-	);
+	RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+	//	width, height, format, &this->colorBuffer12, &this->resource12, this->srvDesc12, this->samplerDesc12
+	//);
 }
 
 // 2D FRAMEBUFFER TEXTURE (OPENGL)
@@ -196,14 +196,14 @@ Texture::Texture()
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->colorBuffer11  = nullptr;
-		this->resource11     = nullptr;
+		this->Resource11     = nullptr;
 		this->samplerState11 = nullptr;
-		this->srv11          = nullptr;
+		this->SRV11          = nullptr;
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		this->colorBuffer12 = nullptr;
-		this->resource12    = nullptr;
+		this->ColorBuffer12 = nullptr;
+		this->Resource12    = nullptr;
 
 		break;
 	#endif
@@ -213,11 +213,11 @@ Texture::Texture()
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		this->image       = nullptr;
-		this->imageMemory = nullptr;
-		this->imageView   = nullptr;
-		this->sampler     = nullptr;
-		this->samplerInfo = {};
+		this->Image       = nullptr;
+		this->ImageMemory = nullptr;
+		this->ImageView   = nullptr;
+		this->Sampler     = nullptr;
+		this->SamplerInfo = {};
 
 		break;
 	}
@@ -229,13 +229,13 @@ Texture::~Texture()
 	#if defined _WINDOWS
 	//case GRAPHICS_API_DIRECTX11:
 		_RELEASEP(this->colorBuffer11);
-		_RELEASEP(this->resource11);
+		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
-		_RELEASEP(this->srv11);
+		_RELEASEP(this->SRV11);
 		//break;
 	//case GRAPHICS_API_DIRECTX12:
-		_RELEASEP(this->colorBuffer12);
-		_RELEASEP(this->resource12);
+		_RELEASEP(this->ColorBuffer12);
+		_RELEASEP(this->Resource12);
 		//break;
 	#endif
 	//case GRAPHICS_API_OPENGL:
@@ -248,7 +248,7 @@ Texture::~Texture()
 	}
 		//break;
 	//case GRAPHICS_API_VULKAN:
-	RenderEngine::Canvas.VK->DestroyTexture(&this->image, &this->imageMemory, &this->imageView, &this->sampler);
+	RenderEngine::Canvas.VK->DestroyTexture(&this->Image, &this->ImageMemory, &this->ImageView, &this->Sampler);
 		//break;
 	//}
 
@@ -258,11 +258,6 @@ Texture::~Texture()
 ID3D11RenderTargetView* Texture::ColorBuffer11()
 {
 	return this->colorBuffer11;
-}
-
-ID3D12DescriptorHeap* Texture::ColorBuffer12()
-{
-	return this->colorBuffer12;
 }
 
 D3D11_VIEWPORT* Texture::ColorBufferViewPort11()
@@ -295,20 +290,15 @@ wxString Texture::ImageFile(int index)
 	return "";
 }
 
-VkImageView Texture::ImageView()
-{
-	return this->imageView;
-}
-
 bool Texture::IsOK()
 {
 	switch (Utils::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11: return (this->resource11 != nullptr);
-		case GRAPHICS_API_DIRECTX12: return (this->resource12 != nullptr);
+		case GRAPHICS_API_DIRECTX11: return (this->Resource11 != nullptr);
+		case GRAPHICS_API_DIRECTX12: return (this->Resource12 != nullptr);
 		#endif
 		case GRAPHICS_API_OPENGL:    return (this->id > 0);
-		case GRAPHICS_API_VULKAN:    return ((this->imageView != nullptr) && (this->sampler != nullptr));
+		case GRAPHICS_API_VULKAN:    return ((this->ImageView != nullptr) && (this->Sampler != nullptr));
 	}
 
 	return false;
@@ -316,10 +306,8 @@ bool Texture::IsOK()
 
 void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 {
-	DXGI_FORMAT           format;
 	std::vector<wxImage>  images2;
 	std::vector<uint8_t*> pixels2;
-	D3D11_SAMPLER_DESC    samplerDesc11 = {};
 
 	for (auto image : images)
 	{
@@ -330,7 +318,11 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 	if (!images2.empty())
 	{
-		format            = Utils::GetImageFormatDXGI(&images2[0]);
+		DXGI_FORMAT        format        = Utils::GetImageFormatDXGI(&images2[0]);
+		D3D11_SAMPLER_DESC samplerDesc11 = {};
+
+		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
+		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
 		this->transparent = (this->transparent && images2[0].HasAlpha());
 
 		switch (Utils::SelectedGraphicsAPI) {
@@ -342,24 +334,24 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX11(samplerDesc11);
 
-			RenderEngine::Canvas.DX->CreateTexture11(
-				pixels2, images2[0].GetWidth(), images2[0].GetHeight(), format,
-				&this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
-			);
+			RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this);
+			//	pixels2, this->size.GetWidth(), this->size.GetHeight(), format,
+			//	&this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
+			//);
 
 			break;
 		case GRAPHICS_API_DIRECTX12:
-			this->setFilteringDX12(this->samplerDesc12);
+			this->setFilteringDX12(this->SamplerDesc12);
 
 			if (images.size() > 1)
-				this->setWrappingCubemapDX12(this->samplerDesc12);
+				this->setWrappingCubemapDX12(this->SamplerDesc12);
 			else
-				this->setWrappingDX12(this->samplerDesc12);
+				this->setWrappingDX12(this->SamplerDesc12);
 
-			RenderEngine::Canvas.DX->CreateTexture12(
-				pixels2, images2[0].GetWidth(), images2[0].GetHeight(), format,
-				&this->resource12, this->srvDesc12, this->samplerDesc12
-			);
+			RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this);
+			//	pixels2, this->size.GetWidth(), this->size.GetHeight(), format,
+			//	&this->resource12, this->srvDesc12, this->samplerDesc12
+			//);
 
 			break;
 		}
@@ -382,6 +374,8 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 
 	glBindTexture(this->type, this->id);
 
+	this->size        = wxSize(image2.GetWidth(), image2.GetHeight());
+	this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
 	this->transparent = (this->transparent && image2.HasAlpha());
 
 	if (this->transparent)
@@ -389,8 +383,11 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 
 	if (cubemap)
 	{
-		this->setFilteringGL(false);
 		this->setWrappingCubemapGL();
+		this->setFilteringGL(false);
+
+		glTexParameteri(this->type, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  0);
 
 		// TEXTURE_CUBE_MAP_POSITIVE_X 0x8515   // RIGHT
 		// TEXTURE_CUBE_MAP_NEGATIVE_X 0x8516   // LEFT
@@ -399,20 +396,31 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 		// TEXTURE_CUBE_MAP_POSITIVE_Z 0x8519   // BACK  ???
 		// TEXTURE_CUBE_MAP_NEGATIVE_Z 0x851A   // FRONT ???
 		glTexImage2D(
-			(GL_TEXTURE_CUBE_MAP_POSITIVE_X + index), 0, format,
+			(GL_TEXTURE_CUBE_MAP_POSITIVE_X + index), 0, GL_RGBA8,
 			image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
 		);
 	}
 	else
 	{
-		this->setFilteringGL(true);
-		this->setWrappingGL();
+		//this->setFilteringGL(true);
+		//this->setWrappingGL();
 
-		glTexImage2D(
-			this->type, 0, format, image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
-		);
+		//glEnable(GL_TEXTURE_2D);
+		glTexParameteri(this->type, GL_TEXTURE_BASE_LEVEL, 0);
+		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  this->mipLevels - 1);
+
+		//glTexImage2D(
+		//	this->type, 0, GL_RGBA8, image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
+		//);
+
+		// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
+		glTexStorage2D(this->type, this->mipLevels, GL_RGBA8, image2.GetWidth(), image2.GetHeight());
+		glTexSubImage2D(this->type, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), format, GL_UNSIGNED_BYTE, pixels);
 
 		glGenerateMipmap(this->type);
+
+		this->setWrappingGL();
+		this->setFilteringGL(true);
 	}
 	
 	if (this->transparent)
@@ -441,19 +449,21 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 
 	if (!images2.empty())
 	{
+		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
+		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
 		this->transparent = (this->transparent && images2[0].HasAlpha());
 
-		this->setFilteringVK(this->samplerInfo);
+		this->setFilteringVK(this->SamplerInfo);
 
 		if (images.size() > 1)
-			this->setWrappingCubemapVK(this->samplerInfo);
+			this->setWrappingCubemapVK(this->SamplerInfo);
 		else
-			this->setWrappingVK(this->samplerInfo);
+			this->setWrappingVK(this->SamplerInfo);
 
-		RenderEngine::Canvas.VK->CreateTexture(
-			(uint32_t)images2[0].GetWidth(), (uint32_t)images2[0].GetHeight(), pixels2,
-			&this->image, &this->imageMemory, &this->imageView, &this->sampler, this->samplerInfo
-		);
+		RenderEngine::Canvas.VK->CreateTexture(pixels2, this);
+			//(uint32_t)this->size.GetWidth(), (uint32_t)this->size.GetHeight(), pixels2,
+			//&this->image, &this->imageMemory, &this->imageView, &this->sampler, this->samplerInfo
+		//);
 	}
 
 	for (auto pixels : pixels2)
@@ -463,6 +473,11 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 		if (this->flipY)
 			image.Destroy();
 	}
+}
+
+uint32_t Texture::MipLevels()
+{
+	return this->mipLevels;
 }
 
 void Texture::reload()
@@ -481,26 +496,6 @@ void Texture::reload()
 bool Texture::Repeat()
 {
 	return this->repeat;
-}
-
-ID3D12Resource* Texture::Resource12()
-{
-	return this->resource12;
-}
-
-VkSampler Texture::Sampler()
-{
-	return this->sampler;
-}
-
-ID3D11SamplerState* Texture::SamplerState11()
-{
-	return this->samplerState11;
-}
-
-const D3D12_SAMPLER_DESC* Texture::SamplerDesc12()
-{
-	return &this->samplerDesc12;
 }
 
 void Texture::setAlphaBlendingGL(bool enable)
@@ -525,7 +520,7 @@ void Texture::setFilteringDX12(D3D12_SAMPLER_DESC &samplerDesc)
 
 void Texture::setFilteringGL(bool mipmap)
 {
-	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, (mipmap ? GL_NEAREST_MIPMAP_LINEAR : GL_LINEAR));
+	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, (mipmap ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR));
 	glTexParameteri(this->type, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
@@ -602,15 +597,11 @@ void Texture::SetTransparent(bool newTransparent)
 	this->reload();
 }
 
-ID3D11ShaderResourceView* Texture::SRV11()
+wxSize Texture::Size()
 {
-	return this->srv11;
+	return this->size;
 }
 
-const D3D12_SHADER_RESOURCE_VIEW_DESC* Texture::SRVDesc12()
-{
-	return &this->srvDesc12;
-}
 bool Texture::Transparent()
 {
 	return this->transparent;

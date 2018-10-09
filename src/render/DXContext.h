@@ -56,10 +56,14 @@ public:
 	int  CreateIndexBuffer12(std::vector<unsigned int> &indices, ID3D12Resource** indexBuffer, D3D12_INDEX_BUFFER_VIEW &bufferView);
 	int  CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** fs, ID3D11VertexShader** shaderVS, ID3D11PixelShader** shaderFS);
 	int  CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
-	int  CreateTexture11(const std::vector<uint8_t*> &pixels, int width, int height, DXGI_FORMAT format, ID3D11Texture2D** texture, ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler);
-	int  CreateTexture12(const std::vector<uint8_t*> &pixels, int width, int height, DXGI_FORMAT format, ID3D12Resource**  texture, D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc);
-	int  CreateTextureBuffer11(int width, int height, DXGI_FORMAT format, ID3D11RenderTargetView** colorBuffer, ID3D11Texture2D** texture, ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler);
-	int  CreateTextureBuffer12(int width, int height, DXGI_FORMAT format, ID3D12DescriptorHeap** colorBuffer, ID3D12Resource** texture, D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc);
+	//int  CreateTexture11(const std::vector<uint8_t*> &pixels, int width, int height, DXGI_FORMAT format, ID3D11Texture2D** texture, ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler);
+	int  CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
+	//int  CreateTexture12(const std::vector<uint8_t*> &pixels, int width, int height, DXGI_FORMAT format, ID3D12Resource**  texture, D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc);
+	int  CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture);
+	//int  CreateTextureBuffer11(int width, int height, DXGI_FORMAT format, ID3D11RenderTargetView** colorBuffer, ID3D11Texture2D** texture, ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler);
+	int  CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
+	//int  CreateTextureBuffer12(int width, int height, DXGI_FORMAT format, ID3D12DescriptorHeap** colorBuffer, ID3D12Resource** texture, D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc);
+	int  CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture);
 	int  CreateVertexBuffer11(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords, ID3D11Buffer**   vertexBuffer, UINT &bufferStride, ID3D11InputLayout** inputLayouts, ID3D11RasterizerState** rasterizerStates, ID3D11DepthStencilState** depthStencilStates, ID3D11BlendState** blendStates);
 	int  CreateVertexBuffer12(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords, ID3D12Resource** vertexBuffer, UINT &bufferStride, D3D12_VERTEX_BUFFER_VIEW &bufferView, ID3D12PipelineState** pipelineStates, ID3D12RootSignature** rootSignatures);
 	int  Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));

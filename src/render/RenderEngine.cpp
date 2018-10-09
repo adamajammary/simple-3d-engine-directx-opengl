@@ -473,7 +473,7 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, bool enab
 
 	shaderProgram->UpdateAttribsGL(mesh);
 	shaderProgram->UpdateUniformsGL(mesh, enableClipping, clipMax, clipMin);
-       
+
     // DRAW
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO());
 		glDrawElements(RenderEngine::DrawMode, (GLsizei)mesh->NrOfIndices(), GL_UNSIGNED_INT, nullptr);

@@ -21,58 +21,58 @@ public:
 #endif
 
 public:
-	glm::vec2 Scale;
+	VkImage             Image;
+	VkDeviceMemory      ImageMemory;
+	VkImageView         ImageView;
+	VkSampler           Sampler;
+	VkSamplerCreateInfo SamplerInfo;
+	glm::vec2           Scale;
+
+	#if defined _WINDOWS
+		ID3D12DescriptorHeap*           ColorBuffer12;
+		ID3D11Texture2D*                Resource11;
+		ID3D12Resource*                 Resource12;
+		D3D12_SAMPLER_DESC              SamplerDesc12;
+		ID3D11SamplerState*             SamplerState11;
+		ID3D11ShaderResourceView*       SRV11;
+		D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc12;
+#endif
 
 private:
 	bool                  flipY;
 	GLuint                id;
 	std::vector<wxString> imageFiles;
-	VkDeviceMemory        imageMemory;
-	VkImage               image;
-	VkImageView           imageView;
+	uint32_t              mipLevels;
 	bool                  repeat;
-	VkSampler             sampler;
-	VkSamplerCreateInfo   samplerInfo;
+	wxSize                size;
 	bool                  transparent;
 	GLenum                type;
 
 	#if defined _WINDOWS
 		ID3D11RenderTargetView*         colorBuffer11;
 		D3D11_VIEWPORT                  colorBufferViewPort11;
-		ID3D11Texture2D*                resource11;
 		ID3D11SamplerState*             samplerState11;
-		ID3D11ShaderResourceView*       srv11;
-		ID3D12DescriptorHeap*           colorBuffer12;
 		D3D12_VIEWPORT                  colorBufferViewPort12;
-		ID3D12Resource*                 resource12;
-		D3D12_SAMPLER_DESC              samplerDesc12;
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc12;
 	#endif
 
 public:
-	bool        FlipY();
-	bool        Repeat();
-	bool        Transparent();
-	GLuint      ID();
-	wxString    ImageFile(int index = 0);
-	VkImageView ImageView();
-	bool        IsOK();
-	VkSampler   Sampler();
-	void        SetFlipY(bool newFlipY);
-	void        SetRepeat(bool newRepeat);
-	void        SetTransparent(bool newTransparent);
-	GLenum      Type();
+	bool           FlipY();
+	bool           Repeat();
+	bool           Transparent();
+	GLuint         ID();
+	wxString       ImageFile(int index = 0);
+	bool           IsOK();
+	uint32_t       MipLevels();
+	void           SetFlipY(bool newFlipY);
+	void           SetRepeat(bool newRepeat);
+	void           SetTransparent(bool newTransparent);
+	wxSize         Size();
+	GLenum         Type();
 
 	#if defined _WINDOWS
-		ID3D11RenderTargetView*                ColorBuffer11();
-		ID3D12DescriptorHeap*                  ColorBuffer12();
-		D3D11_VIEWPORT*                        ColorBufferViewPort11();
-		D3D12_VIEWPORT*                        ColorBufferViewPort12();
-		ID3D11SamplerState*                    SamplerState11();
-		ID3D11ShaderResourceView*              SRV11();
-		ID3D12Resource*                        Resource12();
-		const D3D12_SAMPLER_DESC*              SamplerDesc12();
-		const D3D12_SHADER_RESOURCE_VIEW_DESC* SRVDesc12();
+		ID3D11RenderTargetView* ColorBuffer11();
+		D3D11_VIEWPORT*         ColorBufferViewPort11();
+		D3D12_VIEWPORT*         ColorBufferViewPort12();
 	#endif
 
 private:

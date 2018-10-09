@@ -108,7 +108,7 @@ void DXContext::Clear12(float r, float g, float b, float a, FrameBuffer* fbo)
 		this->Clear12(r, g, b, a);
 	} else {
 		FLOAT                         color[] = { r, g, b, a };
-		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->ColorTexture()->ColorBuffer12()->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->ColorTexture()->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
 		this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	}
@@ -487,148 +487,186 @@ int DXContext::CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs
 	return this->compileShader(file, vs, fs);
 }
 
-int DXContext::CreateTexture11(
-	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D11Texture2D** texture,
-	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
-)
+int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
+//	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D11Texture2D** texture,
+//	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
+//)
 {
-	HRESULT                         result         = -1;
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc        = {};
-	D3D11_TEXTURE2D_DESC            textureDesc    = {};
-	D3D11_SUBRESOURCE_DATA          textureData[6] = {};
+	if (texture == nullptr)
+		return -1;
+
+	std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
+	//std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size());
+	HRESULT                             result      = -1;
+	D3D11_SHADER_RESOURCE_VIEW_DESC     srvDesc     = {};
+	D3D11_TEXTURE2D_DESC                textureDesc = {};
+	wxSize                              textureSize = texture->Size();
 
 	textureDesc.ArraySize        = (!pixels.empty() ? pixels.size() : 1);
-	textureDesc.BindFlags        = (!pixels.empty() ? D3D11_BIND_SHADER_RESOURCE : D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+	//textureDesc.BindFlags        = (!pixels.empty() ? D3D11_BIND_SHADER_RESOURCE : D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+	textureDesc.BindFlags        = (D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 	textureDesc.Format           = format;
-	textureDesc.MipLevels        = 1;
-	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : 0);
+	//textureDesc.MipLevels        = 1;
+	//textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
+	textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
+	//textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : 0);
+	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : (pixels.size() == 1 ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0));
 	textureDesc.SampleDesc.Count = 1;
-	textureDesc.Width            = width;
-	textureDesc.Height           = height;
+	textureDesc.Width            = (UINT)textureSize.GetWidth();
+	textureDesc.Height           = (UINT)textureSize.GetHeight();
 
-	for (int i = 0; i < (int)pixels.size(); i++)
+	for (size_t i = 0; i < pixels.size(); i++)
 	{
-		textureData[i].pSysMem          = pixels[i];
-		textureData[i].SysMemPitch      = (width * 4);
-		textureData[i].SysMemSlicePitch = (width * height * 4);
+		for (uint32_t j = 0; j < (pixels.size() > 1 ? 1 : texture->MipLevels()); j++)
+		{
+			textureData[i + j].pSysMem          = pixels[i];
+			textureData[i + j].SysMemPitch      = (textureDesc.Width * 4);
+			textureData[i + j].SysMemSlicePitch = (textureDesc.Width * textureDesc.Height * 4);
+		}
 	}
 
-	result = this->renderDevice11->CreateTexture2D(&textureDesc, (!pixels.empty() ? textureData : nullptr), texture);
+	result = this->renderDevice11->CreateTexture2D(
+		&textureDesc, (!pixels.empty() ? textureData.data() : nullptr), &texture->Resource11
+	);
 
 	if (FAILED(result))
-		return -1;
+		return -2;
 
 	srvDesc.Format = textureDesc.Format;
 
 	if (pixels.size() > 1) {
 		srvDesc.ViewDimension         = D3D11_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.TextureCube.MipLevels = textureDesc.MipLevels;
+		srvDesc.TextureCube.MipLevels = 1;
 		//srvDesc.TextureCube.MostDetailedMip = 0;
 	} else {
 		srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = textureDesc.MipLevels;
+		//srvDesc.Texture2D.MipLevels = texture->MipLevels();
+		srvDesc.Texture2D.MipLevels = -1;
 	}
 
-	result = this->renderDevice11->CreateShaderResourceView(*texture, &srvDesc, srv);
+	result = this->renderDevice11->CreateShaderResourceView(texture->Resource11, &srvDesc, &texture->SRV11);
 
 	if (FAILED(result))
-		return -1;
+		return -3;
+
+	this->deviceContext->GenerateMips(texture->SRV11);
 
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	//samplerDesc->ComparisonFunc = D3D11_COMPARISON_ALWAYS;
 	samplerDesc.MaxAnisotropy  = 16;
 	samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
 
-	result = this->renderDevice11->CreateSamplerState(&samplerDesc, sampler);
+	result = this->renderDevice11->CreateSamplerState(&samplerDesc, &texture->SamplerState11);
 
 	if (FAILED(result))
-		return -1;
+		return -4;
 
 	return 0;
 }
 
-int DXContext::CreateTextureBuffer11(
-	int width, int height, DXGI_FORMAT format, ID3D11RenderTargetView** colorBuffer, ID3D11Texture2D** texture, 
-	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
-)
+int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
+//	int width, int height, DXGI_FORMAT format, ID3D11RenderTargetView** colorBuffer, ID3D11Texture2D** texture, 
+//	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
+//)
 {
+	if (texture == nullptr)
+		return -1;
+
 	D3D11_RENDER_TARGET_VIEW_DESC   colorBufferDesc = {};
 	HRESULT                         result          = -1;
 	std::vector<BYTE*>              pixels;
 
-	result = this->CreateTexture11(pixels, width, height, format, texture, srv, samplerDesc, sampler);
+	result = this->CreateTexture11(pixels, format, samplerDesc, texture);
 
 	if (FAILED(result))
-		return -1;
+		return -2;
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	colorBufferDesc.Format        = format;
 	//colorBufferDesc.ViewDimension = (textureDesc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 	colorBufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
-	result = this->renderDevice11->CreateRenderTargetView(*texture, &colorBufferDesc, colorBuffer);
+	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &this->colorBuffer);
 
 	if (FAILED(result))
-		return -1;
+		return -3;
 
 	return 0;
 }
 
-int DXContext::CreateTexture12(
-	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D12Resource** texture,
-	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
-)
+// TODO: Generate MipMaps
+int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture)
+//	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D12Resource** texture,
+//	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
+//)
 {
-	HRESULT                result              = -1;
-	D3D12_SUBRESOURCE_DATA textureData[6]      = {};
-	ID3D12Resource*        textureResource     = nullptr;
-	D3D12_RESOURCE_DESC    textureResourceDesc = {};
+	if (texture == nullptr)
+		return -1;
+
+	//D3D12_SUBRESOURCE_DATA textureData[6]      = {};
+	std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size());
+	//std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
+	HRESULT                             result              = -1;
+	ID3D12Resource*                     textureResource     = nullptr;
+	D3D12_RESOURCE_DESC                 textureResourceDesc = {};
+	wxSize                              textureSize         = texture->Size();
 
 	textureResourceDesc.DepthOrArraySize = (!pixels.empty() ? pixels.size() : 1);
 	textureResourceDesc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 	textureResourceDesc.Flags            = (!pixels.empty() ? D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	textureResourceDesc.Format           = format;
 	textureResourceDesc.MipLevels        = 1;
+	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
+	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
 	textureResourceDesc.SampleDesc.Count = 1;
-	textureResourceDesc.Width            = width;
-	textureResourceDesc.Height           = height;
+	textureResourceDesc.Width            = (UINT64)textureSize.GetWidth();
+	textureResourceDesc.Height           = (UINT64)textureSize.GetHeight();
 
 	result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureResourceDesc,
 		//(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
 		(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_RENDER_TARGET),
-		nullptr, IID_PPV_ARGS(texture)
+		nullptr, IID_PPV_ARGS(&texture->Resource12)
 	);
 
 	if (FAILED(result))
-		return -1;
+		return -2;
 
 	if (!pixels.empty())
 	{
 		result = this->renderDevice12->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-			&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(*texture, 0, textureResourceDesc.DepthOrArraySize)),
+			//&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(texture->Resource12, 0, textureResourceDesc.DepthOrArraySize)),
+			&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(texture->Resource12, 0, textureData.size())),
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&textureResource)
 		);
 
 		if (FAILED(result))
-			return -1;
+			return -3;
 
-		for (int i = 0; i < (int)pixels.size(); i++)
+		for (size_t i = 0; i < pixels.size(); i++)
 		{
+			//for (uint32_t j = 0; j < (pixels.size() > 1 ? 1 : texture->MipLevels()); j++)
+			//{
+			//	textureData[i + j].pData      = pixels[i];
+			//	textureData[i + j].RowPitch   = (textureResourceDesc.Width * 4);
+			//	textureData[i + j].SlicePitch = (textureResourceDesc.Width * textureResourceDesc.Height * 4);
+			//}
 			textureData[i].pData      = pixels[i];
-			textureData[i].RowPitch   = (width * 4);
-			textureData[i].SlicePitch = (width * height * 4);
+			textureData[i].RowPitch   = (textureResourceDesc.Width * 4);
+			textureData[i].SlicePitch = (textureResourceDesc.Width * textureResourceDesc.Height * 4);
 		}
 
 		this->commandsInit();
 
-		UpdateSubresources(this->commandList, *texture, textureResource, 0, 0, pixels.size(), textureData);
+		UpdateSubresources(
+			this->commandList, texture->Resource12, textureResource, 0, 0, textureData.size(), textureData.data()
+		);
 
 		D3D12_RESOURCE_STATES stateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 		D3D12_RESOURCE_STATES stateAfter  = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-		this->commandList->ResourceBarrier(1,&CD3DX12_RESOURCE_BARRIER::Transition(*texture, stateBefore, stateAfter));
+		this->commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->Resource12, stateBefore, stateAfter));
 
 		this->commandsExecute();
 		this->wait();
@@ -636,36 +674,38 @@ int DXContext::CreateTexture12(
 		_RELEASEP(textureResource);
 	}
 
-	srvDesc.Format                  = format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	texture->SRVDesc12.Format                  = format;
+	texture->SRVDesc12.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 	if (pixels.size() > 1) {
-		srvDesc.ViewDimension         = D3D12_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.TextureCube.MipLevels = 1;
+		texture->SRVDesc12.ViewDimension         = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		texture->SRVDesc12.TextureCube.MipLevels = 1;
 	} else {
-		srvDesc.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = 1;
+		texture->SRVDesc12.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
+		//texture->SRVDesc12.Texture2D.MipLevels = texture->MipLevels();
+		//texture->SRVDesc12.Texture2D.MipLevels = -1;
+		texture->SRVDesc12.Texture2D.MipLevels = 1;
 	}
 	
-	samplerDesc.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	//samplerDesc->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	samplerDesc.MaxAnisotropy  = 16;
-	samplerDesc.MaxLOD         = D3D12_FLOAT32_MAX;
+	texture->SamplerDesc12.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+	//texture->SamplerDesc12->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+	texture->SamplerDesc12.MaxAnisotropy  = 16;
+	texture->SamplerDesc12.MaxLOD         = D3D12_FLOAT32_MAX;
 
 	return 0;
 }
 
-int DXContext::CreateTextureBuffer12(
-	int width, int height, DXGI_FORMAT format, ID3D12DescriptorHeap** colorBuffer, ID3D12Resource** texture,
-	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
-)
+int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
+//	int width, int height, DXGI_FORMAT format, ID3D12DescriptorHeap** colorBuffer, ID3D12Resource** texture,
+//	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
+//)
 {
 	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
 	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
 	HRESULT                       result          = -1;
 	std::vector<BYTE*>            pixels;
 
-	result = this->CreateTexture12(pixels, width, height, format, texture, srvDesc, samplerDesc);
+	result = this->CreateTexture12(pixels, format, texture);
 
 	if (FAILED(result))
 		return -1;
@@ -675,20 +715,20 @@ int DXContext::CreateTextureBuffer12(
 	colorBufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	//colorBufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(colorBuffer));
+	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(&texture->ColorBuffer12));
 
 	if (FAILED(result))
 		return false;
 
 	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION HANDLE
-	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle((*colorBuffer)->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	colorBufferDesc.Format = format;
 	//colorBufferDesc.ViewDimension = (textureDesc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
 	colorBufferDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-	this->renderDevice12->CreateRenderTargetView(*texture, &colorBufferDesc, colorBufferHandle);
+	this->renderDevice12->CreateRenderTargetView(texture->Resource12, &colorBufferDesc, colorBufferHandle);
 
 	return 0;
 }
@@ -1094,8 +1134,8 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	this->deviceContext->PSSetConstantBuffers(0, 1, &constantBuffer);
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
-		srvs[i]     = mesh->Textures[i]->SRV11();
-		samplers[i] = mesh->Textures[i]->SamplerState11();
+		srvs[i]     = mesh->Textures[i]->SRV11;
+		samplers[i] = mesh->Textures[i]->SamplerState11;
 	}
 
 	this->deviceContext->PSSetShaderResources(0, MAX_TEXTURES, srvs);
@@ -1158,10 +1198,10 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 	{
-		this->renderDevice12->CreateShaderResourceView(mesh->Textures[i]->Resource12(), mesh->Textures[i]->SRVDesc12(), srvHandleCPU);
+		this->renderDevice12->CreateShaderResourceView(mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU);
 		srvHandleCPU.Offset(1, cbvSrvDescSize);
 
-		this->renderDevice12->CreateSampler(mesh->Textures[i]->SamplerDesc12(), samplerHandleCPU);
+		this->renderDevice12->CreateSampler(&mesh->Textures[i]->SamplerDesc12, samplerHandleCPU);
 		samplerHandleCPU.Offset(1, samplerDescSize);
 	}
 

@@ -72,14 +72,14 @@ bool Component::IsTextured()
 	switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11() != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11 != nullptr) && !this->Textures[0]->ImageFile().empty());
 	case GRAPHICS_API_DIRECTX12:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12() != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12 != nullptr) && !this->Textures[0]->ImageFile().empty());
 	#endif
 	case GRAPHICS_API_OPENGL:
 		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ID() > 0) && !this->Textures[0]->ImageFile().empty());
 	case GRAPHICS_API_VULKAN:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ImageView() != nullptr) && (this->Textures[0]->Sampler() != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ImageView != nullptr) && (this->Textures[0]->Sampler != nullptr) && !this->Textures[0]->ImageFile().empty());
 	}
 
 	return false;
