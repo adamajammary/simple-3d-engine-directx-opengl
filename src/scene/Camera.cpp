@@ -42,10 +42,11 @@ void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
 
 bool Camera::InputKeyboard(char key)
 {
-	glm::vec3 moveVector;
-	float     moveModifier = (TimeManager::DeltaTime * 20.0);
-	glm::vec3 moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
-	bool      result       = false;
+	glm::vec3    moveVector;
+	const double MOVE_SPEED   = 20.0;
+	float        moveModifier = (TimeManager::DeltaTime * MOVE_SPEED);
+	glm::vec3    moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
+	bool         result       = false;
 
 	switch (toupper(key)) {
 	case 'W':
@@ -76,11 +77,12 @@ bool Camera::InputKeyboard(char key)
 
 void Camera::InputMouseMove(const wxMouseEvent &event, const MouseState &mouseState)
 {
-	glm::vec3 moveVector;
-	glm::vec2 mouseMovement = glm::vec2((event.GetX() - mouseState.Position.x), (event.GetY() - mouseState.Position.y));
-	glm::vec2 moveModifier  = glm::vec2((mouseMovement.x * TimeManager::DeltaTime * 3.0), (mouseMovement.y * TimeManager::DeltaTime * 3.0));
-	glm::vec3 moveAmountX   = glm::vec3(-moveModifier.x, -moveModifier.x, -moveModifier.x);
-	glm::vec3 moveAmountY   = glm::vec3(-moveModifier.y, -moveModifier.y, -moveModifier.y);
+	glm::vec3    moveVector;
+	const double MOVE_SPEED    = 3.0;
+	glm::vec2    mouseMovement = glm::vec2((event.GetX() - mouseState.Position.x), (event.GetY() - mouseState.Position.y));
+	glm::vec2    moveModifier  = glm::vec2((mouseMovement.x * TimeManager::DeltaTime * MOVE_SPEED), (mouseMovement.y * TimeManager::DeltaTime * MOVE_SPEED));
+	glm::vec3    moveAmountX   = glm::vec3(-moveModifier.x, -moveModifier.x, -moveModifier.x);
+	glm::vec3    moveAmountY   = glm::vec3(-moveModifier.y, -moveModifier.y, -moveModifier.y);
 
 	// MOVE/PAN HORIZONTAL/VERTICAL
 	if (event.GetModifiers() == wxMOD_SHIFT)
@@ -92,8 +94,7 @@ void Camera::InputMouseMove(const wxMouseEvent &event, const MouseState &mouseSt
 		this->MoveBy(glm::vec3(0.0, moveModifier.y, 0.0));
 	// MOVE/PAN FORWARD/BACK (Z)
 	} else if (event.GetModifiers() == wxMOD_CONTROL) {
-		moveVector = (this->forward * moveAmountY);
-		this->MoveBy(moveVector);
+		this->MoveBy(this->forward * moveAmountY);
 	// ROTATE HORIZONTAL/VERTICAL (YAW/PITCH)
 	} else {
 		this->RotateBy(glm::vec3(-(moveModifier.y * 0.01), (moveModifier.x * 0.01), 0.0));
@@ -102,13 +103,14 @@ void Camera::InputMouseMove(const wxMouseEvent &event, const MouseState &mouseSt
 
 void Camera::InputMouseScroll(const wxMouseEvent &event)
 {
-	glm::vec3 moveVector;
-	float     moveModifier = (event.GetWheelRotation() * TimeManager::DeltaTime * 1.0);
-    glm::vec3 moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
+	glm::vec3    moveVector;
+	const double MOVE_SPEED   = 20.0;
+	float        moveModifier = ((std::signbit((float)event.GetWheelRotation()) ? -1.0 : 1.0) * TimeManager::DeltaTime * MOVE_SPEED);
+    glm::vec3    moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
 
     // UP / DOWN (Y)
 	if (event.GetModifiers() == wxMOD_SHIFT) {
-		this->MoveBy(glm::vec3(0.0, (event.GetWheelRotation() * TimeManager::DeltaTime * 1.0), 0.0));
+		moveVector = glm::vec3(0.0, moveModifier, 0.0);
     // LEFT / RIGHT (X)
 	} else if (event.GetModifiers() == wxMOD_CONTROL) {
 		moveVector  = glm::normalize(glm::cross(this->forward, glm::vec3(0.0, 1.0, 0.0)));

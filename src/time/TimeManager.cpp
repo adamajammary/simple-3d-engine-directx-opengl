@@ -16,8 +16,6 @@ void TimeManager::Start()
 
 void TimeManager::UpdateFPS()
 {
-	TimeManager::FPS++;
-
 	if (TimeManager::deltaTimer.Time() >= 1000)
 	{
 		TimeManager::DeltaTime = (1.0 / (double)TimeManager::FPS);
@@ -42,4 +40,6 @@ void TimeManager::UpdateFPS()
 		TimeManager::FPS = 0;
 		TimeManager::deltaTimer.Start();
 	}
+
+	TimeManager::FPS++;
 }

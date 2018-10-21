@@ -36,7 +36,7 @@ void InputManager::OnMouseDown(wxMouseEvent &event)
 {
 	RenderEngine::Canvas.Active = (event.GetId() == ID_CANVAS);
 
-	if (RenderEngine::Canvas.Active && (event.GetButton() == wxMOUSE_BTN_MIDDLE)) {
+	if (RenderEngine::Canvas.Active && ((event.GetButton() == wxMOUSE_BTN_MIDDLE) || (event.GetButton() == wxMOUSE_BTN_RIGHT))) {
 		InputManager::mouseState.Position = event.GetPosition();
 		wxSetCursor(wxCursor(wxCURSOR_BLANK));
 		RenderEngine::Canvas.Canvas->CaptureMouse();
@@ -45,7 +45,7 @@ void InputManager::OnMouseDown(wxMouseEvent &event)
 
 void InputManager::OnMouseMove(wxMouseEvent &event)
 {
-	if (event.Dragging() && event.MiddleIsDown() && (RenderEngine::Camera != nullptr))
+	if (event.Dragging() && (event.MiddleIsDown() || event.RightIsDown()) && (RenderEngine::Camera != nullptr))
 	{
 		RenderEngine::Camera->InputMouseMove(event, InputManager::mouseState);
 

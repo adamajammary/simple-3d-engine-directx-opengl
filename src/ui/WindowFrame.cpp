@@ -461,13 +461,13 @@ void WindowFrame::OnAbout(wxCommandEvent &event)
 	wxString title = wxString(Utils::APP_NAME).append(" v.").append(Utils::APP_VERSION);
 	wxString about = wxString(title).append("\n").append(Utils::COPYRIGHT).append(
 		"\n\n"
-		"Keyboard WASD:                     Move forward / left / back / right.\n"
-		"Mouse-Middle:                        Rotate horizontal / vertical (yaw / pitch).\n"
-		"Mouse-Middle + CTRL-key:  Move forward / back.\n"
-		"Mouse-Middle + SHIFT-key: Move horizontal / vertical.\n"
-		"Mouse-Scroll:                           Move forward / back.\n"
-		"Mouse-Scroll + CTRL-key:     Move left / right.\n"
-		"Mouse-Scroll + SHIFT-key:    Move up / down."
+		"Keyboard WASD:                                Move forward / left / back / right.\n"
+		"Mouse Middle/Right:                        Rotate horizontal / vertical (yaw / pitch).\n"
+		"Mouse Middle/Right + CTRL-key:  Move forward / back.\n"
+		"Mouse Middle/Right + SHIFT-key: Move horizontal / vertical.\n"
+		"Mouse Scroll:                                      Move forward / back.\n"
+		"Mouse Scroll + CTRL-key:                Move left / right.\n"
+		"Mouse Scroll + SHIFT-key:               Move up / down."
 	).append("\n\n").append(Utils::TESTED);
 
 	wxMessageBox(about, title, wxOK | wxICON_INFORMATION);
