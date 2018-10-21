@@ -31,6 +31,7 @@ private:
 	HANDLE                     fenceEvent;
 	UINT64                     fenceValue;
 	bool                       isOK;
+	UINT                       multiSampleCount;
 	ID3D12PipelineState*       pipelineState;
 	ID3D11Device*              renderDevice11;
 	ID3D12Device*              renderDevice12;

@@ -654,8 +654,8 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	// RE-CREATE THE CANVAS
 	wxGLAttributes attribs;
 
-	attribs.Defaults();
-	attribs.EndList();
+	// Defaults: RGBA, Z-depth 16 bits, double buffering, 1 sample buffer, 4 samplers.
+	attribs.PlatformDefaults().Defaults().Samplers(16).EndList();
 
 	RenderEngine::Canvas.Canvas = new wxGLCanvas(
 		RenderEngine::Canvas.Window, attribs, ID_CANVAS, RenderEngine::Canvas.Position, RenderEngine::Canvas.Size
@@ -697,6 +697,8 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 		
 		RenderEngine::SetVSync(RenderEngine::Canvas.Window->VSyncEnable->GetValue());
+
+		glEnable(GL_MULTISAMPLE);
 		glEnable(GL_TEXTURE_2D);
 		glEnable(GL_TEXTURE_CUBE_MAP);
 

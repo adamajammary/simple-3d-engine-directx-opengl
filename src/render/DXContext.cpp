@@ -507,11 +507,12 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	textureDesc.BindFlags        = (D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 	textureDesc.Format           = format;
 	//textureDesc.MipLevels        = 1;
-	//textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
-	textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
+	textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
+	//textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
 	//textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : 0);
 	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : (pixels.size() == 1 ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0));
 	textureDesc.SampleDesc.Count = 1;
+	//textureDesc.SampleDesc.Count = (pixels.size() > 1 ? 1 : this->multiSampleCount);
 	textureDesc.Width            = (UINT)textureSize.GetWidth();
 	textureDesc.Height           = (UINT)textureSize.GetHeight();
 
@@ -549,7 +550,8 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	if (FAILED(result))
 		return -3;
 
-	this->deviceContext->GenerateMips(texture->SRV11);
+	if (pixels.size() == 1)
+		this->deviceContext->GenerateMips(texture->SRV11);
 
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 	//samplerDesc->ComparisonFunc = D3D11_COMPARISON_ALWAYS;
@@ -583,8 +585,8 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	colorBufferDesc.Format        = format;
-	//colorBufferDesc.ViewDimension = (textureDesc.SampleDesc.Count > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
-	colorBufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
+	//colorBufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
 	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &this->colorBuffer);
 
@@ -618,6 +620,7 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	textureResourceDesc.MipLevels        = 1;
 	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
 	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
+	//textureResourceDesc.SampleDesc.Count = this->multiSampleCount;
 	textureResourceDesc.SampleDesc.Count = 1;
 	textureResourceDesc.Width            = (UINT64)textureSize.GetWidth();
 	textureResourceDesc.Height           = (UINT64)textureSize.GetHeight();
@@ -700,9 +703,9 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 //	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
 //)
 {
-	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc     = {};
 	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
-	HRESULT                       result          = -1;
+	HRESULT                       result              = -1;
 	std::vector<BYTE*>            pixels;
 
 	result = this->CreateTexture12(pixels, format, texture);
@@ -724,9 +727,9 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
-	colorBufferDesc.Format = format;
-	//colorBufferDesc.ViewDimension = (textureDesc.SampleDesc.Count > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
-	colorBufferDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	colorBufferDesc.Format        = format;
+	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
+	//colorBufferDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	this->renderDevice12->CreateRenderTargetView(texture->Resource12, &colorBufferDesc, colorBufferHandle);
 
@@ -771,9 +774,9 @@ int DXContext::CreateVertexBuffer11(
 	rastDesc.DepthBias             = 0;
 	rastDesc.SlopeScaledDepthBias  = 0.0f;
 	rastDesc.DepthBiasClamp        = 0.0f;
-	rastDesc.AntialiasedLineEnable = FALSE;
 	rastDesc.DepthClipEnable       = TRUE;
-	rastDesc.MultisampleEnable     = FALSE;
+	rastDesc.MultisampleEnable     = TRUE;
+	rastDesc.AntialiasedLineEnable = TRUE;
 	rastDesc.ScissorEnable         = FALSE;
 
 	D3D11_BLEND_DESC blendDesc = {};
@@ -976,19 +979,20 @@ int DXContext::CreateVertexBuffer12(
 	// PIPELINE STATE
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
-	pipelineStateDesc.DSVFormat             = DXGI_FORMAT_D32_FLOAT;
-	pipelineStateDesc.InputLayout           = { inputElementDesc, _countof(inputElementDesc) };
-	pipelineStateDesc.NumRenderTargets      = 1;
-	pipelineStateDesc.RTVFormats[0]         = DXGI_FORMAT_R8G8B8A8_UNORM;
-	pipelineStateDesc.SampleDesc.Count      = 1; // number of multisamples
-	pipelineStateDesc.SampleMask            = UINT_MAX;
+	pipelineStateDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
+	pipelineStateDesc.InputLayout      = { inputElementDesc, _countof(inputElementDesc) };
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pipelineStateDesc.SampleDesc.Count = 1;
+	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
+	pipelineStateDesc.SampleMask       = UINT_MAX;
 
 	pipelineStateDesc.RasterizerState.DepthBias             = 0;
 	pipelineStateDesc.RasterizerState.DepthBiasClamp        = 0.0f;
 	pipelineStateDesc.RasterizerState.SlopeScaledDepthBias  = 0.0f;
 	pipelineStateDesc.RasterizerState.DepthClipEnable       = TRUE;
-	pipelineStateDesc.RasterizerState.MultisampleEnable     = FALSE;
-	pipelineStateDesc.RasterizerState.AntialiasedLineEnable = FALSE;
+	pipelineStateDesc.RasterizerState.MultisampleEnable     = TRUE;
+	pipelineStateDesc.RasterizerState.AntialiasedLineEnable = TRUE;
 	pipelineStateDesc.RasterizerState.ForcedSampleCount     = 0;
 	pipelineStateDesc.RasterizerState.ConservativeRaster    = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
@@ -1277,7 +1281,8 @@ IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory4* factory)
 
 bool DXContext::init11(bool vsync)
 {
-	this->vSync = vsync;
+	this->multiSampleCount = 16;
+	this->vSync            = vsync;
 
 	// SWAP CHAIN
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -1291,7 +1296,7 @@ bool DXContext::init11(bool vsync)
 	swapChainDesc.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_DISCARD;
 	swapChainDesc.OutputWindow                       = (HWND)RenderEngine::Canvas.Canvas->GetHWND();
-	swapChainDesc.SampleDesc.Count                   = 1;
+	swapChainDesc.SampleDesc.Count                   = this->multiSampleCount;
 	swapChainDesc.Windowed                           = TRUE;
 
 	IDXGIFactory* factory = nullptr;
@@ -1402,7 +1407,8 @@ bool DXContext::init11(bool vsync)
 
 bool DXContext::init12(bool vsync)
 {
-	this->vSync = vsync;
+	this->multiSampleCount = 16;
+	this->vSync            = vsync;
 
 	UINT factoryFlags = 0;
 
@@ -1481,6 +1487,7 @@ bool DXContext::init12(bool vsync)
 	swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.OutputWindow                       = (HWND)RenderEngine::Canvas.Canvas->GetHWND();
 	swapChainDesc.SampleDesc.Count                   = 1;
+	//swapChainDesc.SampleDesc.Count                   = this->multiSampleCount;
 	swapChainDesc.Windowed                           = TRUE;
 
 	IDXGISwapChain* swapChain = nullptr;
