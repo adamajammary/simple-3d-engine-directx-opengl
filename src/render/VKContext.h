@@ -7,7 +7,7 @@
 
 enum VKAttachmentDesc
 {
-	VK_COLOR_ATTACHMENT, VK_DEPTH_STENCIL_ATTACHMENT, NR_OF_VK_ATTACHMENTS
+	VK_COLOR_ATTACHMENT, VK_DEPTH_STENCIL_ATTACHMENT, VK_RESOLVE_ATTACHMENT, NR_OF_VK_ATTACHMENTS
 };
 
 enum VKQueueType
@@ -77,6 +77,9 @@ public:
 
 private:
 	VkPipelineColorBlendStateCreateInfo*    colorBlendInfo;
+	std::vector<VkImage>                    colorImages;
+	std::vector<VkDeviceMemory>             colorImageMemories;
+	std::vector<VkImageView>                colorImageViews;
 	std::vector<VkCommandBuffer>            commandBuffers;
 	VkCommandPool                           commandPool;
 	std::vector<VkImage>                    depthBufferImages;
@@ -92,6 +95,7 @@ private:
 	VkInstance                              instance;
 	bool                                    isOK;
 	VkPipelineMultisampleStateCreateInfo*   multisampleInfo;
+	VkSampleCountFlagBits                   multiSampleCount;
 	//VkPipelineLayout                        pipelineLayout;
 	std::vector<VKQueue*>                   queues;
 	VkPipelineRasterizationStateCreateInfo* rasterizationInfo;
@@ -142,9 +146,9 @@ private:
 	int                                     copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
 	int                                     copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	int                                     createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
+	int                                     createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
 	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
-	int                                     createMipMaps(VkImage image, VkFormat imageFormat, int32_t width, int32_t height, uint32_t mipLevels);
+	int                                     createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
 	int                                     createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
 	int                                     createUniformLayout(VkDescriptorSetLayout* uniformLayout);
 	int                                     createUniformPool(VkDescriptorPool* uniformPool);
@@ -158,14 +162,16 @@ private:
 	VKSwapChainSupport*                     getDeviceSwapChainSupport(VkPhysicalDevice device);
 	VkFormat                                getImageFormat(const std::vector<VkFormat> &formats, VkImageTiling imageTiling, VkFormatFeatureFlags features);
 	uint32_t                                getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	VkSampleCountFlagBits                   getMultiSampleCount();
 	VkPresentModeKHR                        getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
 	VkSurfaceFormatKHR                      getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
 	VkExtent2D                              getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
 	VkPipelineColorBlendStateCreateInfo*    initColorBlending();
+	int                                     initColorImages();
 	std::vector<VkCommandBuffer>            initCommandBuffers(uint32_t bufferCount);
 	VkCommandPool                           initCommandPool();
 	VkPipelineDepthStencilStateCreateInfo*  initDepthStencilBuffer();
-	bool                                    initDepthStencilImages(std::vector<VkImage> &images, std::vector<VkDeviceMemory> &imageMemories, std::vector<VkImageView> &imageViews);
+	int                                     initDepthStencilImages();
 	VkDevice                                initDeviceContext();
 	std::vector<VkFramebuffer>              initFramebuffers();
 	VkInstance                              initInstance();
@@ -173,7 +179,7 @@ private:
 	VkPipelineRasterizationStateCreateInfo* initRasterizer();
 	VkRenderPass                            initRenderPass();
 	VkSurfaceKHR                            initSurface();
-	VKSwapchain*                            initSwapChain(VKSwapChainSupport* swapChainSupport, VkSurfaceKHR surface);
+	VKSwapchain*                            initSwapChain();
 	bool                                    initSync();
 	//VkDescriptorSetLayout                   initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags);
 	VkPipelineViewportStateCreateInfo*      initViewportState();
