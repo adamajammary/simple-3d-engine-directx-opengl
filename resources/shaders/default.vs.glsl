@@ -16,31 +16,10 @@ layout(binding = 0) uniform MatrixBuffer {
 	mat4 MatrixMVP;
 } mb;
 
-/*
-attribute vec3 VertexNormal;
-attribute vec3 VertexPosition;
-attribute vec2 VertexTextureCoords;
-
-varying vec3 FragmentNormal;
-varying vec4 FragmentPosition;
-varying vec2 FragmentTextureCoords;
-
-uniform mat4 MatrixModel;
-//uniform mat4 MatrixView;
-//uniform mat4 MatrixProjection;
-uniform mat4 MatrixMVP;
-*/
-
 void main()
 {
-    //FragmentNormal        = ((mat3)mb.MatrixModel * VertexNormal);
-    //FragmentNormal        = vec3(mb.MatrixModel * vec4(VertexNormal, 0.0));
-
     FragmentNormal        = (mb.MatrixModel * vec4(VertexNormal, 0.0)).xyz;
     FragmentTextureCoords = VertexTextureCoords;
     FragmentPosition      = (mb.MatrixModel * vec4(VertexPosition, 1.0));
     gl_Position           = (mb.MatrixMVP   * vec4(VertexPosition, 1.0));
-
-    /*gl_Position = vec4(VertexPosition, 1.0);*/
-
 }

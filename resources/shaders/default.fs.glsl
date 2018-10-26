@@ -38,22 +38,6 @@ layout(binding = 1) uniform DefaultBuffer {
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
-/*
-varying vec3 FragmentNormal;
-varying vec4 FragmentPosition;
-varying vec2 FragmentTextureCoords;
-
-uniform vec3      Ambient;
-uniform bool      EnableClipping;
-uniform vec3      ClipMax;
-uniform vec3      ClipMin;
-uniform bool      IsTextured;
-uniform vec4      MaterialColor;
-uniform Light     SunLight;
-uniform sampler2D Textures[MAX_TEXTURES];
-uniform vec2      TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-*/
-
 void main()
 {
 	if (db.EnableClipping) {
@@ -74,7 +58,4 @@ void main()
 	} else {
 		GL_FragColor = vec4((db.MaterialColor.rgb * lightColor), db.MaterialColor.a);
 	}
-
-	//GL_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
-	//GL_FragColor = vec4(db.MaterialColor.rgb, 1.0);
 }

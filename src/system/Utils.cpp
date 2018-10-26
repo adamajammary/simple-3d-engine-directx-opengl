@@ -34,12 +34,10 @@ const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
 const wxSize   Utils::WINDOW_SIZE        = wxSize(1510, 800);
 
 const wxString Utils::GRAPHIC_APIS[] = {
+	"OpenGL", "Vulkan"
 	#if defined _WINDOWS
-	"DirectX 11",
-	"DirectX 12",
+	, "DirectX 11", "DirectX 12"
 	#endif
-	"OpenGL",
-	"Vulkan"
 };
 
 const wxChar* Utils::FONTS[] = {
@@ -155,23 +153,12 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
 	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
 	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
-	{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
 	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
 	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
-	{ "resources/shaders/solid.vs.glsl",   "solid_vs",    "" },
-	{ "resources/shaders/solid.fs.glsl",   "solid_fs",    "" },
-	{ "resources/shaders/terrain.vs.glsl", "terrain_vs",  "" },
-	{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
-	{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
-	{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
-};
-
-const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
-	//{ "resources/shaders/test.vs.glsl", "test_vs",  "" },
-	//{ "resources/shaders/test.fs.glsl", "test_vs",  "" },
-	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
-	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
+	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
+	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+	//{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
+	//{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
 	//{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
 	//{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
 	//{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
@@ -182,6 +169,15 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
 	//{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
 	//{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
 	//{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
+};
+
+const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
+	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
+	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
+	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
+	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
+	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)

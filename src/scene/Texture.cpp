@@ -144,8 +144,6 @@ Texture::Texture(D3D11_FILTER filter, DXGI_FORMAT format, int width, int height)
 	samplerDesc11.AddressU = samplerDesc11.AddressV = samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
 
 	RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
-	//	width, height, format, &this->colorBuffer11, &this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
-	//);
 }
 
 // 2D FRAMEBUFFER TEXTURE (DIRECTX 12)
@@ -165,8 +163,6 @@ Texture::Texture(D3D12_FILTER filter, DXGI_FORMAT format, int width, int height)
 	this->SamplerDesc12.AddressU = this->SamplerDesc12.AddressV = this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 
 	RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
-	//	width, height, format, &this->colorBuffer12, &this->resource12, this->srvDesc12, this->samplerDesc12
-	//);
 }
 
 // 2D FRAMEBUFFER TEXTURE (OPENGL)
@@ -174,8 +170,7 @@ Texture::Texture(GLint filter, GLint formatIn, GLenum formatOut, GLenum dataType
 {
 	this->repeat = true;
 	this->Scale  = glm::vec2(1.0f, 1.0f);
-
-	this->type = GL_TEXTURE_2D;
+	this->type   = GL_TEXTURE_2D;
 
 	glCreateTextures(this->type, 1, &this->id);
 
@@ -225,20 +220,16 @@ Texture::Texture()
 
 Texture::~Texture()
 {
-	//switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
-	//case GRAPHICS_API_DIRECTX11:
 		_RELEASEP(this->colorBuffer11);
 		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
-		//break;
-	//case GRAPHICS_API_DIRECTX12:
+
 		_RELEASEP(this->ColorBuffer12);
 		_RELEASEP(this->Resource12);
-		//break;
 	#endif
-	//case GRAPHICS_API_OPENGL:
+
 	if (this->id > 0)
 	{
 		glDeleteTextures(1, &this->id);
@@ -246,11 +237,8 @@ Texture::~Texture()
 		this->id   = 0;
 		this->type = GL_TEXTURE_2D;
 	}
-		//break;
-	//case GRAPHICS_API_VULKAN:
+
 	RenderEngine::Canvas.VK->DestroyTexture(&this->Image, &this->ImageMemory, &this->ImageView, &this->Sampler);
-		//break;
-	//}
 
 	this->imageFiles.clear();
 }
@@ -293,12 +281,16 @@ wxString Texture::ImageFile(int index)
 bool Texture::IsOK()
 {
 	switch (Utils::SelectedGraphicsAPI) {
-		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11: return (this->Resource11 != nullptr);
-		case GRAPHICS_API_DIRECTX12: return (this->Resource12 != nullptr);
-		#endif
-		case GRAPHICS_API_OPENGL:    return (this->id > 0);
-		case GRAPHICS_API_VULKAN:    return ((this->ImageView != nullptr) && (this->Sampler != nullptr));
+	#if defined _WINDOWS
+	case GRAPHICS_API_DIRECTX11:
+		return (this->Resource11 != nullptr);
+	case GRAPHICS_API_DIRECTX12:
+		return (this->Resource12 != nullptr);
+	#endif
+	case GRAPHICS_API_OPENGL:
+		return (this->id > 0);
+	case GRAPHICS_API_VULKAN:
+		return ((this->ImageView != nullptr) && (this->Sampler != nullptr));
 	}
 
 	return false;
@@ -335,9 +327,6 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 				this->setWrappingDX11(samplerDesc11);
 
 			RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this);
-			//	pixels2, this->size.GetWidth(), this->size.GetHeight(), format,
-			//	&this->resource11, &this->srv11, samplerDesc11, &this->samplerState11
-			//);
 
 			break;
 		case GRAPHICS_API_DIRECTX12:
@@ -349,9 +338,6 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 				this->setWrappingDX12(this->SamplerDesc12);
 
 			RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this);
-			//	pixels2, this->size.GetWidth(), this->size.GetHeight(), format,
-			//	&this->resource12, this->srvDesc12, this->samplerDesc12
-			//);
 
 			break;
 		}
@@ -383,35 +369,21 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 
 	if (cubemap)
 	{
-		this->setWrappingCubemapGL();
-		this->setFilteringGL(false);
-
 		glTexParameteri(this->type, GL_TEXTURE_BASE_LEVEL, 0);
 		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  0);
 
-		// TEXTURE_CUBE_MAP_POSITIVE_X 0x8515   // RIGHT
-		// TEXTURE_CUBE_MAP_NEGATIVE_X 0x8516   // LEFT
-		// TEXTURE_CUBE_MAP_POSITIVE_Y 0x8517   // TOP
-		// TEXTURE_CUBE_MAP_NEGATIVE_Y 0x8518   // BOTTOM
-		// TEXTURE_CUBE_MAP_POSITIVE_Z 0x8519   // BACK  ???
-		// TEXTURE_CUBE_MAP_NEGATIVE_Z 0x851A   // FRONT ???
 		glTexImage2D(
 			(GL_TEXTURE_CUBE_MAP_POSITIVE_X + index), 0, GL_RGBA8,
 			image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
 		);
+
+		this->setWrappingCubemapGL();
+		this->setFilteringGL(false);
 	}
 	else
 	{
-		//this->setFilteringGL(true);
-		//this->setWrappingGL();
-
-		//glEnable(GL_TEXTURE_2D);
 		glTexParameteri(this->type, GL_TEXTURE_BASE_LEVEL, 0);
 		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  this->mipLevels - 1);
-
-		//glTexImage2D(
-		//	this->type, 0, GL_RGBA8, image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
-		//);
 
 		// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
 		glTexStorage2D(this->type, this->mipLevels, GL_RGBA8, image2.GetWidth(), image2.GetHeight());
@@ -461,9 +433,6 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 			this->setWrappingVK(this->SamplerInfo);
 
 		RenderEngine::Canvas.VK->CreateTexture(pixels2, this);
-			//(uint32_t)this->size.GetWidth(), (uint32_t)this->size.GetHeight(), pixels2,
-			//&this->image, &this->imageMemory, &this->imageView, &this->sampler, this->samplerInfo
-		//);
 	}
 
 	for (auto pixels : pixels2)

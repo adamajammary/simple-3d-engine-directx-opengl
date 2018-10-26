@@ -4,8 +4,6 @@
 
 DXContext::DXContext(GraphicsAPI api, bool vsync)
 {
-	//this->release();
-
 	switch (api) {
 		case GRAPHICS_API_DIRECTX11: this->isOK = this->init11(vsync); break;
 		case GRAPHICS_API_DIRECTX12: this->isOK = this->init12(vsync); break;
@@ -15,12 +13,6 @@ DXContext::DXContext(GraphicsAPI api, bool vsync)
 	if (!this->isOK)
 		this->release();
 }
-
-//DXContext::DXContext()
-//{
-//	this->release();
-//	this->isOK = false;
-//}
 
 DXContext::~DXContext()
 {
@@ -64,7 +56,6 @@ void DXContext::Unbind11()
 
 void DXContext::Unbind12(ID3D12Resource* colorBufferResource)
 {
-	//this->commandsColorBufferPresent(this->colorBuffers[this->colorBufferIndex]);
 	this->commandsColorBufferPresent(colorBufferResource);
 	this->commandsExecute();
 	this->wait();
@@ -488,37 +479,28 @@ int DXContext::CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs
 }
 
 int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
-//	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D11Texture2D** texture,
-//	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
-//)
 {
 	if (texture == nullptr)
 		return -1;
 
 	std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
-	//std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size());
 	HRESULT                             result      = -1;
 	D3D11_SHADER_RESOURCE_VIEW_DESC     srvDesc     = {};
 	D3D11_TEXTURE2D_DESC                textureDesc = {};
 	wxSize                              textureSize = texture->Size();
 
 	textureDesc.ArraySize        = (!pixels.empty() ? pixels.size() : 1);
-	//textureDesc.BindFlags        = (!pixels.empty() ? D3D11_BIND_SHADER_RESOURCE : D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 	textureDesc.BindFlags        = (D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 	textureDesc.Format           = format;
-	//textureDesc.MipLevels        = 1;
 	textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
-	//textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
-	//textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : 0);
 	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : (pixels.size() == 1 ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0));
 	textureDesc.SampleDesc.Count = 1;
-	//textureDesc.SampleDesc.Count = (pixels.size() > 1 ? 1 : this->multiSampleCount);
 	textureDesc.Width            = (UINT)textureSize.GetWidth();
 	textureDesc.Height           = (UINT)textureSize.GetHeight();
 
 	for (size_t i = 0; i < pixels.size(); i++)
 	{
-		for (uint32_t j = 0; j < (pixels.size() > 1 ? 1 : texture->MipLevels()); j++)
+		for (uint32_t j = 0; j < textureDesc.MipLevels; j++)
 		{
 			textureData[i + j].pSysMem          = pixels[i];
 			textureData[i + j].SysMemPitch      = (textureDesc.Width * 4);
@@ -541,7 +523,6 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		//srvDesc.TextureCube.MostDetailedMip = 0;
 	} else {
 		srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
-		//srvDesc.Texture2D.MipLevels = texture->MipLevels();
 		srvDesc.Texture2D.MipLevels = -1;
 	}
 
@@ -567,9 +548,6 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 }
 
 int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
-//	int width, int height, DXGI_FORMAT format, ID3D11RenderTargetView** colorBuffer, ID3D11Texture2D** texture, 
-//	ID3D11ShaderResourceView** srv, D3D11_SAMPLER_DESC &samplerDesc, ID3D11SamplerState** sampler
-//)
 {
 	if (texture == nullptr)
 		return -1;
@@ -586,7 +564,6 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
-	//colorBufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
 	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &this->colorBuffer);
 
@@ -598,14 +575,10 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 
 // TODO: Generate MipMaps
 int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture)
-//	const std::vector<BYTE*> &pixels, int width, int height, DXGI_FORMAT format, ID3D12Resource** texture,
-//	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
-//)
 {
 	if (texture == nullptr)
 		return -1;
 
-	//D3D12_SUBRESOURCE_DATA textureData[6]      = {};
 	std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size());
 	//std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
 	HRESULT                             result              = -1;
@@ -619,7 +592,6 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	textureResourceDesc.Format           = format;
 	textureResourceDesc.MipLevels        = 1;
 	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
-	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : 0);
 	//textureResourceDesc.SampleDesc.Count = this->multiSampleCount;
 	textureResourceDesc.SampleDesc.Count = 1;
 	textureResourceDesc.Width            = (UINT64)textureSize.GetWidth();
@@ -649,12 +621,6 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 		for (size_t i = 0; i < pixels.size(); i++)
 		{
-			//for (uint32_t j = 0; j < (pixels.size() > 1 ? 1 : texture->MipLevels()); j++)
-			//{
-			//	textureData[i + j].pData      = pixels[i];
-			//	textureData[i + j].RowPitch   = (textureResourceDesc.Width * 4);
-			//	textureData[i + j].SlicePitch = (textureResourceDesc.Width * textureResourceDesc.Height * 4);
-			//}
 			textureData[i].pData      = pixels[i];
 			textureData[i].RowPitch   = (textureResourceDesc.Width * 4);
 			textureData[i].SlicePitch = (textureResourceDesc.Width * textureResourceDesc.Height * 4);
@@ -692,16 +658,13 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	
 	texture->SamplerDesc12.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	//texture->SamplerDesc12->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	texture->SamplerDesc12.MaxAnisotropy  = 16;
+	texture->SamplerDesc12.MaxAnisotropy  = this->multiSampleCount;
 	texture->SamplerDesc12.MaxLOD         = D3D12_FLOAT32_MAX;
 
 	return 0;
 }
 
 int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
-//	int width, int height, DXGI_FORMAT format, ID3D12DescriptorHeap** colorBuffer, ID3D12Resource** texture,
-//	D3D12_SHADER_RESOURCE_VIEW_DESC &srvDesc, D3D12_SAMPLER_DESC &samplerDesc
-//)
 {
 	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc     = {};
 	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
@@ -729,7 +692,6 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
-	//colorBufferDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
 	this->renderDevice12->CreateRenderTargetView(texture->Resource12, &colorBufferDesc, colorBufferHandle);
 
@@ -953,11 +915,11 @@ int DXContext::CreateVertexBuffer12(
 
 	// NORMALS
 	inputElementDesc[ATTRIB_NORMAL].SemanticName      = "NORMAL";
-	//inputElementDesc[ATTRIB_NORMAL].SemanticIndex   = 0;
 	inputElementDesc[ATTRIB_NORMAL].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
-	//inputElementDesc[ATTRIB_NORMAL].InputSlot       = 0;
 	inputElementDesc[ATTRIB_NORMAL].AlignedByteOffset = 0;
 	inputElementDesc[ATTRIB_NORMAL].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+	//inputElementDesc[ATTRIB_NORMAL].SemanticIndex   = 0;
+	//inputElementDesc[ATTRIB_NORMAL].InputSlot       = 0;
 	//inputElementDesc[ATTRIB_NORMAL].InstanceDataStepRate = 0;
 
 	// POSITIONS
@@ -1322,20 +1284,30 @@ bool DXContext::init11(bool vsync)
 	D3D_FEATURE_LEVEL featureLevel    = D3D_FEATURE_LEVEL_11_0;
 	D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
 
-	result = D3D11CreateDeviceAndSwapChain(
-		adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, flags, featureLevels, 1, D3D11_SDK_VERSION,
-		&swapChainDesc, &this->swapChain11, &this->renderDevice11, &featureLevel, &this->deviceContext
-	);
+	do {
+		result = D3D11CreateDeviceAndSwapChain(
+			adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, flags, featureLevels, 1, D3D11_SDK_VERSION,
+			&swapChainDesc, &this->swapChain11, &this->renderDevice11, &featureLevel, &this->deviceContext
+		);
 
-	if (FAILED(result))
-		return false;
+		if (SUCCEEDED(result))
+		{
+			//return false;
+			UINT sampleQuality = -1;
 
-	UINT sampleQuality = -1;
+			result = this->renderDevice11->CheckMultisampleQualityLevels(
+				swapChainDesc.BufferDesc.Format, swapChainDesc.SampleDesc.Count, &sampleQuality
+			);
+		}
 
-	result = this->renderDevice11->CheckMultisampleQualityLevels(
-		swapChainDesc.BufferDesc.Format, swapChainDesc.SampleDesc.Count, &sampleQuality
-	);
-	
+		if (SUCCEEDED(result) || (this->multiSampleCount == 1))
+			break;
+			//return false;
+
+		this->multiSampleCount        /= 2;
+		swapChainDesc.SampleDesc.Count = this->multiSampleCount;
+	} while (FAILED(result));
+
 	if (FAILED(result))
 		return false;
 

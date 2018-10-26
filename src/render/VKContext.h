@@ -45,9 +45,6 @@ public:
 
 	~VKSwapchain()
 	{
-		//_DELETEP(this->Size);
-		//_DELETEP(this->SurfaceFormat);
-
 		for (auto imageView : this->ImageViews) {
 			if (imageView != nullptr) {
 				vkDestroyImageView(this->deviceContext, imageView, nullptr);
@@ -72,121 +69,112 @@ struct VKSwapChainSupport
 class VKContext
 {
 public:
-	VKContext(GraphicsAPI api, bool vsync = true);
+	VKContext(bool vsync = true);
 	~VKContext();
 
 private:
-	VkPipelineColorBlendStateCreateInfo*    colorBlendInfo;
-	std::vector<VkImage>                    colorImages;
-	std::vector<VkDeviceMemory>             colorImageMemories;
-	std::vector<VkImageView>                colorImageViews;
-	std::vector<VkCommandBuffer>            commandBuffers;
-	VkCommandPool                           commandPool;
-	std::vector<VkImage>                    depthBufferImages;
-	std::vector<VkDeviceMemory>             depthBufferImageMemories;
-	std::vector<VkImageView>                depthBufferImageViews;
-	VkPipelineDepthStencilStateCreateInfo*  depthStencilInfo;
-	VkPhysicalDevice                        device;
-	VkDevice                                deviceContext;
-	std::vector<VkFramebuffer>              frameBuffers;
-	std::vector<VkFence>                    frameFences;
-	uint32_t                                frameIndex;
-	uint32_t                                imageIndex;
-	VkInstance                              instance;
-	bool                                    isOK;
-	VkPipelineMultisampleStateCreateInfo*   multisampleInfo;
-	VkSampleCountFlagBits                   multiSampleCount;
-	//VkPipelineLayout                        pipelineLayout;
-	std::vector<VKQueue*>                   queues;
-	VkPipelineRasterizationStateCreateInfo* rasterizationInfo;
-	VkRenderPass                            renderPass;
-	std::vector<VkSemaphore>                semDrawComplete;
-	std::vector<VkSemaphore>                semImageAvailable;
-	//VkPipelineShaderStageCreateInfo*        shaderStages[2];
-	VkSurfaceKHR                            surface;
-	VKSwapchain*                            swapChain;
-	VKSwapChainSupport*                     swapChainSupport;
-	//VkDescriptorSetLayout                   uniformLayout;
-	//VkDescriptorPool                        uniformPool;
-	//VkDescriptorSet                         uniformSet;
-	VkPipelineViewportStateCreateInfo*      viewportState;
-	bool                                    vSync;
+	std::vector<VkImage>         colorImages;
+	std::vector<VkDeviceMemory>  colorImageMemories;
+	std::vector<VkImageView>     colorImageViews;
+	std::vector<VkCommandBuffer> commandBuffers;
+	VkCommandPool                commandPool;
+	std::vector<VkImage>         depthBufferImages;
+	std::vector<VkDeviceMemory>  depthBufferImageMemories;
+	std::vector<VkImageView>     depthBufferImageViews;
+	VkPhysicalDevice             device;
+	VkDevice                     deviceContext;
+	std::vector<VkFramebuffer>   frameBuffers;
+	std::vector<VkFence>         frameFences;
+	uint32_t                     frameIndex;
+	uint32_t                     imageIndex;
+	VkInstance                   instance;
+	bool                         isOK;
+	VkSampleCountFlagBits        multiSampleCount;
+	std::vector<VKQueue*>        queues;
+	VkRenderPass                 renderPass;
+	std::vector<VkSemaphore>     semDrawComplete;
+	std::vector<VkSemaphore>     semImageAvailable;
+	VkSurfaceKHR                 surface;
+	VKSwapchain*                 swapChain;
+	VKSwapChainSupport*          swapChainSupport;
+	bool                         vSync;
 
 	#if defined _DEBUG
 		VkDebugReportCallbackEXT debugCallback; 
 	#endif
 
 public:
-	void       Clear(float r, float g, float b, float a);
-	int        CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
-	int        CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout);
-	int        CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	//int        CreateTexture(uint32_t width, uint32_t height, const std::vector<uint8_t*> &imagePixels, VkImage* textureImage, VkDeviceMemory* textureImageMemory, VkImageView* textureImageView, VkSampler* sampler, VkSamplerCreateInfo &samplerInfo);
-	int        CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
-	int        CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
-	int        CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int        CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkPipelineLayout pipelineLayout, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
-	void       DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	void       DestroyPipeline(VkPipeline* pipeline);
-	void       DestroyPipelineLayout(VkPipelineLayout* pipelineLayout);
-	void       DestroyShaderModule(VkShaderModule* shaderModule);
-	void       DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
-	void       DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int        Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	bool       IsOK();
-	void       Present();
-	void       ResetPipelines();
-	bool       ResetSwapChain();
-	void       SetVSync(bool enable);
+	void Clear(float r, float g, float b, float a);
+	int  CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
+	int  CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout);
+	int  CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
+	int  CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
+	int  CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
+	int  CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
+	int  CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkPipelineLayout pipelineLayout, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
+	void DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void DestroyPipeline(VkPipeline* pipeline);
+	void DestroyPipelineLayout(VkPipelineLayout* pipelineLayout);
+	void DestroyShaderModule(VkShaderModule* shaderModule);
+	void DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
+	void DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
+	int  Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	bool IsOK();
+	void Present();
+	void ResetPipelines();
+	bool ResetSwapChain();
+	void SetVSync(bool enable);
 
 private:
-	VkCommandBuffer                         commandBufferBegin();
-	void                                    commandBufferEnd(VkCommandBuffer commandBuffer);
-	int                                     copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
-	int                                     copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
-	int                                     copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageLayout oldLayout, VkImageLayout newLayout);
-	int                                     createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	int                                     createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
-	VkImageView                             createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, VkImageAspectFlags aspectFlags);
-	int                                     createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
-	int                                     createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
-	int                                     createUniformLayout(VkDescriptorSetLayout* uniformLayout);
-	int                                     createUniformPool(VkDescriptorPool* uniformPool);
-	bool                                    deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
-	bool                                    deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
-	wxString                                getApiVersion(VkPhysicalDevice device);
-	VkFormat                                getDepthBufferFormat();
-	VkPhysicalDevice                        getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
-	wxString                                getDeviceName(VkPhysicalDevice device);
-	std::vector<VKQueue*>                   getDeviceQueueSupport(VkPhysicalDevice device);
-	VKSwapChainSupport*                     getDeviceSwapChainSupport(VkPhysicalDevice device);
-	VkFormat                                getImageFormat(const std::vector<VkFormat> &formats, VkImageTiling imageTiling, VkFormatFeatureFlags features);
-	uint32_t                                getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-	VkSampleCountFlagBits                   getMultiSampleCount();
-	VkPresentModeKHR                        getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
-	VkSurfaceFormatKHR                      getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
-	VkExtent2D                              getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
-	VkPipelineColorBlendStateCreateInfo*    initColorBlending();
-	int                                     initColorImages();
-	std::vector<VkCommandBuffer>            initCommandBuffers(uint32_t bufferCount);
-	VkCommandPool                           initCommandPool();
-	VkPipelineDepthStencilStateCreateInfo*  initDepthStencilBuffer();
-	int                                     initDepthStencilImages();
-	VkDevice                                initDeviceContext();
-	std::vector<VkFramebuffer>              initFramebuffers();
-	VkInstance                              initInstance();
-	VkPipelineMultisampleStateCreateInfo*   initMultisampling();
-	VkPipelineRasterizationStateCreateInfo* initRasterizer();
-	VkRenderPass                            initRenderPass();
-	VkSurfaceKHR                            initSurface();
-	VKSwapchain*                            initSwapChain();
-	bool                                    initSync();
-	//VkDescriptorSetLayout                   initUniformLayout(uint32_t binding, VkShaderStageFlags shaderFlags);
-	VkPipelineViewportStateCreateInfo*      initViewportState();
-	bool                                    init(bool vsync = true);
-	void                                    release();
-	void                                    releaseSwapChain(bool releaseSupport);
-	bool                                    updateSwapChain(bool updateSupport);
+	void                                   blitImage(VkCommandBuffer commandBuffer, VkImage image, int mipWidth, int mipHeight, int index);
+	VkCommandBuffer                        commandBufferBegin();
+	void                                   commandBufferEnd(VkCommandBuffer commandBuffer);
+	int                                    copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
+	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t index = 0);
+	int                                    copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageLayout oldLayout, VkImageLayout newLayout);
+	int                                    createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
+	VkSampler                              createImageSampler(float mipLevels, bool cubeMap, VkSamplerCreateInfo &samplerInfo);
+	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageAspectFlags aspectFlags);
+	int                                    createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
+	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
+	int                                    createUniformLayout(VkDescriptorSetLayout* uniformLayout);
+	int                                    createUniformPool(VkDescriptorPool* uniformPool);
+	bool                                   deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
+	bool                                   deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
+	wxString                               getApiVersion(VkPhysicalDevice device);
+	VkFormat                               getDepthBufferFormat();
+	VkPhysicalDevice                       getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
+	wxString                               getDeviceName(VkPhysicalDevice device);
+	std::vector<VKQueue*>                  getDeviceQueueSupport(VkPhysicalDevice device);
+	VKSwapChainSupport*                    getDeviceSwapChainSupport(VkPhysicalDevice device);
+	VkFormat                               getImageFormat(const std::vector<VkFormat> &formats, VkImageTiling imageTiling, VkFormatFeatureFlags features);
+	uint32_t                               getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+	VkSampleCountFlagBits                  getMultiSampleCount();
+	VkPresentModeKHR                       getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
+	VkSurfaceFormatKHR                     getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
+	VkExtent2D                             getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
+	VkPipelineColorBlendStateCreateInfo    initColorBlending(VkPipelineColorBlendAttachmentState &attachment, VkBool32 enableBlending);
+	int                                    initColorImages();
+	std::vector<VkCommandBuffer>           initCommandBuffers(uint32_t bufferCount);
+	VkCommandPool                          initCommandPool();
+	VkPipelineDepthStencilStateCreateInfo  initDepthStencilBuffer(VkBool32 enableDepth, VkCompareOp compareOperation = VK_COMPARE_OP_LESS);
+	int                                    initDepthStencilImages();
+	VkDevice                               initDeviceContext();
+	std::vector<VkFramebuffer>             initFramebuffers();
+	VkInstance                             initInstance();
+	VkPipelineMultisampleStateCreateInfo   initMultisampling();
+	VkPipelineRasterizationStateCreateInfo initRasterizer(VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT);
+	VkRenderPass                           initRenderPass();
+	VkSurfaceKHR                           initSurface();
+	VKSwapchain*                           initSwapChain();
+	bool                                   initSync();
+	VkPipelineViewportStateCreateInfo      initViewport(VkRect2D &scissorRect, VkViewport &viewport);
+	bool                                   init(bool vsync = true);
+	void                                   release();
+	void                                   releaseSwapChain(bool releaseSupport);
+	void                                   transitionImageLayout(VkCommandBuffer commandBuffer, VkImageMemoryBarrier &imageMemBarrier, VkPipelineStageFlagBits destStage);
+	bool                                   updateSwapChain(bool updateSupport);
 
 	#if defined _DEBUG
 		static VKAPI_ATTR VkBool32 VKAPI_CALL debugLog(VkDebugReportFlagsEXT f, VkDebugReportObjectTypeEXT ot, uint64_t o, size_t l, int32_t c, const char* lp, const char* m, void* ud);

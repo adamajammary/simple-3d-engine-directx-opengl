@@ -12,8 +12,7 @@ int ShaderManager::Init()
 {
 	ShaderManager::Close();
 
-	//for (int i = 0; i < NR_OF_SHADERS; i++)
-	//	_DELETEP(ShaderManager::Programs[i]);
+	const int nr_of_shaders = 3;
 
 	switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
@@ -31,10 +30,15 @@ int ShaderManager::Init()
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		if ((int)Utils::SHADER_RESOURCES_GL.size() < NR_OF_SHADERS * 2)
+		// TODO: Shaders GL
+		if ((int)Utils::SHADER_RESOURCES_VULKAN.size() < nr_of_shaders * 2)
 			return -1;
 
-		for (int i = 0; i < NR_OF_SHADERS; i++)
+		for (int i = 0; i < nr_of_shaders; i++)
+		//if ((int)Utils::SHADER_RESOURCES_GL.size() < NR_OF_SHADERS * 2)
+		//	return -1;
+
+		//for (int i = 0; i < NR_OF_SHADERS; i++)
 		{
 			Resource vs = Utils::SHADER_RESOURCES_GL[(i * 2) + 0];
 			Resource fs = Utils::SHADER_RESOURCES_GL[(i * 2) + 1];
@@ -56,10 +60,11 @@ int ShaderManager::Init()
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		if ((int)Utils::SHADER_RESOURCES_VULKAN.size() < 1 * 2)
+		// TODO: Shaders Vulkan
+		if ((int)Utils::SHADER_RESOURCES_VULKAN.size() < nr_of_shaders * 2)
 			return -1;
 
-		for (int i = 0; i < 1; i++)
+		for (int i = 0; i < nr_of_shaders; i++)
 		{
 			Resource vs = Utils::SHADER_RESOURCES_VULKAN[(i * 2) + 0];
 			Resource fs = Utils::SHADER_RESOURCES_VULKAN[(i * 2) + 1];
