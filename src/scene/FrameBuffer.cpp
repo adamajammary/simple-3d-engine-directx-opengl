@@ -5,18 +5,8 @@ FrameBuffer::FrameBuffer(int width, int height)
 	this->colorTexture = nullptr;
 	this->size         = wxSize(width, height);
 
-	switch (Utils::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
+	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		glCreateFramebuffers(1, &this->colorBuffer);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	}
 }
 
 FrameBuffer::FrameBuffer()
@@ -32,38 +22,35 @@ FrameBuffer::~FrameBuffer()
 
 	_DELETEP(this->colorTexture);
 
-	//switch (Utils::SelectedGraphicsAPI) {
-	//#if defined _WINDOWS
-	//case GRAPHICS_API_DIRECTX11:
-	//case GRAPHICS_API_DIRECTX12:
-	//	break;
-	//#endif
-	//case GRAPHICS_API_OPENGL:
 	if (this->colorBuffer > 0) {
 		glDeleteFramebuffers(1, &this->colorBuffer);
 		this->colorBuffer = 0;
 	}
-	//	break;
-	//case GRAPHICS_API_VULKAN:
-	//	break;
-	//}
 }
 
 void FrameBuffer::Bind()
 {
+	#if defined _WINDOWS
+		D3D12_RECT     scissor = {};
+		D3D12_VIEWPORT viewPort;
+	#endif
+
 	switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Bind11(
-			this->colorTexture->ColorBuffer11(), nullptr, this->colorTexture->ColorBufferViewPort11()
+			this->colorTexture->ColorBuffer11, nullptr, this->colorTexture->ColorBufferViewPort11()
 		);
 		break;
 	case GRAPHICS_API_DIRECTX12:
+		viewPort       = this->colorTexture->ColorBufferViewPort12();
+		scissor.right  = (LONG)viewPort.Width;
+		scissor.bottom = (LONG)viewPort.Height;
+
 		RenderEngine::Canvas.DX->Bind12(
 			this->colorTexture->Resource12,
 			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->colorTexture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart()),
-			nullptr,
-			this->colorTexture->ColorBufferViewPort12(), nullptr
+			nullptr, viewPort, scissor
 		);
 		break;
 	#endif

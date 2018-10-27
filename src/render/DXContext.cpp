@@ -19,29 +19,18 @@ DXContext::~DXContext()
 	this->release();
 }
 
-void DXContext::Bind11(ID3D11RenderTargetView* colorBuffer, ID3D11DepthStencilView* depthStencilBuffer, D3D11_VIEWPORT* viewPort)
+void DXContext::Bind11(ID3D11RenderTargetView* colorBuffer, ID3D11DepthStencilView* depthStencilBuffer, D3D11_VIEWPORT &viewPort)
 {
-	this->deviceContext->RSSetViewports(1,     viewPort);
+	this->deviceContext->RSSetViewports(1,     &viewPort);
 	this->deviceContext->OMSetRenderTargets(1, &colorBuffer, depthStencilBuffer);
 }
 
-void DXContext::Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle, D3D12_VIEWPORT* viewPort, D3D12_RECT* scissorRect)
+void DXContext::Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle, D3D12_VIEWPORT &viewPort, D3D12_RECT &scissorRect)
 {
-	D3D12_RECT scissor = {};
-
-	if (scissorRect != nullptr) {
-		scissor = D3D12_RECT(*scissorRect);
-	} else {
-		scissor.left   = 0;
-		scissor.top    = 0;
-		scissor.right  = (LONG)viewPort->Width;
-		scissor.bottom = (LONG)viewPort->Height;
-	}
-
 	this->commandsInit();
 
-	this->commandList->RSSetViewports(1,    viewPort);
-	this->commandList->RSSetScissorRects(1, &scissor);
+	this->commandList->RSSetViewports(1,    &viewPort);
+	this->commandList->RSSetScissorRects(1, &scissorRect);
 
 	this->commandsColorBufferPrepare(colorBufferResource);
 
@@ -65,7 +54,7 @@ void DXContext::Clear11(float r, float g, float b, float a)
 {
 	FLOAT color[] = { r, g, b, a };
 
-	this->Bind11(this->colorBuffer, this->depthStencilBuffer11, &this->viewPort11);
+	this->Bind11(this->colorBuffer, this->depthStencilBuffer11, this->viewPort11);
 
 	this->deviceContext->ClearRenderTargetView(this->colorBuffer, color);
 	this->deviceContext->ClearDepthStencilView(this->depthStencilBuffer11, (D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL), 1.0f, 0);
@@ -78,7 +67,7 @@ void DXContext::Clear11(float r, float g, float b, float a, FrameBuffer* fbo)
 	if (fbo == nullptr)
 		this->Clear11(r, g, b, a);
 	else
-		this->deviceContext->ClearRenderTargetView(fbo->ColorTexture()->ColorBuffer11(), color);
+		this->deviceContext->ClearRenderTargetView(fbo->ColorTexture()->ColorBuffer11, color);
 }
 
 void DXContext::Clear12(float r, float g, float b, float a)
@@ -87,7 +76,10 @@ void DXContext::Clear12(float r, float g, float b, float a)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(this->colorBufferHeap->GetCPUDescriptorHandleForHeapStart(), this->colorBufferIndex, this->colorBufferSize);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthStencilHandle(this->depthStencilBufferHeap->GetCPUDescriptorHandleForHeapStart());
 
-	this->Bind12(this->colorBuffers[this->colorBufferIndex], &colorBufferHandle, &depthStencilHandle, &this->viewPort12, &this->scissorRect);
+	this->Bind12(
+		this->colorBuffers[this->colorBufferIndex], &colorBufferHandle,
+		&depthStencilHandle, this->viewPort12, this->scissorRect
+	);
 
 	this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	this->commandList->ClearDepthStencilView(depthStencilHandle, (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL), 1.0f, 0, 0, nullptr);
@@ -492,11 +484,19 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	textureDesc.ArraySize        = (!pixels.empty() ? pixels.size() : 1);
 	textureDesc.BindFlags        = (D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
 	textureDesc.Format           = format;
-	textureDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
+	textureDesc.MipLevels        = (pixels.size() == 1 ? texture->MipLevels() : 1);
 	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : (pixels.size() == 1 ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0));
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.Width            = (UINT)textureSize.GetWidth();
 	textureDesc.Height           = (UINT)textureSize.GetHeight();
+
+	if ((textureDesc.Width == 0) || (textureDesc.Height == 0))
+	{
+		D3D11_VIEWPORT bufferViewPort = texture->ColorBufferViewPort11();
+
+		textureDesc.Width  = (UINT)bufferViewPort.Width;
+		textureDesc.Height = (UINT)bufferViewPort.Height;
+	}
 
 	for (size_t i = 0; i < pixels.size(); i++)
 	{
@@ -565,7 +565,7 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 
-	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &this->colorBuffer);
+	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &texture->ColorBuffer11);
 
 	if (FAILED(result))
 		return -3;
@@ -596,6 +596,14 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	textureResourceDesc.SampleDesc.Count = 1;
 	textureResourceDesc.Width            = (UINT64)textureSize.GetWidth();
 	textureResourceDesc.Height           = (UINT64)textureSize.GetHeight();
+
+	if ((textureResourceDesc.Width == 0) || (textureResourceDesc.Height == 0))
+	{
+		D3D12_VIEWPORT bufferViewPort = texture->ColorBufferViewPort12();
+
+		textureResourceDesc.Width  = (UINT64)bufferViewPort.Width;
+		textureResourceDesc.Height = (UINT64)bufferViewPort.Height;
+	}
 
 	result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureResourceDesc,
@@ -684,7 +692,7 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(&texture->ColorBuffer12));
 
 	if (FAILED(result))
-		return false;
+		return -2;
 
 	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION HANDLE
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
@@ -718,125 +726,91 @@ int DXContext::CreateVertexBuffer11(
 	bufferDesc.ByteWidth = (vertexBufferData.size() * sizeof(float));
 	bufferData.pSysMem   = &vertexBufferData[0];
 
-	HRESULT result = this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, vertexBuffer);
-
-	if (FAILED(result))
+	if (FAILED(this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, vertexBuffer)))
 		return -1;
 
-	D3D11_INPUT_ELEMENT_DESC inputLayoutDesc[3] = {};
+	D3D11_INPUT_ELEMENT_DESC inputElementDesc[NR_OF_ATTRIBS] = {};
 
-	inputLayoutDesc[0] = { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,                   D3D11_INPUT_PER_VERTEX_DATA, 0 };
-	inputLayoutDesc[1] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 * sizeof(float)), D3D11_INPUT_PER_VERTEX_DATA, 0 };
-	inputLayoutDesc[2] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, (6 * sizeof(float)), D3D11_INPUT_PER_VERTEX_DATA, 0 };
+	// NORMALS
+	inputElementDesc[ATTRIB_NORMAL].SemanticName      = "NORMAL";
+	inputElementDesc[ATTRIB_NORMAL].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDesc[ATTRIB_NORMAL].AlignedByteOffset = 0;
+	inputElementDesc[ATTRIB_NORMAL].InputSlotClass    = D3D11_INPUT_PER_VERTEX_DATA;
+	//inputElementDesc[ATTRIB_NORMAL].SemanticIndex   = 0;
+	//inputElementDesc[ATTRIB_NORMAL].InputSlot       = 0;
+	//inputElementDesc[ATTRIB_NORMAL].InstanceDataStepRate = 0;
+
+	// POSITIONS
+	inputElementDesc[ATTRIB_POSITION].SemanticName      = "POSITION";
+	inputElementDesc[ATTRIB_POSITION].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDesc[ATTRIB_POSITION].AlignedByteOffset = (3 * sizeof(float));
+	inputElementDesc[ATTRIB_POSITION].InputSlotClass    = D3D11_INPUT_PER_VERTEX_DATA;
+
+	// TEXTURE COORDINATES
+	inputElementDesc[ATTRIB_TEXCOORDS].SemanticName      = "TEXCOORD";
+	inputElementDesc[ATTRIB_TEXCOORDS].Format            = DXGI_FORMAT_R32G32_FLOAT;
+	inputElementDesc[ATTRIB_TEXCOORDS].AlignedByteOffset = (6 * sizeof(float));
+	inputElementDesc[ATTRIB_TEXCOORDS].InputSlotClass    = D3D11_INPUT_PER_VERTEX_DATA;
 
 	bufferStride = (8 * sizeof(float));
 
-	D3D11_RASTERIZER_DESC rastDesc = {};
-
-	rastDesc.DepthBias             = 0;
-	rastDesc.SlopeScaledDepthBias  = 0.0f;
-	rastDesc.DepthBiasClamp        = 0.0f;
-	rastDesc.DepthClipEnable       = TRUE;
-	rastDesc.MultisampleEnable     = TRUE;
-	rastDesc.AntialiasedLineEnable = TRUE;
-	rastDesc.ScissorEnable         = FALSE;
-
-	D3D11_BLEND_DESC blendDesc = {};
-
-	blendDesc.AlphaToCoverageEnable                 = FALSE;
-	blendDesc.IndependentBlendEnable                = FALSE;
-	blendDesc.RenderTarget[0].SrcBlend              = D3D11_BLEND_SRC_ALPHA;
-	blendDesc.RenderTarget[0].DestBlend             = D3D11_BLEND_INV_SRC_ALPHA;
-	blendDesc.RenderTarget[0].BlendOp               = D3D11_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].SrcBlendAlpha         = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].DestBlendAlpha        = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].BlendOpAlpha          = D3D11_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
+	D3D11_BLEND_DESC         blendDesc        = {};
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
-
-	depthStencilDesc.StencilEnable                = FALSE;
-	depthStencilDesc.DepthWriteMask               = D3D11_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.StencilReadMask              = D3D11_DEFAULT_STENCIL_READ_MASK;
-	depthStencilDesc.StencilWriteMask             = D3D11_DEFAULT_STENCIL_WRITE_MASK;
-	depthStencilDesc.FrontFace.StencilFunc        = D3D11_COMPARISON_ALWAYS;
-	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilPassOp      = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilFunc         = D3D11_COMPARISON_ALWAYS;
-	depthStencilDesc.BackFace.StencilDepthFailOp  = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilPassOp       = D3D11_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilFailOp       = D3D11_STENCIL_OP_KEEP;
+	D3D11_RASTERIZER_DESC    rasterizerDesc   = {};
 
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
 		if (ShaderManager::Programs[i] == nullptr)
-			return -1;
+			return -2;
 
 		ID3DBlob* vs = ShaderManager::Programs[i]->VS();
 
 		if (vs == nullptr)
-			return -1;
+			return -3;
 
-		result = this->renderDevice11->CreateInputLayout(
-			inputLayoutDesc, 3, vs->GetBufferPointer(), vs->GetBufferSize(), &inputLayouts[i]
+		HRESULT result = this->renderDevice11->CreateInputLayout(
+			inputElementDesc, NR_OF_ATTRIBS, vs->GetBufferPointer(), vs->GetBufferSize(), &inputLayouts[i]
 		);
 
 		if (FAILED(result))
-			return -1;
+			return -4;
 
 		switch((ShaderID)i) {
 		case SHADER_ID_HUD:
-			rastDesc.FillMode                     = D3D11_FILL_SOLID;
-			rastDesc.CullMode                     = D3D11_CULL_BACK;
-			rastDesc.FrontCounterClockwise        = TRUE;
-			blendDesc.RenderTarget[0].BlendEnable = TRUE;
-			depthStencilDesc.DepthEnable          = FALSE;
+			blendDesc        = this->initColorBlending11(TRUE);
+			depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
+			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE);
 			break;
 		case SHADER_ID_SKYBOX:
-			rastDesc.FillMode                     = D3D11_FILL_SOLID;
-			rastDesc.CullMode                     = D3D11_CULL_NONE;
-			blendDesc.RenderTarget[0].BlendEnable = FALSE;
-			depthStencilDesc.DepthEnable          = TRUE;
-			depthStencilDesc.DepthFunc            = D3D11_COMPARISON_LESS_EQUAL;
-			break;
-		case SHADER_ID_WATER:
-			rastDesc.FillMode                     = D3D11_FILL_SOLID;
-			rastDesc.CullMode                     = D3D11_CULL_BACK;
-			rastDesc.FrontCounterClockwise        = TRUE;
-			blendDesc.RenderTarget[0].BlendEnable = FALSE;
-			depthStencilDesc.DepthEnable          = TRUE;
-			depthStencilDesc.DepthFunc            = D3D11_COMPARISON_LESS;
+			blendDesc        = this->initColorBlending11(FALSE);
+			depthStencilDesc = this->initDepthStencilBuffer11(TRUE, D3D11_COMPARISON_LESS_EQUAL);
+			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE);
 			break;
 		case SHADER_ID_SOLID:
-			rastDesc.FillMode                     = D3D11_FILL_WIREFRAME;
-			rastDesc.CullMode                     = D3D11_CULL_NONE;
-			blendDesc.RenderTarget[0].BlendEnable = FALSE;
-			depthStencilDesc.DepthEnable          = FALSE;
+			blendDesc        = this->initColorBlending11(FALSE);
+			depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
+			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE, D3D11_FILL_WIREFRAME);
+			break;
+		case SHADER_ID_WATER:
+			blendDesc        = this->initColorBlending11(FALSE);
+			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
+			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
 			break;
 		default:
-			rastDesc.FillMode                     = D3D11_FILL_SOLID;
-			rastDesc.CullMode                     = D3D11_CULL_BACK;
-			rastDesc.FrontCounterClockwise        = TRUE;
-			blendDesc.RenderTarget[0].BlendEnable = FALSE;
-			depthStencilDesc.DepthEnable          = TRUE;
-			depthStencilDesc.DepthFunc            = D3D11_COMPARISON_LESS;
+			blendDesc        = this->initColorBlending11(FALSE);
+			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
+			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
 			break;
 		}
 
-		result = this->renderDevice11->CreateRasterizerState(&rastDesc, &rasterizerStates[i]);
-		
-		if (FAILED(result))
-			return -1;
+		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &rasterizerStates[i])))
+			return -5;
 
-		result = this->renderDevice11->CreateBlendState(&blendDesc, &blendStates[i]);
-		
-		if (FAILED(result))
-			return -1;
+		if (FAILED(this->renderDevice11->CreateBlendState(&blendDesc, &blendStates[i])))
+			return -6;
 
-		result = this->renderDevice11->CreateDepthStencilState(&depthStencilDesc, &depthStencilStates[i]);
-		
-		if (FAILED(result))
-			return -1;
+		if (FAILED(this->renderDevice11->CreateDepthStencilState(&depthStencilDesc, &depthStencilStates[i])))
+			return -7;
 	}
 
 	return 0;
@@ -934,10 +908,6 @@ int DXContext::CreateVertexBuffer12(
 	inputElementDesc[ATTRIB_TEXCOORDS].AlignedByteOffset = (6 * sizeof(float));
 	inputElementDesc[ATTRIB_TEXCOORDS].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 
-	//inputElementDesc[ATTRIB_NORMAL]    = { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,                   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	//inputElementDesc[ATTRIB_POSITION]  = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, (3 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-	//inputElementDesc[ATTRIB_TEXCOORDS] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,    0, (6 * sizeof(float)), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
-
 	// PIPELINE STATE
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
@@ -948,40 +918,6 @@ int DXContext::CreateVertexBuffer12(
 	pipelineStateDesc.SampleDesc.Count = 1;
 	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
 	pipelineStateDesc.SampleMask       = UINT_MAX;
-
-	pipelineStateDesc.RasterizerState.DepthBias             = 0;
-	pipelineStateDesc.RasterizerState.DepthBiasClamp        = 0.0f;
-	pipelineStateDesc.RasterizerState.SlopeScaledDepthBias  = 0.0f;
-	pipelineStateDesc.RasterizerState.DepthClipEnable       = TRUE;
-	pipelineStateDesc.RasterizerState.MultisampleEnable     = TRUE;
-	pipelineStateDesc.RasterizerState.AntialiasedLineEnable = TRUE;
-	pipelineStateDesc.RasterizerState.ForcedSampleCount     = 0;
-	pipelineStateDesc.RasterizerState.ConservativeRaster    = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-	pipelineStateDesc.BlendState.AlphaToCoverageEnable                 = FALSE;
-	pipelineStateDesc.BlendState.IndependentBlendEnable                = FALSE;
-	pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable           = FALSE;
-	pipelineStateDesc.BlendState.RenderTarget[0].LogicOpEnable         = FALSE;
-	pipelineStateDesc.BlendState.RenderTarget[0].SrcBlend              = D3D12_BLEND_SRC_ALPHA;
-	pipelineStateDesc.BlendState.RenderTarget[0].DestBlend             = D3D12_BLEND_INV_SRC_ALPHA;
-	pipelineStateDesc.BlendState.RenderTarget[0].BlendOp               = D3D12_BLEND_OP_ADD;
-	pipelineStateDesc.BlendState.RenderTarget[0].SrcBlendAlpha         = D3D12_BLEND_ONE;
-	pipelineStateDesc.BlendState.RenderTarget[0].DestBlendAlpha        = D3D12_BLEND_ONE;
-	pipelineStateDesc.BlendState.RenderTarget[0].BlendOpAlpha          = D3D12_BLEND_OP_ADD;
-	pipelineStateDesc.BlendState.RenderTarget[0].LogicOp               = D3D12_LOGIC_OP_NOOP;
-	pipelineStateDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	pipelineStateDesc.DepthStencilState.StencilEnable                = FALSE;
-	pipelineStateDesc.DepthStencilState.DepthWriteMask               = D3D12_DEPTH_WRITE_MASK_ALL;
-	pipelineStateDesc.DepthStencilState.StencilReadMask              = D3D12_DEFAULT_STENCIL_READ_MASK;
-	pipelineStateDesc.DepthStencilState.StencilWriteMask             = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-	pipelineStateDesc.DepthStencilState.FrontFace.StencilFunc        = D3D12_COMPARISON_FUNC_ALWAYS;
-	pipelineStateDesc.DepthStencilState.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
-	pipelineStateDesc.DepthStencilState.FrontFace.StencilPassOp      = D3D12_STENCIL_OP_KEEP;
-	pipelineStateDesc.DepthStencilState.BackFace.StencilFunc         = D3D12_COMPARISON_FUNC_ALWAYS;
-	pipelineStateDesc.DepthStencilState.BackFace.StencilDepthFailOp  = D3D12_STENCIL_OP_KEEP;
-	pipelineStateDesc.DepthStencilState.BackFace.StencilPassOp       = D3D12_STENCIL_OP_KEEP;
-	pipelineStateDesc.DepthStencilState.BackFace.StencilFailOp       = D3D12_STENCIL_OP_KEEP;
 
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
@@ -1000,50 +936,38 @@ int DXContext::CreateVertexBuffer12(
 			return -1;
 
 		pipelineStateDesc.pRootSignature = rootSignatures[i];
-		pipelineStateDesc.VS             = { vs->GetBufferPointer(), vs->GetBufferSize() };
-		pipelineStateDesc.PS             = { fs->GetBufferPointer(), fs->GetBufferSize() };
+
+		pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+		pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
+
+		pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 		switch((ShaderID)i) {
 		case SHADER_ID_HUD:
-			pipelineStateDesc.PrimitiveTopologyType                  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateDesc.RasterizerState.FillMode               = D3D12_FILL_MODE_SOLID;
-			pipelineStateDesc.RasterizerState.CullMode               = D3D12_CULL_MODE_BACK;
-			pipelineStateDesc.RasterizerState.FrontCounterClockwise  = TRUE;
-			pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable = TRUE;
-			pipelineStateDesc.DepthStencilState.DepthEnable          = FALSE;
+			pipelineStateDesc.BlendState        = this->initColorBlending12(TRUE);
+			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
 			break;
 		case SHADER_ID_SKYBOX:
-			pipelineStateDesc.PrimitiveTopologyType                  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateDesc.RasterizerState.FillMode               = D3D12_FILL_MODE_SOLID;
-			pipelineStateDesc.RasterizerState.CullMode               = D3D12_CULL_MODE_NONE;
-			pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
-			pipelineStateDesc.DepthStencilState.DepthEnable          = TRUE;
-			pipelineStateDesc.DepthStencilState.DepthFunc            = D3D12_COMPARISON_FUNC_LESS_EQUAL;
-			break;
-		case SHADER_ID_WATER:
-			pipelineStateDesc.PrimitiveTopologyType                  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateDesc.RasterizerState.FillMode               = D3D12_FILL_MODE_SOLID;
-			pipelineStateDesc.RasterizerState.CullMode               = D3D12_CULL_MODE_BACK;
-			pipelineStateDesc.RasterizerState.FrontCounterClockwise  = TRUE;
-			pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
-			pipelineStateDesc.DepthStencilState.DepthEnable          = TRUE;
-			pipelineStateDesc.DepthStencilState.DepthFunc            = D3D12_COMPARISON_FUNC_LESS;
+			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
+			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE, D3D12_COMPARISON_FUNC_LESS_EQUAL);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
 			break;
 		case SHADER_ID_SOLID:
-			pipelineStateDesc.PrimitiveTopologyType                  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-			pipelineStateDesc.RasterizerState.FillMode               = D3D12_FILL_MODE_WIREFRAME;
-			pipelineStateDesc.RasterizerState.CullMode               = D3D12_CULL_MODE_NONE;
-			pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
-			pipelineStateDesc.DepthStencilState.DepthEnable          = FALSE;
+			pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+			pipelineStateDesc.BlendState            = this->initColorBlending12(FALSE);
+			pipelineStateDesc.DepthStencilState     = this->initDepthStencilBuffer12(FALSE);
+			pipelineStateDesc.RasterizerState       = this->initRasterizer12(D3D12_CULL_MODE_NONE, D3D12_FILL_MODE_WIREFRAME);
+			break;
+		case SHADER_ID_WATER:
+			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
+			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
 			break;
 		default:
-			pipelineStateDesc.PrimitiveTopologyType                  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			pipelineStateDesc.RasterizerState.FillMode               = D3D12_FILL_MODE_SOLID;
-			pipelineStateDesc.RasterizerState.CullMode               = D3D12_CULL_MODE_BACK;
-			pipelineStateDesc.RasterizerState.FrontCounterClockwise  = TRUE;
-			pipelineStateDesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
-			pipelineStateDesc.DepthStencilState.DepthEnable          = TRUE;
-			pipelineStateDesc.DepthStencilState.DepthFunc            = D3D12_COMPARISON_FUNC_LESS;
+			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
+			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
 			break;
 		}
 
@@ -1075,7 +999,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 
 	int result = shaderProgram->UpdateUniformsDX11(&constantBuffer, &constantBufferValues, mesh, enableClipping, clipMax, clipMin);
 	
-	if ((result != 0) || (constantBuffer == nullptr) || (constantBufferValues == nullptr))
+	if ((result < 0) || (constantBuffer == nullptr) || (constantBufferValues == nullptr))
 		return -1;
 
 	this->deviceContext->UpdateSubresource(constantBuffer, 0, nullptr, constantBufferValues, 0, 0);
@@ -1143,7 +1067,7 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -1;
 
-	if (shaderProgram->UpdateUniformsDX12(mesh, enableClipping, clipMax, clipMin) != 0)
+	if (shaderProgram->UpdateUniformsDX12(mesh, enableClipping, clipMax, clipMin) < 0)
 		return -1;
 
 	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = indexBuffer->IndexBufferViewDX12();
@@ -1600,6 +1524,141 @@ bool DXContext::init12(bool vsync)
 	RenderEngine::GPU.Version  = "DirectX 12";
 
 	return SUCCEEDED(result);
+}
+
+D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableDepth)
+{
+	D3D11_BLEND_DESC colorBlendInfo = {};
+
+
+	colorBlendInfo.AlphaToCoverageEnable  = FALSE;
+	colorBlendInfo.IndependentBlendEnable = FALSE;
+
+	colorBlendInfo.RenderTarget[0].BlendEnable = enableDepth;
+
+	colorBlendInfo.RenderTarget[0].BlendOp   = D3D11_BLEND_OP_ADD;
+	colorBlendInfo.RenderTarget[0].SrcBlend  = D3D11_BLEND_SRC_ALPHA;
+	colorBlendInfo.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+
+	colorBlendInfo.RenderTarget[0].BlendOpAlpha   = D3D11_BLEND_OP_ADD;
+	colorBlendInfo.RenderTarget[0].SrcBlendAlpha  = D3D11_BLEND_ONE;
+	colorBlendInfo.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+
+	colorBlendInfo.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	return colorBlendInfo;
+}
+
+D3D12_BLEND_DESC DXContext::initColorBlending12(BOOL enableDepth)
+{
+	D3D12_BLEND_DESC colorBlendInfo = {};
+
+	colorBlendInfo.AlphaToCoverageEnable  = FALSE;
+	colorBlendInfo.IndependentBlendEnable = FALSE;
+
+	colorBlendInfo.RenderTarget[0].BlendEnable = enableDepth;
+
+	colorBlendInfo.RenderTarget[0].BlendOp   = D3D12_BLEND_OP_ADD;
+	colorBlendInfo.RenderTarget[0].SrcBlend  = D3D12_BLEND_SRC_ALPHA;
+	colorBlendInfo.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+
+	colorBlendInfo.RenderTarget[0].BlendOpAlpha   = D3D12_BLEND_OP_ADD;
+	colorBlendInfo.RenderTarget[0].SrcBlendAlpha  = D3D12_BLEND_ONE;
+	colorBlendInfo.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ONE;
+
+	colorBlendInfo.RenderTarget[0].LogicOpEnable = FALSE;
+	colorBlendInfo.RenderTarget[0].LogicOp       = D3D12_LOGIC_OP_NOOP;
+
+	colorBlendInfo.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	return colorBlendInfo;
+}
+
+D3D11_DEPTH_STENCIL_DESC DXContext::initDepthStencilBuffer11(BOOL enableDepth, D3D11_COMPARISON_FUNC compareOperation)
+{
+	D3D11_DEPTH_STENCIL_DESC depthStencilInfo = {};
+
+	depthStencilInfo.DepthEnable    = enableDepth;
+	depthStencilInfo.DepthFunc      = compareOperation;
+	depthStencilInfo.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+
+	depthStencilInfo.StencilEnable    = FALSE;
+	depthStencilInfo.StencilReadMask  = D3D11_DEFAULT_STENCIL_READ_MASK;
+	depthStencilInfo.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	depthStencilInfo.BackFace.StencilFunc         = D3D11_COMPARISON_ALWAYS;
+	depthStencilInfo.BackFace.StencilDepthFailOp  = D3D11_STENCIL_OP_KEEP;
+	depthStencilInfo.BackFace.StencilPassOp       = D3D11_STENCIL_OP_KEEP;
+	depthStencilInfo.BackFace.StencilFailOp       = D3D11_STENCIL_OP_KEEP;
+
+	depthStencilInfo.FrontFace.StencilFunc        = D3D11_COMPARISON_ALWAYS;
+	depthStencilInfo.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+	depthStencilInfo.FrontFace.StencilPassOp      = D3D11_STENCIL_OP_KEEP;
+
+	return depthStencilInfo;
+}
+
+D3D12_DEPTH_STENCIL_DESC DXContext::initDepthStencilBuffer12(BOOL enableDepth, D3D12_COMPARISON_FUNC compareOperation)
+{
+	D3D12_DEPTH_STENCIL_DESC depthStencilInfo = {};
+
+	depthStencilInfo.DepthEnable    = enableDepth;
+	depthStencilInfo.DepthFunc      = compareOperation;
+	depthStencilInfo.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+	depthStencilInfo.StencilEnable    = FALSE;
+	depthStencilInfo.StencilReadMask  = D3D12_DEFAULT_STENCIL_READ_MASK;
+	depthStencilInfo.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
+
+	depthStencilInfo.BackFace.StencilFunc        = D3D12_COMPARISON_FUNC_ALWAYS;
+	depthStencilInfo.BackFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	depthStencilInfo.BackFace.StencilPassOp      = D3D12_STENCIL_OP_KEEP;
+	depthStencilInfo.BackFace.StencilFailOp      = D3D12_STENCIL_OP_KEEP;
+
+	depthStencilInfo.FrontFace.StencilFunc        = D3D12_COMPARISON_FUNC_ALWAYS;
+	depthStencilInfo.FrontFace.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP;
+	depthStencilInfo.FrontFace.StencilPassOp      = D3D12_STENCIL_OP_KEEP;
+
+	return depthStencilInfo;
+}
+
+D3D11_RASTERIZER_DESC DXContext::initRasterizer11(D3D11_CULL_MODE cullMode, D3D11_FILL_MODE fillMode)
+{
+	D3D11_RASTERIZER_DESC rasterizationInfo = {};
+
+	rasterizationInfo.AntialiasedLineEnable = TRUE;
+	rasterizationInfo.CullMode              = cullMode;
+	rasterizationInfo.FillMode              = fillMode;
+	rasterizationInfo.FrontCounterClockwise = TRUE;
+	rasterizationInfo.MultisampleEnable     = TRUE;
+	rasterizationInfo.ScissorEnable         = FALSE;
+
+	rasterizationInfo.DepthClipEnable      = TRUE;
+	rasterizationInfo.DepthBias            = 0;
+	rasterizationInfo.DepthBiasClamp       = 0.0f;
+	rasterizationInfo.SlopeScaledDepthBias = 0.0f;
+
+	return rasterizationInfo;
+}
+
+D3D12_RASTERIZER_DESC DXContext::initRasterizer12(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode)
+{
+	D3D12_RASTERIZER_DESC rasterizationInfo = {};
+
+	rasterizationInfo.AntialiasedLineEnable = TRUE;
+	rasterizationInfo.CullMode              = cullMode;
+	rasterizationInfo.FillMode              = fillMode;
+	rasterizationInfo.FrontCounterClockwise = TRUE;
+	rasterizationInfo.MultisampleEnable     = TRUE;
+	rasterizationInfo.ForcedSampleCount     = 0;
+	rasterizationInfo.ConservativeRaster    = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	rasterizationInfo.DepthClipEnable      = TRUE;
+	rasterizationInfo.DepthBias            = 0;
+	rasterizationInfo.DepthBiasClamp       = 0.0f;
+	rasterizationInfo.SlopeScaledDepthBias = 0.0f;
+
+	return rasterizationInfo;
 }
 
 bool DXContext::IsOK()

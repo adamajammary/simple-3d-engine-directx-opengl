@@ -190,7 +190,7 @@ Texture::Texture()
 	switch (Utils::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		this->colorBuffer11  = nullptr;
+		this->ColorBuffer11  = nullptr;
 		this->Resource11     = nullptr;
 		this->samplerState11 = nullptr;
 		this->SRV11          = nullptr;
@@ -221,7 +221,7 @@ Texture::Texture()
 Texture::~Texture()
 {
 	#if defined _WINDOWS
-		_RELEASEP(this->colorBuffer11);
+		_RELEASEP(this->ColorBuffer11);
 		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
@@ -243,19 +243,14 @@ Texture::~Texture()
 	this->imageFiles.clear();
 }
 
-ID3D11RenderTargetView* Texture::ColorBuffer11()
+D3D11_VIEWPORT Texture::ColorBufferViewPort11()
 {
-	return this->colorBuffer11;
+	return this->colorBufferViewPort11;
 }
 
-D3D11_VIEWPORT* Texture::ColorBufferViewPort11()
+D3D12_VIEWPORT Texture::ColorBufferViewPort12()
 {
-	return &this->colorBufferViewPort11;
-}
-
-D3D12_VIEWPORT* Texture::ColorBufferViewPort12()
-{
-	return &this->colorBufferViewPort12;
+	return this->colorBufferViewPort12;
 }
 
 bool Texture::FlipY()

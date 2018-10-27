@@ -213,14 +213,14 @@ enum Uniform
 	//CLIP_MIN,
 	//ENABLE_CLIPPING,
 	//IS_TEXTURED,
-	IS_TRANSPARENT,
+	//IS_TRANSPARENT,
 	//MATERIAL_COLOR,
 	//MATRIX_MODEL,
 	//MATRIX_VIEW,
 	//MATRIX_PROJECTION,
 	//MATRIX_MVP,
 	MOVE_FACTOR,
-	SOLID_COLOR,
+	//SOLID_COLOR,
 	//SUNLIGHT_COLOR,
 	//SUNLIGHT_DIRECTION,
 	//SUNLIGHT_POSITION,
@@ -232,6 +232,7 @@ enum Uniform
 
 	MATRIX_BUFFER,
 	DEFAULT_BUFFER,
+	HUD_BUFFER,
 
 	NR_OF_UNIFORMS
 };
@@ -325,15 +326,22 @@ struct GLMatrixBuffer
 
 struct GLDefaultBuffer
 {
-	glm::vec3  Ambient;
-	int        EnableClipping;
-	glm::vec3  ClipMax;
-	int        IsTextured;
-	glm::vec3  ClipMin;
-	float      Padding1;
-	glm::vec4  MaterialColor;
-	Light      SunLight;
-	glm::vec2  TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+	glm::vec3 Ambient;
+	int       EnableClipping;
+	glm::vec3 ClipMax;
+	int       IsTextured;
+	glm::vec3 ClipMin;
+	float     Padding1;
+	glm::vec4 MaterialColor;
+	Light     SunLight;
+	glm::vec2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+};
+
+struct GLHUDBuffer
+{
+	glm::vec4 MaterialColor;
+	int       IsTransparent;
+	glm::vec3 Padding1;
 };
 
 #if defined _WINDOWS
@@ -390,8 +398,8 @@ struct DXHUDBuffer
 
 struct DXSkyboxBuffer
 {
-	DXMatrixBuffer    Matrices;
-	DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+	DXMatrixBuffer Matrices;
+	//DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
 struct DXSolidBuffer

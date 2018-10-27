@@ -29,6 +29,7 @@ public:
 	glm::vec2           Scale;
 
 	#if defined _WINDOWS
+		ID3D11RenderTargetView*         ColorBuffer11;
 		ID3D12DescriptorHeap*           ColorBuffer12;
 		ID3D11Texture2D*                Resource11;
 		ID3D12Resource*                 Resource12;
@@ -49,35 +50,32 @@ private:
 	GLenum                type;
 
 	#if defined _WINDOWS
-		ID3D11RenderTargetView*         colorBuffer11;
-		D3D11_VIEWPORT                  colorBufferViewPort11;
-		ID3D11SamplerState*             samplerState11;
-		D3D12_VIEWPORT                  colorBufferViewPort12;
+		D3D11_VIEWPORT      colorBufferViewPort11;
+		ID3D11SamplerState* samplerState11;
+		D3D12_VIEWPORT      colorBufferViewPort12;
 	#endif
 
 public:
-	bool           FlipY();
-	bool           Repeat();
-	bool           Transparent();
-	GLuint         ID();
-	wxString       ImageFile(int index = 0);
-	bool           IsOK();
-	uint32_t       MipLevels();
-	void           SetFlipY(bool newFlipY);
-	void           SetRepeat(bool newRepeat);
-	void           SetTransparent(bool newTransparent);
-	wxSize         Size();
-	GLenum         Type();
+	bool     FlipY();
+	bool     Repeat();
+	bool     Transparent();
+	GLuint   ID();
+	wxString ImageFile(int index = 0);
+	bool     IsOK();
+	uint32_t MipLevels();
+	void     SetFlipY(bool newFlipY);
+	void     SetRepeat(bool newRepeat);
+	void     SetTransparent(bool newTransparent);
+	wxSize   Size();
+	GLenum   Type();
 
 	#if defined _WINDOWS
-		ID3D11RenderTargetView* ColorBuffer11();
-		D3D11_VIEWPORT*         ColorBufferViewPort11();
-		D3D12_VIEWPORT*         ColorBufferViewPort12();
+		D3D11_VIEWPORT ColorBufferViewPort11();
+		D3D12_VIEWPORT ColorBufferViewPort12();
 	#endif
 
 private:
 	void loadTextureImageGL(wxImage* image, bool cubemap = false, int index = 0);
-	//void loadTextureImageVK(wxImage* image, bool cubemap = false, int index = 0);
 	void loadTextureImagesVK(const std::vector<wxImage*> &images);
 	void reload();
 	void setAlphaBlendingGL(bool enable);

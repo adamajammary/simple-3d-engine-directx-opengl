@@ -17,9 +17,18 @@ HUD::HUD(const wxString &modelFile) : Component("HUD")
 
 	if (this->isValid && (this->Children[0] != nullptr))
 	{
+		glm::vec3 position = { 0.72f, 0.7f,  0.0f };
+		glm::vec3 scale    = { 0.25f, 0.25f, 0.0f };
+
+		// Invert Y-axis for both mesh and vertex positions on Vulkan
+		if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+			position.y *= -1;
+			scale.y    *= -1;
+		}
+
 		this->Children[0]->Name = "HUD";
-		this->Children[0]->MoveTo(glm::vec3(0.72f, 0.7f,  0.0f));
-		this->Children[0]->ScaleTo(glm::vec3(0.25f, 0.25f, 0.0f));
+		this->Children[0]->MoveTo(position);
+		this->Children[0]->ScaleTo(scale);
 
 		this->Update("HUD");
 
@@ -53,7 +62,7 @@ void HUD::Update(const wxString &newText)
 	{
 		glm::vec3  scale = this->Children[0]->Scale();
 		wxFont     font(this->TextSize, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD, false, this->TextFont);
-		wxSize     size((RenderEngine::Canvas.Size.GetWidth() * scale[0]), (RenderEngine::Canvas.Size.GetHeight() * scale[1]));
+		wxSize     size((RenderEngine::Canvas.Size.GetWidth() * std::abs(scale[0])), (RenderEngine::Canvas.Size.GetHeight() * std::abs(scale[1])));
 		wxBitmap   bitmap(size, 32); bitmap.UseAlpha(true);
 		wxMemoryDC mdc(bitmap);
 		wxGCDC     gcdc(mdc);

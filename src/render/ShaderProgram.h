@@ -60,6 +60,9 @@ private:
 	int  loadShaderGL(GLuint type, const wxString &sourceText);
 	void setAttribsGL();
 	void setUniformsGL();
+	void updateUniformGL(GLint id, Uniform buffer, void* values, size_t valuesSize);
+	int  updateUniformsVK(UniformBufferType type, UniformBinding binding, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh);
+	int  updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh);
 
 	#if defined _WINDOWS
 		DXLightBuffer  getBufferLight();

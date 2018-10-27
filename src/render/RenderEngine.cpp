@@ -167,9 +167,10 @@ int RenderEngine::drawHUDs(bool enableClipping, const glm::vec3 &clipMax, const 
 	{
 		glDisable(GL_DEPTH_TEST);
 
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
+		//glEnable(GL_CULL_FACE);
+		//glCullFace(GL_BACK);
+		//glFrontFace(GL_CCW);
+		glDisable(GL_CULL_FACE);
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -400,8 +401,10 @@ int RenderEngine::Init(WindowFrame* window, const wxSize &size)
 	RenderEngine::Canvas.Size        = size;
 	RenderEngine::Canvas.Window      = window;
 
-	if (RenderEngine::setGraphicsAPI(GRAPHICS_API_OPENGL) != 0)
-		return -1;
+	int result = RenderEngine::setGraphicsAPI(GRAPHICS_API_OPENGL);
+
+	if (result < 0)
+		return result;
 
 	return 0;
 }
@@ -520,7 +523,7 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 	else if (api == "Vulkan")
 		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_VULKAN);
 
-	if (result != 0)
+	if (result < 0)
 	{
 		wxMessageBox("ERROR: Failed to initialize the " + api + " graphics engine.");
 
@@ -581,17 +584,17 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	}
 
 	// RE-INITIALIZE ENGINE MODULES AND RESOURCES
-	if (InputManager::Init() != 0) {
+	if (InputManager::Init() < 0) {
 		RenderEngine::Close();
 		return -5;
 	}
 
-	if (ShaderManager::Init() != 0) {
+	if (ShaderManager::Init() < 0) {
 		RenderEngine::Close();
 		return -6;
 	}
 
-	if (RenderEngine::initResources() != 0) {
+	if (RenderEngine::initResources() < 0) {
 		RenderEngine::Close();
 		return -7;
 	}

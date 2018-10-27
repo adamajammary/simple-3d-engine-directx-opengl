@@ -153,8 +153,8 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
 	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
 	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+	{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
+	{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
 	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
 	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
 	//{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
@@ -174,8 +174,8 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
 const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
 	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
 	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+	{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
+	{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
 	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
 	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
 };

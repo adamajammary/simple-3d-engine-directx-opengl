@@ -23,7 +23,7 @@ int ShaderManager::Init()
 			ShaderManager::Programs[i] = new ShaderProgram(Utils::SHADER_RESOURCES_DX[i].Name);
 			int result                 = ShaderManager::Programs[i]->Load(Utils::SHADER_RESOURCES_DX[i].File);
 
-			if ((result != 0) || !ShaderManager::Programs[i]->IsOK())
+			if ((result < 0) || !ShaderManager::Programs[i]->IsOK())
 				return -1;
 		}
 
@@ -52,9 +52,9 @@ int ShaderManager::Init()
 			ShaderManager::Programs[i] = new ShaderProgram(vs.Name.substr(0, vs.Name.rfind("_")));
 			int result                 = ShaderManager::Programs[i]->LoadAndLink(vs.Result, fs.Result);
 
-			if ((result != 0) || !ShaderManager::Programs[i]->IsOK()) {
+			if ((result < 0) || !ShaderManager::Programs[i]->IsOK()) {
 				ShaderManager::Programs[i]->Log();
-				return -1;
+				return result;
 			}
 		}
 
@@ -75,8 +75,8 @@ int ShaderManager::Init()
 			ShaderManager::Programs[i] = new ShaderProgram(vs.Name.substr(0, vs.Name.rfind("_")));
 			int result                 = ShaderManager::Programs[i]->LoadAndLink(vs.File, fs.File);
 
-			if ((result != 0) || !ShaderManager::Programs[i]->IsOK())
-				return -1;
+			if ((result < 0) || !ShaderManager::Programs[i]->IsOK())
+				return -2;
 		}
 
 		break;

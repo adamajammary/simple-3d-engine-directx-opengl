@@ -169,7 +169,7 @@ ComponentType Component::Type()
 
 void Component::updateMatrix()
 {
-	this->matrix = (this->translationMatrix * this->rotationMatrix  * this->scaleMatrix);
+	this->matrix = (this->translationMatrix * this->rotationMatrix * this->scaleMatrix);
 }
 
 void Component::updateRotation()

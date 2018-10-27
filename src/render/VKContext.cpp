@@ -536,15 +536,18 @@ int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline
 
 	switch(shaderProgram->ID()) {
 		case SHADER_ID_HUD:
+			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_TRUE);
+			depthStencilInfo  = this->initDepthStencilBuffer(VK_FALSE);
+			rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
 			break;
 		case SHADER_ID_SKYBOX:
 			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
 			depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 			rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
 			break;
-		case SHADER_ID_WATER:
-			break;
 		case SHADER_ID_SOLID:
+			break;
+		case SHADER_ID_WATER:
 			break;
 		default:
 			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
@@ -593,7 +596,7 @@ int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &st
 		for (auto line : output)
 			wxLogDebug("%s\n", line.c_str().AsChar());
 
-		if (result != 0)
+		if (result < 0)
 			return -1;
 	#endif
 
@@ -776,10 +779,10 @@ int VKContext::CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* u
 	if (this->deviceContext == nullptr)
 		return -1;
 
-	if (this->createUniformLayout(uniformLayout) != 0)
+	if (this->createUniformLayout(uniformLayout) < 0)
 		return false;
 
-	if (this->createUniformPool(uniformPool) != 0)
+	if (this->createUniformPool(uniformPool) < 0)
 		return false;
 
 	VkDescriptorSetAllocateInfo uniformSetAllocInfo = {};
@@ -880,7 +883,7 @@ int VKContext::CreateVertexBuffer(
 
 	//for (int i = 0; i < NR_OF_SHADERS; i++)
 	for (int i = 0; i < nr_of_shaders; i++) {
-		if (this->createPipeline(ShaderManager::Programs[i], &pipelines[i], pipelineLayout, attribsBindingDesc, attribsDesc) != 0)
+		if (this->createPipeline(ShaderManager::Programs[i], &pipelines[i], pipelineLayout, attribsBindingDesc, attribsDesc) < 0)
 			return -4;
 	}
 
@@ -1027,7 +1030,7 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClippin
 		return -3;
 
 	// UPDATE UNIFORM VALUES
-	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, enableClipping, clipMax, clipMin) != 0)
+	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, enableClipping, clipMax, clipMin) < 0)
 		return -4;
 
 	// BIND SHADER TO PIPELINE

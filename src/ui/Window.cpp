@@ -41,9 +41,9 @@ bool Window::OnInit()
 
 	int result = RenderEngine::Init(this->frame, Utils::RENDER_SIZE);
 
-	if (result != 0)
+	if (result < 0)
 	{
-		wxMessageBox("ERROR: Failed to initialize the render engine.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		wxMessageBox(("ERROR: Failed to initialize the render engine: " + std::to_wstring(result)), this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		this->frame->SetStatusText("Initializing the Render Engine ... FAIL");
 
 		return false;
@@ -71,9 +71,9 @@ bool Window::OnInit()
 
 	result = InputManager::Init();
 
-	if (result != 0)
+	if (result < 0)
 	{
-		wxMessageBox("ERROR: Failed to initialize the Input Manager.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		wxMessageBox(("ERROR: Failed to initialize the Input Manager: " + std::to_wstring(result)), this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		this->frame->SetStatusText("Initializing the Input Manager ... FAIL");
 
 		return false;
