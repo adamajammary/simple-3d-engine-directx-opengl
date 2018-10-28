@@ -50,7 +50,7 @@ Component::~Component()
 	this->Children.clear();
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
-		if ((this->Textures[i] == Utils::EmptyTexture) || (this->Textures[i] == Utils::EmptyCubemap))
+		if ((this->Textures[i] == SceneManager::EmptyTexture) || (this->Textures[i] == SceneManager::EmptyCubemap))
 			continue;
 
 		_DELETEP(this->Textures[i]);
@@ -69,7 +69,7 @@ int Component::GetChildIndex(Mesh* child)
 
 bool Component::IsTextured()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11 != nullptr) && !this->Textures[0]->ImageFile().empty());

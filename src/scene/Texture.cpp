@@ -10,7 +10,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		this->Scale       = scale;
 		this->transparent = transparent;
 
-		switch (Utils::SelectedGraphicsAPI) {
+		switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
@@ -49,7 +49,7 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 		this->Scale       = scale;
 		this->transparent = transparent;
 
-		switch (Utils::SelectedGraphicsAPI) {
+		switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
@@ -95,7 +95,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 		this->Scale       = scale;
 		this->transparent = transparent;
 
-		switch (Utils::SelectedGraphicsAPI) {
+		switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 		case GRAPHICS_API_DIRECTX12:
@@ -187,7 +187,7 @@ Texture::Texture(GLint filter, GLint formatIn, GLenum formatOut, GLenum dataType
 
 Texture::Texture()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->ColorBuffer11  = nullptr;
@@ -275,7 +275,7 @@ wxString Texture::ImageFile(int index)
 
 bool Texture::IsOK()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return (this->Resource11 != nullptr);
@@ -312,7 +312,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
 		this->transparent = (this->transparent && images2[0].HasAlpha());
 
-		switch (Utils::SelectedGraphicsAPI) {
+		switch (RenderEngine::SelectedGraphicsAPI) {
 		case GRAPHICS_API_DIRECTX11:
 			this->setFilteringDX11(samplerDesc11);
 

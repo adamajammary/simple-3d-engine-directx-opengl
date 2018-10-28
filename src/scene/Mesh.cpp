@@ -103,7 +103,7 @@ GLuint Mesh::VBO()
 
 bool Mesh::IsOK()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
@@ -235,6 +235,22 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
     return 0;
 }
 
+void Mesh::MoveBy(const glm::vec3 &amount)
+{
+	Component::MoveBy(amount);
+
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->updateTranslation();
+}
+
+void Mesh::MoveTo(const glm::vec3 &newPosition)
+{
+	Component::MoveTo(newPosition);
+
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->updateTranslation();
+}
+
 size_t Mesh::NrOfIndices()
 {
 	return this->indices.size();
@@ -247,7 +263,7 @@ size_t Mesh::NrOfVertices()
 
 void Mesh::RemoveTexture(int index)
 {
-	this->LoadTexture(Utils::EmptyTexture, index);
+	this->LoadTexture(SceneManager::EmptyTexture, index);
 }
 
 void Mesh::Select(bool selected)
@@ -277,7 +293,7 @@ void Mesh::setMaxScale()
 
 bool Mesh::setModelData()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
@@ -326,7 +342,7 @@ void Mesh::updateModelData()
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
-			this->LoadTexture(Utils::EmptyTexture, i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }
 
@@ -338,6 +354,6 @@ void Mesh::updateModelData(const aiVector3D &position, const aiVector3D &scale, 
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
-			this->LoadTexture(Utils::EmptyTexture, i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }

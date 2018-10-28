@@ -13,6 +13,8 @@ public:
 	static Light     SunLight;
 
 	static std::vector<Component*> Components;
+	static Texture*                EmptyCubemap;
+	static Texture*                EmptyTexture;
 	static Mesh*                   SelectedChild;
 	static Component*              SelectedComponent;
 

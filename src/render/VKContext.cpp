@@ -515,8 +515,8 @@ int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline
 	vertexInput.pVertexBindingDescriptions      = &attribsBindingDesc;
 
 	inputAssembly.sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	inputAssembly.topology = (VkPrimitiveTopology)RenderEngine::DrawMode;
-	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	//inputAssembly.topology = (VkPrimitiveTopology)RenderEngine::GetDrawMode();
+	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	//inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 	//inputAssembly.primitiveRestartEnable = VK_FALSE;
 
@@ -535,25 +535,34 @@ int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline
 	//pipelineInfo.subpass             = 0;
 
 	switch(shaderProgram->ID()) {
-		case SHADER_ID_HUD:
-			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_TRUE);
-			depthStencilInfo  = this->initDepthStencilBuffer(VK_FALSE);
-			rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
-			break;
-		case SHADER_ID_SKYBOX:
-			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
-			depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-			rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
-			break;
-		case SHADER_ID_SOLID:
-			break;
-		case SHADER_ID_WATER:
-			break;
-		default:
-			colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
-			depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS);
-			rasterizationInfo = this->initRasterizer(VK_CULL_MODE_BACK_BIT);
-			break;
+	case SHADER_ID_HUD:
+		colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_TRUE);
+		depthStencilInfo  = this->initDepthStencilBuffer(VK_FALSE);
+		rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
+		break;
+	case SHADER_ID_SKYBOX:
+		colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
+		depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+		rasterizationInfo = this->initRasterizer(VK_CULL_MODE_NONE);
+		break;
+	case SHADER_ID_WATER:
+		break;
+	//case SHADER_ID_WIREFRAME:
+	//	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+	//	colorBlendInfo         = this->initColorBlending(colorBlendAttachment, VK_FALSE);
+	//	depthStencilInfo       = this->initDepthStencilBuffer(VK_FALSE);
+	//	rasterizationInfo      = this->initRasterizer(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE);
+	//	break;
+	default:
+		colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
+		depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS);
+		rasterizationInfo = this->initRasterizer(VK_CULL_MODE_BACK_BIT);
+		break;
+	}
+
+	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+		inputAssembly.topology        = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 	}
 
 	pipelineInfo.pColorBlendState    = &colorBlendInfo;
@@ -879,7 +888,7 @@ int VKContext::CreateVertexBuffer(
 	// RENDER PIPELINES
 
 	// TODO: Shaders Vulkan
-	const int nr_of_shaders = 3;
+	const int nr_of_shaders = 4;
 
 	//for (int i = 0; i < NR_OF_SHADERS; i++)
 	for (int i = 0; i < nr_of_shaders; i++) {
@@ -1008,7 +1017,7 @@ bool VKContext::deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysical
 	return supported;
 }
 
-int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -1030,7 +1039,7 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClippin
 		return -3;
 
 	// UPDATE UNIFORM VALUES
-	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, enableClipping, clipMax, clipMin) < 0)
+	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, properties) < 0)
 		return -4;
 
 	// BIND SHADER TO PIPELINE
@@ -1663,19 +1672,23 @@ VkPipelineMultisampleStateCreateInfo VKContext::initMultisampling()
 	return multisampleInfo;
 }
 
-VkPipelineRasterizationStateCreateInfo VKContext::initRasterizer(VkCullModeFlags cullMode)
+VkPipelineRasterizationStateCreateInfo VKContext::initRasterizer(VkCullModeFlags cullMode, VkPolygonMode polyMode)
 {
 	VkPipelineRasterizationStateCreateInfo rasterizationInfo = {};
 
-	rasterizationInfo.sType     = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-	rasterizationInfo.lineWidth = 1.0f;
-	rasterizationInfo.cullMode  = cullMode;
-	rasterizationInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizationInfo.sType       = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationInfo.lineWidth   = 1.0f;
+	rasterizationInfo.cullMode    = cullMode;
+	rasterizationInfo.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizationInfo.polygonMode = polyMode;
 
-	if ((VkPrimitiveTopology)RenderEngine::DrawMode == VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-		rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	else
-		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
+	//if ((VkPrimitiveTopology)RenderEngine::DrawMode == VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
+	//	rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
+
+	//if ((VkPrimitiveTopology)RenderEngine::DrawMode == VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+	//	rasterizationInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	//else
+	//	rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 
 	//rasterizer.depthClampEnable        = VK_FALSE;
 	//rasterizer.rasterizerDiscardEnable = VK_FALSE;

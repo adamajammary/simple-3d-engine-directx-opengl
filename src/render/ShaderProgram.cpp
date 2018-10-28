@@ -14,7 +14,7 @@ ShaderProgram::ShaderProgram(const wxString &name)
 		this->fs       = nullptr;
 	#endif
 
-	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		this->program = glCreateProgram();
 }
 
@@ -70,7 +70,7 @@ DXMatrixBuffer ShaderProgram::getBufferMatrices(Mesh* mesh, bool removeTranslati
 	return matrices;
 }
 
-const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, const DrawProperties &properties)
 {
 	const void* bufferValues = nullptr;
 	Buffer*     vertexBuffer = mesh->VertexBuffer();
@@ -83,9 +83,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->DefaultBufferValues.Matrices       = matrices;
 		vertexBuffer->DefaultBufferValues.SunLight       = sunLight;
 		vertexBuffer->DefaultBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->DefaultBufferValues.EnableClipping = enableClipping;
-		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(clipMin);
+		vertexBuffer->DefaultBufferValues.EnableClipping = properties.enableClipping;
+		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.clipMax);
+		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.clipMin);
 		vertexBuffer->DefaultBufferValues.IsTextured     = mesh->IsTextured();
 		vertexBuffer->DefaultBufferValues.MaterialColor  = Utils::ToXMFLOAT4(mesh->Color);
 
@@ -106,26 +106,16 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 	case SHADER_ID_SKYBOX:
 		vertexBuffer->SkyboxBufferValues.Matrices = matrices;
 
-		//for (int i = 0; i < MAX_TEXTURES; i++)
-		//	vertexBuffer->SkyboxBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
-
 		bufferValues = &vertexBuffer->SkyboxBufferValues;
-
-		break;
-	case SHADER_ID_SOLID:
-		vertexBuffer->SolidBufferValues.Matrices   = matrices;
-		vertexBuffer->SolidBufferValues.SolidColor = Utils::ToXMFLOAT4(SceneManager::SelectColor);
-
-		bufferValues = &vertexBuffer->SolidBufferValues;
 
 		break;
 	case SHADER_ID_TERRAIN:
 		vertexBuffer->TerrainBufferValues.Matrices       = matrices;
 		vertexBuffer->TerrainBufferValues.SunLight       = sunLight;
 		vertexBuffer->TerrainBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->TerrainBufferValues.EnableClipping = enableClipping;
-		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(clipMin);
+		vertexBuffer->TerrainBufferValues.EnableClipping = properties.enableClipping;
+		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.clipMax);
+		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.clipMin);
 
 		for (int i = 0; i < MAX_TEXTURES; i++)
 			vertexBuffer->TerrainBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
@@ -139,9 +129,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->WaterBufferValues.CameraMain.Far      = RenderEngine::Camera->Far();
 		vertexBuffer->WaterBufferValues.Matrices            = matrices;
 		vertexBuffer->WaterBufferValues.SunLight            = sunLight;
-		vertexBuffer->WaterBufferValues.EnableClipping      = enableClipping;
-		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(clipMin);
+		vertexBuffer->WaterBufferValues.EnableClipping      = properties.enableClipping;
+		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(properties.clipMax);
+		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(properties.clipMin);
 		vertexBuffer->WaterBufferValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
 		vertexBuffer->WaterBufferValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
 
@@ -149,6 +139,14 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 			vertexBuffer->WaterBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
 
 		bufferValues = &vertexBuffer->WaterBufferValues;
+
+		break;
+	case SHADER_ID_WIREFRAME:
+		vertexBuffer->WireframeBufferValues.Matrices = matrices;
+		//vertexBuffer->WireframeBufferValues.Color    = Utils::ToXMFLOAT4(SceneManager::SelectColor);
+		vertexBuffer->WireframeBufferValues.Color    = Utils::ToXMFLOAT4(mesh->Color);
+
+		bufferValues = &vertexBuffer->WireframeBufferValues;
 
 		break;
 	}
@@ -164,12 +162,12 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_HUD;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
 		return SHADER_ID_SKYBOX;
-	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SOLID].Name)
-		return SHADER_ID_SOLID;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_TERRAIN].Name)
 		return SHADER_ID_TERRAIN;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WATER].Name)
 		return SHADER_ID_WATER;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WIREFRAME].Name)
+		return SHADER_ID_WIREFRAME;
 
 	return SHADER_ID_UNKNOWN;
 }
@@ -177,7 +175,7 @@ ShaderID ShaderProgram::ID()
 
 bool ShaderProgram::IsOK()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 			return ((this->shaderVS != nullptr) && (this->shaderFS != nullptr));
@@ -201,7 +199,7 @@ int ShaderProgram::Link()
 		GLint resultValid;
 	#endif
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
 		glLinkProgram(this->program);
 		glGetProgramiv(this->program, GL_LINK_STATUS, &resultLink);
@@ -232,7 +230,7 @@ int ShaderProgram::Load(const wxString &shaderFile)
 	int result = -1;
 
 	#if defined _WINDOWS
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
 		result = RenderEngine::Canvas.DX->CreateShader11(shaderFile, &this->vs, &this->fs, &this->shaderVS, &this->shaderFS);
 		break;
@@ -252,7 +250,7 @@ int ShaderProgram::Load(const wxString &shaderFile)
 
 int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
 		if (this->loadShaderGL(GL_VERTEX_SHADER, vs) < 0)
 			return -1;
@@ -284,7 +282,7 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 
 int ShaderProgram::loadShaderGL(GLuint type, const wxString &sourceText)
 {
-	if (((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER)) || (Utils::SelectedGraphicsAPI != GRAPHICS_API_OPENGL))
+	if (((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER)) || (RenderEngine::SelectedGraphicsAPI != GRAPHICS_API_OPENGL))
 		return -1;
 
 	GLuint shader = glCreateShader(type);
@@ -385,6 +383,10 @@ void ShaderProgram::setUniformsGL()
 	this->Uniforms[HUD_BUFFER] = glGetUniformBlockIndex(this->program, "HUDBuffer");
 	glGenBuffers(1, &this->UniformBuffers[HUD_BUFFER]);
 
+	// WIREFRAME BUFFER
+	this->Uniforms[WIREFRAME_BUFFER] = glGetUniformBlockIndex(this->program, "WireframeBuffer");
+	glGenBuffers(1, &this->UniformBuffers[WIREFRAME_BUFFER]);
+
 	// CAMERA
 	this->Uniforms[CAMERA_POSITION] = glGetUniformLocation(this->program, "CameraMain.Position");
 	this->Uniforms[CAMERA_NEAR]     = glGetUniformLocation(this->program, "CameraMain.Near");
@@ -420,7 +422,7 @@ int ShaderProgram::UpdateAttribsGL(Mesh* mesh)
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
@@ -429,7 +431,9 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 	bool  removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
 
 	// MATRIX BUFFER
-	if ((id = this->Uniforms[MATRIX_BUFFER]) >= 0)
+	id = this->Uniforms[MATRIX_BUFFER];
+
+	if (id >= 0)
 	{
 		GLMatrixBuffer mb;
 
@@ -442,14 +446,16 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 	}
 
 	// DEFAULT BUFFER
-	if ((id = this->Uniforms[DEFAULT_BUFFER]) >= 0)
+	id = this->Uniforms[DEFAULT_BUFFER];
+
+	if (id >= 0)
 	{
 		GLDefaultBuffer db;
 
 		db.Ambient        = SceneManager::AmbientLightIntensity;
-		db.ClipMax        = clipMax;
-		db.ClipMin        = clipMin;
-		db.EnableClipping = enableClipping;
+		db.ClipMax        = properties.clipMax;
+		db.ClipMin        = properties.clipMin;
+		db.EnableClipping = properties.enableClipping;
 		db.IsTextured     = mesh->IsTextured();
 		db.MaterialColor  = mesh->Color;
 		db.SunLight       = SceneManager::SunLight;
@@ -461,7 +467,9 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 	}
 
 	// HUD BUFFER
-	if ((id = this->Uniforms[HUD_BUFFER]) >= 0)
+	id = this->Uniforms[HUD_BUFFER];
+
+	if (id >= 0)
 	{
 		GLHUDBuffer hb;
 
@@ -469,6 +477,15 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 		hb.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
 
 		this->updateUniformGL(id, HUD_BUFFER, &hb, sizeof(hb));
+	}
+
+	// WIREFRAME BUFFER
+	id = this->Uniforms[WIREFRAME_BUFFER];
+
+	if (id >= 0)
+	{
+		GLWireframeBuffer wb = { mesh->Color };
+		this->updateUniformGL(id, WIREFRAME_BUFFER, &wb, sizeof(wb));
 	}
 
     // CAMERA
@@ -506,12 +523,15 @@ void ShaderProgram::updateUniformGL(GLint id, Uniform buffer, void* values, size
 	glUniformBlockBinding(this->program, id, id);
 }
 
-int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const DrawProperties &properties)
 {
-	GLDefaultBuffer defaultValues     = {};
-	GLHUDBuffer     hudValues         = {};
-	GLMatrixBuffer  matrices          = {};
-	bool            removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
+	GLDefaultBuffer   defaultValues     = {};
+	GLHUDBuffer       hudValues         = {};
+	GLMatrixBuffer    matrices          = {};
+	GLWireframeBuffer wireframeValues   = {};
+	void*             values            = nullptr;
+	size_t            valuesSize        = 0;
+	bool              removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
 
 	matrices.Model      = mesh->Matrix();
 	matrices.View       = RenderEngine::Camera->View(removeTranslation);
@@ -528,9 +548,9 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool ena
 	switch (this->ID()) {
 	case SHADER_ID_DEFAULT:
 		defaultValues.Ambient        = SceneManager::AmbientLightIntensity;
-		defaultValues.ClipMax        = clipMax;
-		defaultValues.ClipMin        = clipMin;
-		defaultValues.EnableClipping = enableClipping;
+		defaultValues.ClipMax        = properties.clipMax;
+		defaultValues.ClipMin        = properties.clipMin;
+		defaultValues.EnableClipping = properties.enableClipping;
 		defaultValues.IsTextured     = mesh->IsTextured();
 		defaultValues.MaterialColor  = mesh->Color;
 		defaultValues.SunLight       = SceneManager::SunLight;
@@ -538,40 +558,44 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool ena
 		for (int i = 0; i < MAX_TEXTURES; i++)
 			defaultValues.TextureScales[i] = mesh->Textures[i]->Scale;
 
-		result = ShaderProgram::updateUniformsVK(
-			UNIFORM_BUFFER_DEFAULT, UNIFORM_BINDING_DEFAULT, &defaultValues, sizeof(defaultValues), deviceContext, mesh
-		);
-
-		if (result < 0)
-			return -2;
+		values     = &defaultValues;
+		valuesSize = sizeof(defaultValues);
 
 		break;
 	case SHADER_ID_HUD:
 		hudValues.MaterialColor = mesh->Color;
 		hudValues.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
 
-		result = ShaderProgram::updateUniformsVK(
-			UNIFORM_BUFFER_DEFAULT, UNIFORM_BINDING_DEFAULT, &hudValues, sizeof(hudValues), deviceContext, mesh
-		);
-
-		if (result < 0)
-			return -3;
+		values     = &hudValues;
+		valuesSize = sizeof(hudValues);
 
 		break;
 	case SHADER_ID_SKYBOX:
-		break;
-	case SHADER_ID_SOLID:
 		break;
 	case SHADER_ID_TERRAIN:
 		break;
 	case SHADER_ID_WATER:
 		break;
+	case SHADER_ID_WIREFRAME:
+		wireframeValues.Color = mesh->Color;
+
+		values     = &wireframeValues;
+		valuesSize = sizeof(wireframeValues);
+
+		break;
 	}
+
+	result = ShaderProgram::updateUniformsVK(
+		UNIFORM_BUFFER_DEFAULT, UNIFORM_BINDING_DEFAULT, values, valuesSize, deviceContext, mesh
+	);
+
+	if (result < 0)
+		return -2;
 
 	result = ShaderProgram::updateUniformSamplersVK(deviceContext, mesh);
 
 	if (result < 0)
-		return -4;
+		return -3;
 
 	return 0;
 }
@@ -676,7 +700,7 @@ int ShaderProgram::updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh)
 }
 
 #if defined _WINDOWS
-int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
@@ -697,7 +721,7 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 		sunLight = ShaderProgram::getBufferLight();
 	}
 
-	*constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, enableClipping, clipMax, clipMin);
+	*constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, properties);
 	*constBuffer       = vertexBuffer->ConstantBuffersDX11[this->ID()];
 	
 	if ((*constBuffer == nullptr) || (*constBufferValues == nullptr))
@@ -706,7 +730,7 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
@@ -729,17 +753,17 @@ int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, bool enableClipping, const glm
 
 	uint8_t*        bufferData        = nullptr;
 	ID3D12Resource* constBuffer       = vertexBuffer->ConstantBuffersDX12[this->ID()];
-	const void*     constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, enableClipping, clipMax, clipMin);
+	const void*     constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, properties);
 	size_t          constBufferSize;
 
 	switch (this->ID()) {
-		case SHADER_ID_DEFAULT: constBufferSize = sizeof(vertexBuffer->DefaultBufferValues); break;
-		case SHADER_ID_HUD:     constBufferSize = sizeof(vertexBuffer->HUDBufferValues);     break;
-		case SHADER_ID_SKYBOX:  constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);  break;
-		case SHADER_ID_SOLID:   constBufferSize = sizeof(vertexBuffer->SolidBufferValues);   break;
-		case SHADER_ID_TERRAIN: constBufferSize = sizeof(vertexBuffer->TerrainBufferValues); break;
-		case SHADER_ID_WATER:   constBufferSize = sizeof(vertexBuffer->WaterBufferValues);   break;
-		default:                constBufferSize = 0; break;
+		case SHADER_ID_DEFAULT:   constBufferSize = sizeof(vertexBuffer->DefaultBufferValues);   break;
+		case SHADER_ID_HUD:       constBufferSize = sizeof(vertexBuffer->HUDBufferValues);       break;
+		case SHADER_ID_SKYBOX:    constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);    break;
+		case SHADER_ID_TERRAIN:   constBufferSize = sizeof(vertexBuffer->TerrainBufferValues);   break;
+		case SHADER_ID_WATER:     constBufferSize = sizeof(vertexBuffer->WaterBufferValues);     break;
+		case SHADER_ID_WIREFRAME: constBufferSize = sizeof(vertexBuffer->WireframeBufferValues); break;
+		default:                  constBufferSize = 0; break;
 	}
 
 	if ((constBuffer == nullptr) || (constBufferValues == nullptr))

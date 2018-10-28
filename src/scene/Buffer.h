@@ -28,14 +28,14 @@ public:
 		ID3D12DescriptorHeap* ConstantBufferHeapsDX12[NR_OF_SHADERS];
 		ID3D12DescriptorHeap* SamplerHeapsDX12[NR_OF_SHADERS];
 
-		DXMatrixBuffer  MatrixBufferValues;
-		DXLightBuffer   LightBufferValues;
-		DXDefaultBuffer DefaultBufferValues;
-		DXHUDBuffer     HUDBufferValues;
-		DXSkyboxBuffer  SkyboxBufferValues;
-		DXSolidBuffer   SolidBufferValues;
-		DXTerrainBuffer TerrainBufferValues;
-		DXWaterBuffer   WaterBufferValues;
+		DXMatrixBuffer    MatrixBufferValues;
+		DXLightBuffer     LightBufferValues;
+		DXDefaultBuffer   DefaultBufferValues;
+		DXHUDBuffer       HUDBufferValues;
+		DXSkyboxBuffer    SkyboxBufferValues;
+		DXWireframeBuffer WireframeBufferValues;
+		DXTerrainBuffer   TerrainBufferValues;
+		DXWaterBuffer     WaterBufferValues;
 	#endif
 
 private:

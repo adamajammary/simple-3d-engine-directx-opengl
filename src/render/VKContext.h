@@ -118,7 +118,7 @@ public:
 	void DestroyShaderModule(VkShaderModule* shaderModule);
 	void DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
 	void DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int  Draw(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	int  Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
 	bool IsOK();
 	void Present();
 	void ResetPipelines();
@@ -164,7 +164,7 @@ private:
 	std::vector<VkFramebuffer>             initFramebuffers();
 	VkInstance                             initInstance();
 	VkPipelineMultisampleStateCreateInfo   initMultisampling();
-	VkPipelineRasterizationStateCreateInfo initRasterizer(VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT);
+	VkPipelineRasterizationStateCreateInfo initRasterizer(VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT, VkPolygonMode polyMode = VK_POLYGON_MODE_FILL);
 	VkRenderPass                           initRenderPass();
 	VkSurfaceKHR                           initSurface();
 	VKSwapchain*                           initSwapChain();

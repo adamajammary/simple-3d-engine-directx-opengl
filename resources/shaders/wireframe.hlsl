@@ -6,10 +6,10 @@ struct MatrixBuffer
 	matrix MVP;
 };
 
-cbuffer SolidBuffer : register(b0)
+cbuffer WireframeBuffer : register(b0)
 {
 	MatrixBuffer Matrices;
-	float4       SolidColor;
+	float4       Color;
 };
 
 struct VS_INPUT
@@ -37,5 +37,5 @@ FS_INPUT VS(VS_INPUT input)
 // FRAGMENT/PIXEL/COLOR SHADER
 float4 PS(FS_INPUT input) : SV_Target
 {
-	return SolidColor;
+	return Color;
 }

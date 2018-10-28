@@ -12,7 +12,8 @@ private:
 	~RenderEngine() {}
 
 public:
-	static uint16_t           DrawMode;
+	//static uint16_t           DrawMode;
+	static DrawModeType       DrawMode;
 	static Camera*            Camera;
 	static GLCanvas           Canvas;
 	static GPUDescription     GPU;
@@ -20,38 +21,41 @@ public:
 	static std::vector<Mesh*> HUDs;
 	static bool               Ready;
 	static std::vector<Mesh*> Renderables;
+	static GraphicsAPI        SelectedGraphicsAPI;
 	static Mesh*              Skybox;
 	static std::vector<Mesh*> Terrains;
 	static std::vector<Mesh*> Waters;
 
 public:
-	static void Close();
-	static void Draw();
-	static int  Init(WindowFrame* window, const wxSize &size);
-	static void RemoveMesh(Mesh* mesh);
-	static void SetAspectRatio(const wxString &ratio);
-	static void SetCanvasSize(int width, int height);
-	static void SetDrawMode(const wxString &mode);
-	static int  SetGraphicsAPI(const wxString &api);
-	static void SetVSync(bool enable);
+	static void     Close();
+	static void     Draw();
+	static uint16_t GetDrawMode();
+	static int      Init(WindowFrame* window, const wxSize &size);
+	static void     RemoveMesh(Mesh* mesh);
+	static void     SetAspectRatio(const wxString &ratio);
+	static void     SetCanvasSize(int width, int height);
+	static void     SetDrawMode(DrawModeType mode);
+	static void     SetDrawMode(const wxString &mode);
+	static int      SetGraphicsAPI(const wxString &api);
+	static void     SetVSync(bool enable);
 
 private:
 	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr);
 	static void           createWaterFBOs();
 	static int            drawBoundingVolumes();
 	static int            drawSelected();
-	static int            drawHUDs(bool        enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawRenderables(bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawSkybox(bool      enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawTerrains(bool    enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawWaters(bool      enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static void           drawMesh(Mesh*       mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawMeshDX11(Mesh*   mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawMeshDX12(Mesh*   mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawMeshGL(Mesh*     mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static int            drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static void           drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, bool drawBoundingVolume = false, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	static void           drawScene(bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
+	static int            drawHUDs(const DrawProperties &properties = {});
+	static int            drawRenderables(const DrawProperties &properties = {});
+	static int            drawSkybox(const DrawProperties &properties = {});
+	static int            drawTerrains(const DrawProperties &properties = {});
+	static int            drawWaters(const DrawProperties &properties = {});
+	static void           drawMesh(Mesh*       mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshDX11(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshDX12(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshGL(Mesh*     mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static void           drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties = {});
+	static void           drawScene(const DrawProperties &properties = {});
 	static int            initResources();
 	static int            setGraphicsAPI(GraphicsAPI api);
 	static int            setGraphicsApiDX(GraphicsAPI api);

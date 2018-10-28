@@ -1,12 +1,13 @@
 #include "SceneManager.h"
 
-glm::vec3 SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
-glm::vec4 SceneManager::SelectColor           = glm::vec4(1.0f,  0.5f,  0.0f, 1.0f);
-Light     SceneManager::SunLight              = {};
-
+glm::vec3               SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
 std::vector<Component*> SceneManager::Components;
-Mesh*                   SceneManager::SelectedChild     = nullptr;
-Component*              SceneManager::SelectedComponent = nullptr;
+Texture*                SceneManager::EmptyCubemap          = nullptr;
+Texture*                SceneManager::EmptyTexture          = nullptr;
+Mesh*                   SceneManager::SelectedChild         = nullptr;
+Component*              SceneManager::SelectedComponent     = nullptr;
+glm::vec4               SceneManager::SelectColor           = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
+Light                   SceneManager::SunLight              = {};
 
 int SceneManager::AddComponent(Component* component)
 {

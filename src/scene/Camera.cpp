@@ -192,7 +192,7 @@ void Camera::UpdateProjection()
 	this->projection  = glm::perspective(this->fovRadians, aspectRatio, this->near, this->far);
 
 	// Flip Y-axis on Vulkan
-	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 		this->projection[1][1] *= -1;
 }
 

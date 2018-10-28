@@ -142,7 +142,7 @@ enum ComponentType
 	COMPONENT_WATER
 };
 
-enum DrawModes
+enum DrawModeType
 {
 	DRAW_MODE_UNKNOWN = -1, DRAW_MODE_FILLED, DRAW_MODE_WIREFRAME, NR_OF_DRAW_MODES
 };
@@ -197,7 +197,7 @@ enum ShaderID
 	SHADER_ID_DEFAULT,
 	SHADER_ID_HUD,
 	SHADER_ID_SKYBOX,
-	SHADER_ID_SOLID,
+	SHADER_ID_WIREFRAME,
 	SHADER_ID_TERRAIN,
 	SHADER_ID_WATER,
 	NR_OF_SHADERS
@@ -233,6 +233,7 @@ enum Uniform
 	MATRIX_BUFFER,
 	DEFAULT_BUFFER,
 	HUD_BUFFER,
+	WIREFRAME_BUFFER,
 
 	NR_OF_UNIFORMS
 };
@@ -252,6 +253,15 @@ struct AssImpMesh
 	aiMesh*        Mesh  = nullptr;
 	const aiScene* Scene = nullptr;
 	aiMatrix4x4    Transformation;
+};
+
+struct DrawProperties
+{
+	bool      drawBoundingVolume = false;
+	bool      drawSelected       = false;
+	bool      enableClipping     = false;
+	glm::vec3 clipMax            = {};
+	glm::vec3 clipMin            = {};
 };
 
 struct GPUDescription
@@ -344,6 +354,11 @@ struct GLHUDBuffer
 	glm::vec3 Padding1;
 };
 
+struct GLWireframeBuffer
+{
+	glm::vec4 Color;
+};
+
 #if defined _WINDOWS
 
 static const unsigned int BYTE_ALIGN_BUFFER_DATA = 65536;
@@ -402,10 +417,10 @@ struct DXSkyboxBuffer
 	//DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
-struct DXSolidBuffer
+struct DXWireframeBuffer
 {
 	DXMatrixBuffer    Matrices;
-	DirectX::XMFLOAT4 SolidColor;
+	DirectX::XMFLOAT4 Color;
 };
 
 struct DXTerrainBuffer

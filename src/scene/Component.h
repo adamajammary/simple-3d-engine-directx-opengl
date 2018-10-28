@@ -42,16 +42,16 @@ public:
 	virtual bool          IsValid();
 	virtual glm::mat4     Matrix();
 	virtual wxString      ModelFile();
-	virtual void          MoveBy(const   glm::vec3 &amount);
-	virtual void          MoveTo(const   glm::vec3 &newPosition);
+	virtual void          MoveBy(const glm::vec3 &amount);
+	virtual void          MoveTo(const glm::vec3 &newPosition);
 	virtual glm::vec3     Position();
 	virtual int           RemoveChild(Mesh* child);
 	virtual glm::vec3     Rotation();
 	virtual void          RotateBy(const glm::vec3 &amountRadians);
 	virtual void          RotateTo(const glm::vec3 &newRotationRadions);
 	virtual glm::vec3     Scale();
-	virtual void          ScaleBy(const  glm::vec3 &amount);
-	virtual void          ScaleTo(const  glm::vec3 &newScale);
+	virtual void          ScaleBy(const glm::vec3 &amount);
+	virtual void          ScaleTo(const glm::vec3 &newScale);
 	virtual ComponentType Type();
 
 protected:

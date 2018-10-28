@@ -5,7 +5,7 @@ FrameBuffer::FrameBuffer(int width, int height)
 	this->colorTexture = nullptr;
 	this->size         = wxSize(width, height);
 
-	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		glCreateFramebuffers(1, &this->colorBuffer);
 }
 
@@ -35,7 +35,7 @@ void FrameBuffer::Bind()
 		D3D12_VIEWPORT viewPort;
 	#endif
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Bind11(
@@ -66,7 +66,7 @@ void FrameBuffer::Bind()
 
 void FrameBuffer::Unbind()
 {
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Unbind11();
@@ -88,7 +88,7 @@ void FrameBuffer::CreateColorTexture()
 {
 	GLenum buffers[1];
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->colorTexture = new Texture(

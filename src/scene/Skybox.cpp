@@ -17,7 +17,7 @@ Skybox::Skybox(const wxString &modelFile, const std::vector<wxString> &textureIm
 		this->Children[0]->LoadTexture(texture, 0);
 
 		for (int i = 1; i < MAX_TEXTURES; i++)
-			this->Children[0]->LoadTexture(Utils::EmptyCubemap, i);
+			this->Children[0]->LoadTexture(SceneManager::EmptyCubemap, i);
 
 		RenderEngine::Canvas.Window->SetStatusText("Loading the Skybox ... OK");
 	} else {

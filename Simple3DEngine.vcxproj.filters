@@ -241,12 +241,6 @@
     <None Include="resources\shaders\skybox.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\solid.fs.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="resources\shaders\solid.vs.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
     <None Include="resources\shaders\terrain.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
@@ -260,6 +254,12 @@
       <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="resources\shaders\test.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\wireframe.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\wireframe.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>
@@ -279,7 +279,7 @@
     <FxCompile Include="resources\shaders\hud.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\solid.hlsl">
+    <FxCompile Include="resources\shaders\wireframe.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

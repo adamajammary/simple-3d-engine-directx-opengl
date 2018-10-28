@@ -41,8 +41,8 @@ public:
 	//VkPipeline     Pipeline();
 	GLuint         Program();
 	int            UpdateAttribsGL(Mesh* mesh);
-	int            UpdateUniformsGL(Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+	int            UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties = {});
+	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const DrawProperties &properties = {});
 	VkShaderModule VulkanFS();
 	VkShaderModule VulkanVS();
 
@@ -52,8 +52,8 @@ public:
 		ID3DBlob*           VS();
 		ID3D11PixelShader*  FragmentShader();
 		ID3D11VertexShader* VertexShader();
-		int                 UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
-		int                 UpdateUniformsDX12(Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+		int                 UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, const DrawProperties &properties = {});
+		int                 UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properties = {});
 	#endif
 
 private:
@@ -67,7 +67,7 @@ private:
 	#if defined _WINDOWS
 		DXLightBuffer  getBufferLight();
 		DXMatrixBuffer getBufferMatrices(Mesh* mesh, bool removeTranslation = false);
-		const void*    getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, bool enableClipping = false, const glm::vec3 &clipMax = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &clipMin = glm::vec3(0.0f, 0.0f, 0.0f));
+		const void*    getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, const DrawProperties &properties = {});
 	#endif
 };
 

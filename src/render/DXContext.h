@@ -62,8 +62,8 @@ public:
 	int  CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture);
 	int  CreateVertexBuffer11(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords, ID3D11Buffer**   vertexBuffer, UINT &bufferStride, ID3D11InputLayout** inputLayouts, ID3D11RasterizerState** rasterizerStates, ID3D11DepthStencilState** depthStencilStates, ID3D11BlendState** blendStates);
 	int  CreateVertexBuffer12(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords, ID3D12Resource** vertexBuffer, UINT &bufferStride, D3D12_VERTEX_BUFFER_VIEW &bufferView, ID3D12PipelineState** pipelineStates, ID3D12RootSignature** rootSignatures);
-	int  Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
-	int  Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping = false, const glm::vec3 &clipMax = {}, const glm::vec3 &clipMin = {});
+	int  Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	int  Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
 	bool IsOK();
 	void Present11();
 	void Present12();
@@ -80,8 +80,8 @@ private:
 	IDXGIAdapter1*           getAdapter12(IDXGIFactory4* factory);
 	bool                     init11(bool vsync = true);
 	bool                     init12(bool vsync = true);
-	D3D11_BLEND_DESC         initColorBlending11(BOOL enableDepth);
-	D3D12_BLEND_DESC         initColorBlending12(BOOL enableDepth);
+	D3D11_BLEND_DESC         initColorBlending11(BOOL enableBlend);
+	D3D12_BLEND_DESC         initColorBlending12(BOOL enableBlend);
 	D3D11_DEPTH_STENCIL_DESC initDepthStencilBuffer11(BOOL enableDepth, D3D11_COMPARISON_FUNC compareOperation = D3D11_COMPARISON_LESS);
 	D3D12_DEPTH_STENCIL_DESC initDepthStencilBuffer12(BOOL enableDepth, D3D12_COMPARISON_FUNC compareOperation = D3D12_COMPARISON_FUNC_LESS);
 	D3D11_RASTERIZER_DESC    initRasterizer11(D3D11_CULL_MODE cullMode, D3D11_FILL_MODE fillMode = D3D11_FILL_SOLID);

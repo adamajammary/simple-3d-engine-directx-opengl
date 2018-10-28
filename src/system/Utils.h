@@ -34,13 +34,8 @@ public:
 	static std::map<wxString, wxString> RESOURCE_IMAGES;
 	static const wxString               SCENE_FILE_FORMAT;
 	static const std::vector<Resource>  SHADER_RESOURCES_DX;
-	static const std::vector<Resource>  SHADER_RESOURCES_GL;
-	static const std::vector<Resource>  SHADER_RESOURCES_VULKAN;
+	static const std::vector<Resource>  SHADER_RESOURCES_GL_VK;
 	static const wxSize                 WINDOW_SIZE;
-
-	static Texture*                     EmptyCubemap;
-	static Texture*                     EmptyTexture;
-	static GraphicsAPI                  SelectedGraphicsAPI;
 
 public:
 	static std::vector<uint8_t>     Compress(const std::vector<uint8_t>   &data);

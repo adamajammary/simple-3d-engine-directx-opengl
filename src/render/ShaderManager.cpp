@@ -12,9 +12,9 @@ int ShaderManager::Init()
 {
 	ShaderManager::Close();
 
-	const int nr_of_shaders = 3;
+	const int nr_of_shaders = 4;
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
@@ -29,9 +29,10 @@ int ShaderManager::Init()
 
 		break;
 	#endif
+	// TODO: Shaders GL+VK
 	case GRAPHICS_API_OPENGL:
-		// TODO: Shaders GL
-		if ((int)Utils::SHADER_RESOURCES_VULKAN.size() < nr_of_shaders * 2)
+	case GRAPHICS_API_VULKAN:
+		if ((int)Utils::SHADER_RESOURCES_GL_VK.size() < nr_of_shaders * 2)
 			return -1;
 
 		for (int i = 0; i < nr_of_shaders; i++)
@@ -40,8 +41,8 @@ int ShaderManager::Init()
 
 		//for (int i = 0; i < NR_OF_SHADERS; i++)
 		{
-			Resource vs = Utils::SHADER_RESOURCES_GL[(i * 2) + 0];
-			Resource fs = Utils::SHADER_RESOURCES_GL[(i * 2) + 1];
+			Resource vs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 0];
+			Resource fs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 1];
 
 			if (vs.Name.rfind("_vs") == wxString::npos)
 				continue;
@@ -50,33 +51,18 @@ int ShaderManager::Init()
 			fs.Result = Utils::LoadTextFile(fs.File);
 
 			ShaderManager::Programs[i] = new ShaderProgram(vs.Name.substr(0, vs.Name.rfind("_")));
-			int result                 = ShaderManager::Programs[i]->LoadAndLink(vs.Result, fs.Result);
+
+			int result;
+			
+			if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+				result = ShaderManager::Programs[i]->LoadAndLink(vs.Result, fs.Result);
+			else
+				result = ShaderManager::Programs[i]->LoadAndLink(vs.File, fs.File);
 
 			if ((result < 0) || !ShaderManager::Programs[i]->IsOK()) {
 				ShaderManager::Programs[i]->Log();
 				return result;
 			}
-		}
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		// TODO: Shaders Vulkan
-		if ((int)Utils::SHADER_RESOURCES_VULKAN.size() < nr_of_shaders * 2)
-			return -1;
-
-		for (int i = 0; i < nr_of_shaders; i++)
-		{
-			Resource vs = Utils::SHADER_RESOURCES_VULKAN[(i * 2) + 0];
-			Resource fs = Utils::SHADER_RESOURCES_VULKAN[(i * 2) + 1];
-
-			if (vs.Name.rfind("_vs") == wxString::npos)
-				continue;
-
-			ShaderManager::Programs[i] = new ShaderProgram(vs.Name.substr(0, vs.Name.rfind("_")));
-			int result                 = ShaderManager::Programs[i]->LoadAndLink(vs.File, fs.File);
-
-			if ((result < 0) || !ShaderManager::Programs[i]->IsOK())
-				return -2;
 		}
 
 		break;

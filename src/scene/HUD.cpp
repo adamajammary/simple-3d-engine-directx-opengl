@@ -21,7 +21,7 @@ HUD::HUD(const wxString &modelFile) : Component("HUD")
 		glm::vec3 scale    = { 0.25f, 0.25f, 0.0f };
 
 		// Invert Y-axis for both mesh and vertex positions on Vulkan
-		if (Utils::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
 			position.y *= -1;
 			scale.y    *= -1;
 		}

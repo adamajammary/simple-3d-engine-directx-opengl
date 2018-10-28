@@ -192,7 +192,7 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 		return -1;
 
 	D3D11_BUFFER_DESC bufferDesc    = {};
-	UINT              bufferSizes[] = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXSolidBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
+	UINT              bufferSizes[] = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXWireframeBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
 	HRESULT           result        = -1;
 
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -221,7 +221,7 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc      = {};
 	D3D12_DESCRIPTOR_HEAP_DESC      bufferHeapDesc  = {};
-	UINT                            bufferSizes[]   = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXSolidBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
+	UINT                            bufferSizes[]   = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXWireframeBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
 	D3D12_DESCRIPTOR_HEAP_DESC      samplerHeapDesc = {};
 	HRESULT                         result          = -1;
 
@@ -786,22 +786,25 @@ int DXContext::CreateVertexBuffer11(
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE, D3D11_COMPARISON_LESS_EQUAL);
 			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE);
 			break;
-		case SHADER_ID_SOLID:
-			blendDesc        = this->initColorBlending11(FALSE);
-			depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
-			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE, D3D11_FILL_WIREFRAME);
-			break;
 		case SHADER_ID_WATER:
 			blendDesc        = this->initColorBlending11(FALSE);
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
 			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
 			break;
+		//case SHADER_ID_WIREFRAME:
+		//	blendDesc        = this->initColorBlending11(FALSE);
+		//	depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
+		//	rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE, D3D11_FILL_WIREFRAME);
+		//	break;
 		default:
 			blendDesc        = this->initColorBlending11(FALSE);
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
 			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
 			break;
 		}
+
+		if ((ShaderID)i == SHADER_ID_WIREFRAME)
+			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 
 		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &rasterizerStates[i])))
 			return -5;
@@ -940,6 +943,7 @@ int DXContext::CreateVertexBuffer12(
 		pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
 		pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
 
+		//pipelineStateDesc.PrimitiveTopologyType = (D3D12_PRIMITIVE_TOPOLOGY_TYPE)(RenderEngine::DrawMode - 1);
 		pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
 		switch((ShaderID)i) {
@@ -953,22 +957,27 @@ int DXContext::CreateVertexBuffer12(
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE, D3D12_COMPARISON_FUNC_LESS_EQUAL);
 			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
 			break;
-		case SHADER_ID_SOLID:
-			pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-			pipelineStateDesc.BlendState            = this->initColorBlending12(FALSE);
-			pipelineStateDesc.DepthStencilState     = this->initDepthStencilBuffer12(FALSE);
-			pipelineStateDesc.RasterizerState       = this->initRasterizer12(D3D12_CULL_MODE_NONE, D3D12_FILL_MODE_WIREFRAME);
-			break;
 		case SHADER_ID_WATER:
 			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
 			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
 			break;
+		//case SHADER_ID_WIREFRAME:
+		//	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+		//	pipelineStateDesc.BlendState            = this->initColorBlending12(FALSE);
+		//	pipelineStateDesc.DepthStencilState     = this->initDepthStencilBuffer12(FALSE);
+		//	pipelineStateDesc.RasterizerState       = this->initRasterizer12(D3D12_CULL_MODE_NONE, D3D12_FILL_MODE_WIREFRAME);
+		//	break;
 		default:
 			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
 			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
 			break;
+		}
+
+		if ((ShaderID)i == SHADER_ID_WIREFRAME) {
+			pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+			pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		}
 
 		result = this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&pipelineStates[i]));
@@ -980,7 +989,7 @@ int DXContext::CreateVertexBuffer12(
 	return 0;
 }
 
-int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -997,7 +1006,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	ID3D11Buffer* constantBuffer       = nullptr;
 	const void*   constantBufferValues = nullptr;
 
-	int result = shaderProgram->UpdateUniformsDX11(&constantBuffer, &constantBufferValues, mesh, enableClipping, clipMax, clipMin);
+	int result = shaderProgram->UpdateUniformsDX11(&constantBuffer, &constantBufferValues, mesh, properties);
 	
 	if ((result < 0) || (constantBuffer == nullptr) || (constantBufferValues == nullptr))
 		return -1;
@@ -1013,7 +1022,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	this->deviceContext->IASetInputLayout(vertexBuffer->InputLayoutsDX11[shaderID]);
 	this->deviceContext->IASetIndexBuffer(indexBuffer->BufferDX11(), DXGI_FORMAT_R32_UINT, 0);
 	this->deviceContext->IASetVertexBuffers(0, 1, &vertexBufferData, &vertexBufferStride, &vertexBufferOffset);
-	this->deviceContext->IASetPrimitiveTopology((D3D11_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode);
+	this->deviceContext->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
 	// VERTEX SHADER
 	this->deviceContext->VSSetShader(vertexShader, nullptr, 0);
@@ -1053,7 +1062,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	return 0;
 }
 
-int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -1067,7 +1076,7 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -1;
 
-	if (shaderProgram->UpdateUniformsDX12(mesh, enableClipping, clipMax, clipMin) < 0)
+	if (shaderProgram->UpdateUniformsDX12(mesh, properties) < 0)
 		return -1;
 
 	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = indexBuffer->IndexBufferViewDX12();
@@ -1108,7 +1117,7 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, bool enableClipp
 
 	this->commandList->IASetIndexBuffer(&indexBufferView);
 	this->commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
-	this->commandList->IASetPrimitiveTopology((D3D12_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode);
+	this->commandList->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
 	this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);
 
@@ -1526,7 +1535,7 @@ bool DXContext::init12(bool vsync)
 	return SUCCEEDED(result);
 }
 
-D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableDepth)
+D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableBlend)
 {
 	D3D11_BLEND_DESC colorBlendInfo = {};
 
@@ -1534,7 +1543,7 @@ D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableDepth)
 	colorBlendInfo.AlphaToCoverageEnable  = FALSE;
 	colorBlendInfo.IndependentBlendEnable = FALSE;
 
-	colorBlendInfo.RenderTarget[0].BlendEnable = enableDepth;
+	colorBlendInfo.RenderTarget[0].BlendEnable = enableBlend;
 
 	colorBlendInfo.RenderTarget[0].BlendOp   = D3D11_BLEND_OP_ADD;
 	colorBlendInfo.RenderTarget[0].SrcBlend  = D3D11_BLEND_SRC_ALPHA;
@@ -1549,14 +1558,14 @@ D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableDepth)
 	return colorBlendInfo;
 }
 
-D3D12_BLEND_DESC DXContext::initColorBlending12(BOOL enableDepth)
+D3D12_BLEND_DESC DXContext::initColorBlending12(BOOL enableBlend)
 {
 	D3D12_BLEND_DESC colorBlendInfo = {};
 
 	colorBlendInfo.AlphaToCoverageEnable  = FALSE;
 	colorBlendInfo.IndependentBlendEnable = FALSE;
 
-	colorBlendInfo.RenderTarget[0].BlendEnable = enableDepth;
+	colorBlendInfo.RenderTarget[0].BlendEnable = enableBlend;
 
 	colorBlendInfo.RenderTarget[0].BlendOp   = D3D12_BLEND_OP_ADD;
 	colorBlendInfo.RenderTarget[0].SrcBlend  = D3D12_BLEND_SRC_ALPHA;
@@ -1626,9 +1635,13 @@ D3D11_RASTERIZER_DESC DXContext::initRasterizer11(D3D11_CULL_MODE cullMode, D3D1
 {
 	D3D11_RASTERIZER_DESC rasterizationInfo = {};
 
+	rasterizationInfo.CullMode = cullMode;
+	rasterizationInfo.FillMode = fillMode;
+
+	//if ((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode == D3D_PRIMITIVE_TOPOLOGY_LINESTRIP)
+	//	rasterizationInfo.FillMode = D3D11_FILL_WIREFRAME;
+
 	rasterizationInfo.AntialiasedLineEnable = TRUE;
-	rasterizationInfo.CullMode              = cullMode;
-	rasterizationInfo.FillMode              = fillMode;
 	rasterizationInfo.FrontCounterClockwise = TRUE;
 	rasterizationInfo.MultisampleEnable     = TRUE;
 	rasterizationInfo.ScissorEnable         = FALSE;
@@ -1645,9 +1658,13 @@ D3D12_RASTERIZER_DESC DXContext::initRasterizer12(D3D12_CULL_MODE cullMode, D3D1
 {
 	D3D12_RASTERIZER_DESC rasterizationInfo = {};
 
+	rasterizationInfo.CullMode = cullMode;
+	rasterizationInfo.FillMode = fillMode;
+
+	//if ((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode == D3D_PRIMITIVE_TOPOLOGY_LINESTRIP)
+	//	rasterizationInfo.FillMode = D3D12_FILL_MODE_WIREFRAME;
+
 	rasterizationInfo.AntialiasedLineEnable = TRUE;
-	rasterizationInfo.CullMode              = cullMode;
-	rasterizationInfo.FillMode              = fillMode;
 	rasterizationInfo.FrontCounterClockwise = TRUE;
 	rasterizationInfo.MultisampleEnable     = TRUE;
 	rasterizationInfo.ForcedSampleCount     = 0;

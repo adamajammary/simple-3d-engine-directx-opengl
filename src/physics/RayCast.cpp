@@ -9,9 +9,9 @@ RayCast::RayCast(int x, int y)
 
 RayCast::RayCast()
 {
-	this->direction        = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->inverseDirection = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->origin           = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->direction        = {};
+	this->inverseDirection = {};
+	this->origin           = {};
 }
  
 glm::vec3 RayCast::calculateRay(int x, int y)
@@ -20,6 +20,9 @@ glm::vec3 RayCast::calculateRay(int x, int y)
 
 	// VIEWPORT SPACE
 	glm::vec4 viewportSpace = { x, y, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight() };
+
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+		viewportSpace.y = (RenderEngine::Canvas.Size.GetHeight() - y);
 
 	// NORMALIZED DEVICE SPACE [-1.0, 1.0]
 	glm::vec2 normalizedDeviceSpace = {

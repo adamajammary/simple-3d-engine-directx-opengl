@@ -29,7 +29,7 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 
 	this->init();
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->CreateIndexBuffer11(indices, &this->bufferDX11);
@@ -85,7 +85,7 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 
 	this->init();
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, &this->bufferDX11, this->bufferStride,this->InputLayoutsDX11, this->RasterizerStatesDX11, this->DepthStencilStatesDX11, this->BlendStatesDX11);
 		RenderEngine::Canvas.DX->CreateConstantBuffers11(this);
@@ -197,14 +197,14 @@ void Buffer::init()
 		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
 		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
 
-		this->MatrixBufferValues  = {};
-		this->LightBufferValues   = {};
-		this->DefaultBufferValues = {};
-		this->HUDBufferValues     = {};
-		this->SkyboxBufferValues  = {};
-		this->SolidBufferValues   = {};
-		this->TerrainBufferValues = {};
-		this->WaterBufferValues   = {};
+		this->MatrixBufferValues    = {};
+		this->LightBufferValues     = {};
+		this->DefaultBufferValues   = {};
+		this->HUDBufferValues       = {};
+		this->SkyboxBufferValues    = {};
+		this->WireframeBufferValues = {};
+		this->TerrainBufferValues   = {};
+		this->WaterBufferValues     = {};
 	#endif
 }
 

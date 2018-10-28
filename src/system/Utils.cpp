@@ -1,9 +1,5 @@
 #include "Utils.h"
 
-Texture*    Utils::EmptyCubemap        = nullptr;
-Texture*    Utils::EmptyTexture        = nullptr;
-GraphicsAPI Utils::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-
 const wxChar* Utils::ALIGNMENTS[] = {
     wxT("Top-Left"),
 	wxT("Top-Center"),
@@ -142,21 +138,23 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
-	{ "resources/shaders/default.hlsl", "default",  "" },
-	{ "resources/shaders/hud.hlsl",     "hud",      "" },
-	{ "resources/shaders/skybox.hlsl",  "skybox",   "" },
-	{ "resources/shaders/solid.hlsl",   "solid",    "" },
-	{ "resources/shaders/terrain.hlsl", "terrain",  "" },
-	{ "resources/shaders/water.hlsl",   "water",    "" }
+	{ "resources/shaders/default.hlsl",   "default",   "" },
+	{ "resources/shaders/hud.hlsl",       "hud",       "" },
+	{ "resources/shaders/skybox.hlsl",    "skybox",    "" },
+	{ "resources/shaders/wireframe.hlsl", "wireframe", "" },
+	{ "resources/shaders/terrain.hlsl",   "terrain",   "" },
+	{ "resources/shaders/water.hlsl",     "water",     "" }
 };
 
-const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
-	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
-	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
-	{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
+const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
+	{ "resources/shaders/default.vs.glsl",   "default_vs",   "" },
+	{ "resources/shaders/default.fs.glsl",   "default_fs",   "" },
+	{ "resources/shaders/hud.vs.glsl",       "hud_vs",       "" },
+	{ "resources/shaders/hud.fs.glsl",       "hud_fs",       "" },
+	{ "resources/shaders/skybox.vs.glsl",    "skybox_vs",    "" },
+	{ "resources/shaders/skybox.fs.glsl",    "skybox_fs",    "" },
+	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
+	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" },
 	//{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
 	//{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
 	//{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
@@ -169,15 +167,6 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL = {
 	//{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
 	//{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
 	//{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
-};
-
-const std::vector<Resource> Utils::SHADER_RESOURCES_VULKAN = {
-	{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
-	{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
-	{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)
@@ -250,7 +239,7 @@ wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 {
 	wxString apiString = "";
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11: apiString = "DirectX 11"; break;
 		case GRAPHICS_API_DIRECTX12: apiString = "DirectX 12"; break;
