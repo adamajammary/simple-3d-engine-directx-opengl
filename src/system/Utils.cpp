@@ -155,16 +155,8 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
 	{ "resources/shaders/skybox.fs.glsl",    "skybox_fs",    "" },
 	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
 	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" },
-	//{ "resources/shaders/default.vs.glsl", "default_vs",  "" },
-	//{ "resources/shaders/default.fs.glsl", "default_fs",  "" },
-	//{ "resources/shaders/hud.vs.glsl",     "hud_vs",      "" },
-	//{ "resources/shaders/hud.fs.glsl",     "hud_fs",      "" },
-	//{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",   "" },
-	//{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",   "" },
-	//{ "resources/shaders/solid.vs.glsl",   "solid_vs",    "" },
-	//{ "resources/shaders/solid.fs.glsl",   "solid_fs",    "" },
-	//{ "resources/shaders/terrain.vs.glsl", "terrain_vs",  "" },
-	//{ "resources/shaders/terrain.fs.glsl", "terrain_fs",  "" },
+	{ "resources/shaders/terrain.vs.glsl",   "terrain_vs",   "" },
+	{ "resources/shaders/terrain.fs.glsl",   "terrain_fs",   "" },
 	//{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
 	//{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
 };

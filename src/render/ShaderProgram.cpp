@@ -547,6 +547,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const Dr
 
 	switch (this->ID()) {
 	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
 		defaultValues.Ambient        = SceneManager::AmbientLightIntensity;
 		defaultValues.ClipMax        = properties.clipMax;
 		defaultValues.ClipMin        = properties.clipMin;
@@ -569,10 +570,6 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const Dr
 		values     = &hudValues;
 		valuesSize = sizeof(hudValues);
 
-		break;
-	case SHADER_ID_SKYBOX:
-		break;
-	case SHADER_ID_TERRAIN:
 		break;
 	case SHADER_ID_WATER:
 		break;

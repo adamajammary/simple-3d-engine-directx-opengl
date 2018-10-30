@@ -789,17 +789,12 @@ int DXContext::CreateVertexBuffer11(
 		case SHADER_ID_WATER:
 			blendDesc        = this->initColorBlending11(FALSE);
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
-			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
+			rasterizerDesc   = this->initRasterizer11();
 			break;
-		//case SHADER_ID_WIREFRAME:
-		//	blendDesc        = this->initColorBlending11(FALSE);
-		//	depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
-		//	rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE, D3D11_FILL_WIREFRAME);
-		//	break;
 		default:
 			blendDesc        = this->initColorBlending11(FALSE);
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
-			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_BACK);
+			rasterizerDesc   = this->initRasterizer11();
 			break;
 		}
 
@@ -960,18 +955,12 @@ int DXContext::CreateVertexBuffer12(
 		case SHADER_ID_WATER:
 			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12();
 			break;
-		//case SHADER_ID_WIREFRAME:
-		//	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-		//	pipelineStateDesc.BlendState            = this->initColorBlending12(FALSE);
-		//	pipelineStateDesc.DepthStencilState     = this->initDepthStencilBuffer12(FALSE);
-		//	pipelineStateDesc.RasterizerState       = this->initRasterizer12(D3D12_CULL_MODE_NONE, D3D12_FILL_MODE_WIREFRAME);
-		//	break;
 		default:
 			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_BACK);
+			pipelineStateDesc.RasterizerState   = this->initRasterizer12();
 			break;
 		}
 

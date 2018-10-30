@@ -40,8 +40,10 @@ layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
 void main()
 {
-	if (db.EnableClipping) {
+	if (db.EnableClipping)
+	{
 		vec4 p = FragmentPosition;
+
 		if ((p.x > db.ClipMax.x) || (p.y > db.ClipMax.y) || (p.z > db.ClipMax.z) || (p.x < db.ClipMin.x) || (p.y < db.ClipMin.y) || (p.z < db.ClipMin.z))
 			discard;
 	}

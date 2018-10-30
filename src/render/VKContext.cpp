@@ -547,16 +547,10 @@ int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline
 		break;
 	case SHADER_ID_WATER:
 		break;
-	//case SHADER_ID_WIREFRAME:
-	//	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
-	//	colorBlendInfo         = this->initColorBlending(colorBlendAttachment, VK_FALSE);
-	//	depthStencilInfo       = this->initDepthStencilBuffer(VK_FALSE);
-	//	rasterizationInfo      = this->initRasterizer(VK_CULL_MODE_NONE, VK_POLYGON_MODE_LINE);
-	//	break;
 	default:
 		colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_FALSE);
-		depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE, VK_COMPARE_OP_LESS);
-		rasterizationInfo = this->initRasterizer(VK_CULL_MODE_BACK_BIT);
+		depthStencilInfo  = this->initDepthStencilBuffer(VK_TRUE);
+		rasterizationInfo = this->initRasterizer();
 		break;
 	}
 
@@ -887,8 +881,8 @@ int VKContext::CreateVertexBuffer(
 
 	// RENDER PIPELINES
 
-	// TODO: Shaders Vulkan
-	const int nr_of_shaders = 4;
+	// TODO: Shaders GL+VK
+	const int nr_of_shaders = 5;
 
 	//for (int i = 0; i < NR_OF_SHADERS; i++)
 	for (int i = 0; i < nr_of_shaders; i++) {

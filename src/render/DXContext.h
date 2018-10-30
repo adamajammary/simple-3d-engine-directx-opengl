@@ -84,8 +84,8 @@ private:
 	D3D12_BLEND_DESC         initColorBlending12(BOOL enableBlend);
 	D3D11_DEPTH_STENCIL_DESC initDepthStencilBuffer11(BOOL enableDepth, D3D11_COMPARISON_FUNC compareOperation = D3D11_COMPARISON_LESS);
 	D3D12_DEPTH_STENCIL_DESC initDepthStencilBuffer12(BOOL enableDepth, D3D12_COMPARISON_FUNC compareOperation = D3D12_COMPARISON_FUNC_LESS);
-	D3D11_RASTERIZER_DESC    initRasterizer11(D3D11_CULL_MODE cullMode, D3D11_FILL_MODE fillMode = D3D11_FILL_SOLID);
-	D3D12_RASTERIZER_DESC    initRasterizer12(D3D12_CULL_MODE cullMode, D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID);
+	D3D11_RASTERIZER_DESC    initRasterizer11(D3D11_CULL_MODE cullMode = D3D11_CULL_BACK,      D3D11_FILL_MODE fillMode = D3D11_FILL_SOLID);
+	D3D12_RASTERIZER_DESC    initRasterizer12(D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK, D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID);
 	void                     release();
 	void                     wait();
 
