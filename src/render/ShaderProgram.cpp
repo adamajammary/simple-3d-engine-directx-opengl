@@ -83,9 +83,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->DefaultBufferValues.Matrices       = matrices;
 		vertexBuffer->DefaultBufferValues.SunLight       = sunLight;
 		vertexBuffer->DefaultBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->DefaultBufferValues.EnableClipping = properties.enableClipping;
-		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.clipMax);
-		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.clipMin);
+		vertexBuffer->DefaultBufferValues.EnableClipping = properties.EnableClipping;
+		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.ClipMax);
+		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.ClipMin);
 		vertexBuffer->DefaultBufferValues.IsTextured     = mesh->IsTextured();
 		vertexBuffer->DefaultBufferValues.MaterialColor  = Utils::ToXMFLOAT4(mesh->Color);
 
@@ -113,9 +113,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->TerrainBufferValues.Matrices       = matrices;
 		vertexBuffer->TerrainBufferValues.SunLight       = sunLight;
 		vertexBuffer->TerrainBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->TerrainBufferValues.EnableClipping = properties.enableClipping;
-		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.clipMax);
-		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.clipMin);
+		vertexBuffer->TerrainBufferValues.EnableClipping = properties.EnableClipping;
+		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.ClipMax);
+		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.ClipMin);
 
 		for (int i = 0; i < MAX_TEXTURES; i++)
 			vertexBuffer->TerrainBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
@@ -129,9 +129,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->WaterBufferValues.CameraMain.Far      = RenderEngine::Camera->Far();
 		vertexBuffer->WaterBufferValues.Matrices            = matrices;
 		vertexBuffer->WaterBufferValues.SunLight            = sunLight;
-		vertexBuffer->WaterBufferValues.EnableClipping      = properties.enableClipping;
-		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(properties.clipMax);
-		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(properties.clipMin);
+		vertexBuffer->WaterBufferValues.EnableClipping      = properties.EnableClipping;
+		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(properties.ClipMax);
+		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(properties.ClipMin);
 		vertexBuffer->WaterBufferValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
 		vertexBuffer->WaterBufferValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
 
@@ -448,9 +448,9 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 		GLDefaultBuffer db;
 
 		db.Ambient        = SceneManager::AmbientLightIntensity;
-		db.ClipMax        = properties.clipMax;
-		db.ClipMin        = properties.clipMin;
-		db.EnableClipping = properties.enableClipping;
+		db.ClipMax        = properties.ClipMax;
+		db.ClipMin        = properties.ClipMin;
+		db.EnableClipping = properties.EnableClipping;
 		db.IsTextured     = mesh->IsTextured();
 		db.MaterialColor  = mesh->Color;
 		db.SunLight       = SceneManager::SunLight;
@@ -485,9 +485,9 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 		wb.CameraMain.Near     = RenderEngine::Camera->Near();
 		wb.CameraMain.Far      = RenderEngine::Camera->Far();
 		wb.SunLight            = SceneManager::SunLight;
-		wb.EnableClipping      = properties.enableClipping;
-		wb.ClipMax             = properties.clipMax;
-		wb.ClipMin             = properties.clipMin;
+		wb.EnableClipping      = properties.EnableClipping;
+		wb.ClipMax             = properties.ClipMax;
+		wb.ClipMin             = properties.ClipMin;
 		wb.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
 		wb.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
 
@@ -552,9 +552,9 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VK
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_TERRAIN:
 		defaultValues.Ambient        = SceneManager::AmbientLightIntensity;
-		defaultValues.ClipMax        = properties.clipMax;
-		defaultValues.ClipMin        = properties.clipMin;
-		defaultValues.EnableClipping = properties.enableClipping;
+		defaultValues.ClipMax        = properties.ClipMax;
+		defaultValues.ClipMin        = properties.ClipMin;
+		defaultValues.EnableClipping = properties.EnableClipping;
 		defaultValues.IsTextured     = mesh->IsTextured();
 		defaultValues.MaterialColor  = mesh->Color;
 		defaultValues.SunLight       = SceneManager::SunLight;
@@ -581,9 +581,9 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VK
 		waterValues.CameraMain.Near     = RenderEngine::Camera->Near();
 		waterValues.CameraMain.Far      = RenderEngine::Camera->Far();
 		waterValues.SunLight            = SceneManager::SunLight;
-		waterValues.EnableClipping      = properties.enableClipping;
-		waterValues.ClipMax             = properties.clipMax;
-		waterValues.ClipMin             = properties.clipMin;
+		waterValues.EnableClipping      = properties.EnableClipping;
+		waterValues.ClipMax             = properties.ClipMax;
+		waterValues.ClipMin             = properties.ClipMin;
 		waterValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
 		waterValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
 

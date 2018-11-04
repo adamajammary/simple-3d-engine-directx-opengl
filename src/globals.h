@@ -248,11 +248,12 @@ struct AssImpMesh
 
 struct DrawProperties
 {
-	bool      drawBoundingVolume = false;
-	bool      drawSelected       = false;
-	bool      enableClipping     = false;
-	glm::vec3 clipMax            = {};
-	glm::vec3 clipMin            = {};
+	bool      DrawBoundingVolume = false;
+	bool      DrawSelected       = false;
+	bool      EnableClipping     = false;
+	bool      FBO                = false;
+	glm::vec3 ClipMax            = {};
+	glm::vec3 ClipMin            = {};
 };
 
 struct GPUDescription

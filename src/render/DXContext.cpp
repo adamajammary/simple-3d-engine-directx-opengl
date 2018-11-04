@@ -344,6 +344,76 @@ int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* b
 	return 0;
 }
 
+int DXContext::createPipeline(
+	ShaderProgram*        shaderProgram,
+	ID3D12PipelineState** pipeline,
+	ID3D12RootSignature** rootSignature,
+	bool                  fbo,
+	const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs
+)
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
+
+	pipelineStateDesc.DSVFormat        = (fbo ? DXGI_FORMAT_UNKNOWN : DXGI_FORMAT_D32_FLOAT);
+	pipelineStateDesc.InputLayout      = { attribsDescs.data(), (UINT)attribsDescs.size() };
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pipelineStateDesc.SampleMask       = UINT_MAX;
+	pipelineStateDesc.SampleDesc.Count = 1;
+	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
+
+	if (shaderProgram == nullptr)
+		return -1;
+
+	ID3D10Blob* fs = shaderProgram->FS();
+	ID3D10Blob* vs = shaderProgram->VS();
+
+	if ((vs == nullptr) || (fs == nullptr))
+		return -2;
+
+	if (FAILED(this->createRootSignature(shaderProgram, rootSignature)))
+		return -3;
+
+	pipelineStateDesc.pRootSignature = *rootSignature;
+
+	pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
+	pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
+
+	//pipelineStateDesc.PrimitiveTopologyType = (D3D12_PRIMITIVE_TOPOLOGY_TYPE)(RenderEngine::DrawMode - 1);
+	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	switch(shaderProgram->ID()) {
+	case SHADER_ID_HUD:
+		pipelineStateDesc.BlendState        = this->initColorBlending12(TRUE);
+		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
+		pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
+		break;
+	case SHADER_ID_SKYBOX:
+		pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
+		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE, D3D12_COMPARISON_FUNC_LESS_EQUAL);
+		pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
+		break;
+	default:
+		pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
+		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
+		pipelineStateDesc.RasterizerState   = this->initRasterizer12();
+		break;
+	}
+
+	if (fbo)
+		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
+
+	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+		pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+		pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	}
+
+	if (FAILED(this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(pipeline))))
+		return -4;
+
+	return 0;
+}
+
 int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature)
 {
 	// ROOT SIGNATURE
@@ -808,26 +878,58 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 }
 
 int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer)
-//	std::vector<float>       &vertices,
-//	std::vector<float>       &normals,
-//	std::vector<float>       &texCoords,
-//	ID3D12Resource**         vertexBuffer,
-//	UINT                     &bufferStride,
-//	D3D12_VERTEX_BUFFER_VIEW &bufferView,
-//	ID3D12PipelineState**    pipelineStates,
-//	ID3D12RootSignature**    rootSignatures
-//)
 {
+	std::vector<D3D12_INPUT_ELEMENT_DESC> attribsDescs = {};
+
 	UINT offset = 0;
 
+	// NORMALS
 	if (!normals.empty())
-		offset += (3 * sizeof(float));
+	{
+		D3D12_INPUT_ELEMENT_DESC attribsDesc = {};
 
+		attribsDesc.SemanticName      = "NORMAL";
+		attribsDesc.InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		attribsDesc.Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+		attribsDesc.AlignedByteOffset = offset;
+		//attribsDesc.SemanticIndex   = 0;
+		//attribsDesc.InputSlot       = 0;
+		//attribsDesc.InstanceDataStepRate = 0;
+
+		attribsDescs.push_back(attribsDesc);
+
+		offset += (3 * sizeof(float));
+	}
+
+	// POSITIONS
 	if (!vertices.empty())
-		offset += (3 * sizeof(float));
+	{
+		D3D12_INPUT_ELEMENT_DESC attribsDesc = {};
 
+		attribsDesc.SemanticName      = "POSITION";
+		attribsDesc.InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		attribsDesc.Format            = DXGI_FORMAT_R32G32B32_FLOAT;
+		attribsDesc.AlignedByteOffset = offset;
+
+		attribsDescs.push_back(attribsDesc);
+
+		offset += (3 * sizeof(float));
+	}
+
+	// TEXTURE COORDINATES
 	if (!texCoords.empty())
+	{
+		D3D12_INPUT_ELEMENT_DESC attribsDesc = {};
+
+		attribsDesc.SemanticName      = "TEXCOORD";
+		attribsDesc.InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
+		attribsDesc.Format            = DXGI_FORMAT_R32G32_FLOAT;
+		attribsDesc.AlignedByteOffset = offset;
+
+		attribsDescs.push_back(attribsDesc);
+
 		offset += (2 * sizeof(float));
+	}
 
 	buffer->BufferStride = offset;
 
@@ -850,7 +952,7 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 	);
 	
 	if (FAILED(result))
-		return -1;
+		return -2;
 
 	D3D12_SUBRESOURCE_DATA bufferData = {};
 
@@ -875,94 +977,18 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 
 	_RELEASEP(bufferResource);
 
-	// INPUT ELEMENTS
-	D3D12_INPUT_ELEMENT_DESC inputElementDesc[NR_OF_ATTRIBS] = {};
-
-	// NORMALS
-	inputElementDesc[ATTRIB_NORMAL].SemanticName      = "NORMAL";
-	inputElementDesc[ATTRIB_NORMAL].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
-	inputElementDesc[ATTRIB_NORMAL].AlignedByteOffset = 0;
-	inputElementDesc[ATTRIB_NORMAL].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-	//inputElementDesc[ATTRIB_NORMAL].SemanticIndex   = 0;
-	//inputElementDesc[ATTRIB_NORMAL].InputSlot       = 0;
-	//inputElementDesc[ATTRIB_NORMAL].InstanceDataStepRate = 0;
-
-	// POSITIONS
-	inputElementDesc[ATTRIB_POSITION].SemanticName      = "POSITION";
-	inputElementDesc[ATTRIB_POSITION].Format            = DXGI_FORMAT_R32G32B32_FLOAT;
-	inputElementDesc[ATTRIB_POSITION].AlignedByteOffset = (3 * sizeof(float));
-	inputElementDesc[ATTRIB_POSITION].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-
-	// TEXTURE COORDINATES
-	inputElementDesc[ATTRIB_TEXCOORDS].SemanticName      = "TEXCOORD";
-	inputElementDesc[ATTRIB_TEXCOORDS].Format            = DXGI_FORMAT_R32G32_FLOAT;
-	inputElementDesc[ATTRIB_TEXCOORDS].AlignedByteOffset = (6 * sizeof(float));
-	inputElementDesc[ATTRIB_TEXCOORDS].InputSlotClass    = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
-
-	// PIPELINE STATE
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
-
-	pipelineStateDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
-	//pipelineStateDesc.DSVFormat        = DXGI_FORMAT_UNKNOWN;
-	//pipelineStateDesc.DepthStencilState.DepthEnable = FALSE;
-	pipelineStateDesc.InputLayout      = { inputElementDesc, _countof(inputElementDesc) };
-	pipelineStateDesc.NumRenderTargets = 1;
-	pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
-	pipelineStateDesc.SampleDesc.Count = 1;
-	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
-	pipelineStateDesc.SampleMask       = UINT_MAX;
-
+	// RENDER PIPELINES
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
-		if (ShaderManager::Programs[i] == nullptr)
-			return -1;
+		int result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesDX12[i], &buffer->RootSignaturesDX12[i], false, attribsDescs);
 
-		ID3D10Blob* fs = ShaderManager::Programs[i]->FS();
-		ID3D10Blob* vs = ShaderManager::Programs[i]->VS();
+		if (result < 0)
+			return -3;
 
-		if ((vs == nullptr) || (fs == nullptr))
-			return -1;
+		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
 
-		result = this->createRootSignature(ShaderManager::Programs[i], &buffer->RootSignaturesDX12[i]);
-
-		if (FAILED(result))
-			return -1;
-
-		pipelineStateDesc.pRootSignature = buffer->RootSignaturesDX12[i];
-
-		pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
-		pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
-
-		//pipelineStateDesc.PrimitiveTopologyType = (D3D12_PRIMITIVE_TOPOLOGY_TYPE)(RenderEngine::DrawMode - 1);
-		pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-		switch((ShaderID)i) {
-		case SHADER_ID_HUD:
-			pipelineStateDesc.BlendState        = this->initColorBlending12(TRUE);
-			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
-			break;
-		case SHADER_ID_SKYBOX:
-			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
-			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE, D3D12_COMPARISON_FUNC_LESS_EQUAL);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
-			break;
-		default:
-			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
-			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12();
-			break;
-		}
-
-		if ((ShaderID)i == SHADER_ID_WIREFRAME) {
-			pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
-			pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-		}
-
-		result = this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&buffer->PipelineStatesDX12[i]));
-
-		if (FAILED(result))
-			return -1;
+		if (result < 0)
+			return -4;
 	}
 
 	return 0;
@@ -980,7 +1006,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	ShaderID            shaderID       = shaderProgram->ID();
 
 	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
-		return -1;
+		return -2;
 
 	ID3D11Buffer* constantBuffer       = nullptr;
 	const void*   constantBufferValues = nullptr;
@@ -988,7 +1014,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	int result = shaderProgram->UpdateUniformsDX11(&constantBuffer, &constantBufferValues, mesh, properties);
 	
 	if ((result < 0) || (constantBuffer == nullptr) || (constantBufferValues == nullptr))
-		return -1;
+		return -3;
 
 	this->deviceContext->UpdateSubresource(constantBuffer, 0, nullptr, constantBufferValues, 0, 0);
 
@@ -1052,14 +1078,17 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	ID3DBlob* vertexShader   = shaderProgram->VS();
 	ShaderID  shaderID       = shaderProgram->ID();
 
-	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
-		return -1;
+	if ((vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
+		return -2;
 
 	if (shaderProgram->UpdateUniformsDX12(mesh, properties) < 0)
-		return -1;
+		return -3;
 
-	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = indexBuffer->IndexBufferViewDX12;
+	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = {};
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = vertexBuffer->VertexBufferViewDX12;
+
+	if (indexBuffer != nullptr)
+		indexBufferView = indexBuffer->IndexBufferViewDX12;
 	
 	ID3D12DescriptorHeap* descHeaps[2] = {
 		vertexBuffer->ConstantBufferHeapsDX12[shaderProgram->ID()],
@@ -1088,20 +1117,24 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	this->commandList->SetDescriptorHeaps(2, descHeaps);
 	this->commandList->SetGraphicsRootDescriptorTable(0, descHeaps[0]->GetGPUDescriptorHandleForHeapStart());
 
-	//// SKIP SOLID SHADER (DOESN'T USE TEXTURES)
-	//if (shaderProgram->ID() != SHADER_ID_SOLID) {
-		this->commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU);
-		this->commandList->SetGraphicsRootDescriptorTable(2, samplerHandleGPU);
-	//}
+	this->commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU);
+	this->commandList->SetGraphicsRootDescriptorTable(2, samplerHandleGPU);
 
-	this->commandList->IASetIndexBuffer(&indexBufferView);
+	if (indexBuffer != nullptr)
+		this->commandList->IASetIndexBuffer(&indexBufferView);
+
 	this->commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 	this->commandList->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
-	this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);
+	if (properties.FBO)
+		this->commandList->SetPipelineState(vertexBuffer->PipelineStatesFBODX12[shaderID]);
+	else
+		this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);
 
-	this->commandList->DrawIndexedInstanced((UINT)mesh->NrOfIndices(), 1, 0, 0, 0);
-	//this->commandList->DrawInstanced((UINT)mesh->NrOfVertices(), 1, 0, 0);
+	if (indexBuffer != nullptr)
+		this->commandList->DrawIndexedInstanced((UINT)mesh->NrOfIndices(), 1, 0, 0, 0);
+	else
+		this->commandList->DrawInstanced((UINT)mesh->NrOfVertices(), 1, 0, 0);
 
 	return 0;
 }

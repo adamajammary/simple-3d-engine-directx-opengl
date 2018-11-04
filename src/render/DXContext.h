@@ -75,6 +75,7 @@ private:
 	void                     commandsColorBufferPrepare(ID3D12Resource* colorBuffer);
 	void                     commandsColorBufferPresent(ID3D12Resource* colorBuffer);
 	int                      compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
+	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, bool fbo, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
 	int                      createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
 	IDXGIAdapter*            getAdapter11(IDXGIFactory*  factory);
 	IDXGIAdapter1*           getAdapter12(IDXGIFactory4* factory);

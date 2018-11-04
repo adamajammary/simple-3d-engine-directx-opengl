@@ -48,6 +48,10 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 {
 	this->init();
 
+	this->normals   = normals;
+	this->texCoords = texCoords;
+	this->vertices  = vertices;
+
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, this);
@@ -62,10 +66,6 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 		RenderEngine::Canvas.VK->InitPipelines(this);
 		break;
 	}
-
-	this->normals   = normals;
-	this->texCoords = texCoords;
-	this->vertices  = vertices;
 }
 
 Buffer::Buffer()
@@ -89,6 +89,7 @@ Buffer::~Buffer()
 			_RELEASEP(this->InputLayoutsDX11[i]);
 
 			_RELEASEP(this->PipelineStatesDX12[i]);
+			_RELEASEP(this->PipelineStatesFBODX12[i]);
 			_RELEASEP(this->RootSignaturesDX12[i]);
 		}
 
@@ -140,6 +141,7 @@ void Buffer::init()
 		this->InputLayoutsDX11[NR_OF_SHADERS]        = {};
 		this->RasterizerStatesDX11[NR_OF_SHADERS]    = {};
 		this->PipelineStatesDX12[NR_OF_SHADERS]      = {};
+		this->PipelineStatesFBODX12[NR_OF_SHADERS]   = {};
 		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
 		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
 
@@ -159,6 +161,11 @@ GLuint Buffer::ID()
 	return this->id;
 }
 
+size_t Buffer::Normals()
+{
+	return this->normals.size();
+}
+
 void Buffer::ResetPipelines()
 {
 	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
@@ -168,4 +175,14 @@ void Buffer::ResetPipelines()
 
 	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);
 	RenderEngine::Canvas.VK->CreateVertexBuffer(this->vertices, this->normals, this->texCoords, this);
+}
+
+size_t Buffer::TexCoords()
+{
+	return this->texCoords.size();
+}
+
+size_t Buffer::Vertices()
+{
+	return this->vertices.size();
 }

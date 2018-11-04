@@ -525,7 +525,14 @@ int VKContext::createMipMaps(VkImage image, VkFormat imageFormat, int width, int
 	return 0;
 }
 
-int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, bool fbo, const VkVertexInputAttributeDescription* attribsDesc, const VkVertexInputBindingDescription &attribsBindingDesc)
+int VKContext::createPipeline(
+	ShaderProgram*   shaderProgram,
+	VkPipeline*      pipeline,
+	VkPipelineLayout pipelineLayout,
+	bool             fbo,
+	const std::vector<VkVertexInputAttributeDescription> &attribsDescs,
+	const VkVertexInputBindingDescription                &attribsBindingDesc
+)
 {
 	if ((this->deviceContext == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -569,8 +576,8 @@ int VKContext::createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline
 	//inputAssembly.primitiveRestartEnable = VK_FALSE;
 
 	vertexInput.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInput.vertexAttributeDescriptionCount = NR_OF_ATTRIBS;
-	vertexInput.pVertexAttributeDescriptions    = attribsDesc;
+	vertexInput.vertexAttributeDescriptionCount = attribsDescs.size();
+	vertexInput.pVertexAttributeDescriptions    = attribsDescs.data();
 	vertexInput.vertexBindingDescriptionCount   = 1;
 	vertexInput.pVertexBindingDescriptions      = &attribsBindingDesc;
 
@@ -1068,31 +1075,31 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperti
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*  indexBuffer  = mesh->IndexBuffer();
-	Buffer*  vertexBuffer = mesh->VertexBuffer();
-	ShaderID shaderID     = shaderProgram->ID();
+	Buffer*  indexBuffer     = mesh->IndexBuffer();
+	Buffer*  vertexBuffer    = mesh->VertexBuffer();
+	ShaderID shaderID        = shaderProgram->ID();
+	VkBuffer vertexBuffers[] = { vertexBuffer->VertexBuffer };
 
-	if ((indexBuffer == nullptr) && (vertexBuffer == nullptr))
+	if ((vertexBuffer == nullptr) || (shaderID == SHADER_ID_UNKNOWN))
 		return -2;
-
-	VkPipeline pipeline        = (cmdBuffer != nullptr ? vertexBuffer->Pipeline.PipelinesFBO[shaderID] : vertexBuffer->Pipeline.Pipelines[shaderID]);
-	VkBuffer   vertexBuffers[] = { vertexBuffer->VertexBuffer };
-
-	if ((pipeline == nullptr) || (vertexBuffer->Pipeline.Layout == nullptr) || (vertexBuffers[0] == nullptr) || (vertexBuffer->Uniform.Set == nullptr))
-		return -3;
 
 	// UPDATE UNIFORM VALUES
 	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, vertexBuffer->Uniform, properties) < 0)
-		return -4;
+		return -3;
 
 	VkCommandBuffer commandBuffer = (cmdBuffer != nullptr ? cmdBuffer : this->commandBuffers[this->imageIndex]);
 
 	// BIND SHADER TO PIPELINE
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	if (properties.FBO)
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.PipelinesFBO[shaderID]);
+	else
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.Pipelines[shaderID]);
 
 	// BIND INDEX AND VERTEX BUFFERS
+	if (indexBuffer != nullptr)
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer->IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
 	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindIndexBuffer(commandBuffer, indexBuffer->IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 	
 	// TODO: SLOW
@@ -1100,9 +1107,10 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperti
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.Layout, 0, 1, &vertexBuffer->Uniform.Set, 0, nullptr);
 
 	// DRAW
-	//vkCmdDraw(this->commandBuffers[this->imageIndex], 3, 1, 0, 0);
-	//vkCmdDraw(this->commandBuffers[this->imageIndex], mesh->NrOfVertices(), 1, 0, 0);
-	vkCmdDrawIndexed(commandBuffer, mesh->NrOfIndices(), 1, 0, 0, 0);
+	if (indexBuffer != nullptr)
+		vkCmdDrawIndexed(commandBuffer, mesh->NrOfIndices(), 1, 0, 0, 0);
+	else
+		vkCmdDraw(commandBuffer, mesh->NrOfVertices(), 1, 0, 0);
 
 	return 0;
 }
@@ -1719,25 +1727,54 @@ VkPipelineMultisampleStateCreateInfo VKContext::initMultisampling(uint32_t sampl
 int VKContext::InitPipelines(Buffer* buffer)
 {
 	// SHADER ATTRIBS
-	VkVertexInputBindingDescription   attribsBindingDesc         = {};
-	VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS] = {};
+	VkVertexInputBindingDescription                attribsBindingDesc = {};
+	std::vector<VkVertexInputAttributeDescription> attribsDescs       = {};
+
+	uint32_t offset = 0;
 
 	// NORMALS
-	attribsDesc[ATTRIB_NORMAL].location = ATTRIB_NORMAL;
-	attribsDesc[ATTRIB_NORMAL].format   = VK_FORMAT_R32G32B32_SFLOAT;
-	attribsDesc[ATTRIB_NORMAL].offset   = 0;
+	if (buffer->Normals() > 0)
+	{
+		VkVertexInputAttributeDescription attribsDesc = {};
+		
+		attribsDesc.location = ATTRIB_NORMAL;
+		attribsDesc.format   = VK_FORMAT_R32G32B32_SFLOAT;
+		attribsDesc.offset   = offset;
+
+		attribsDescs.push_back(attribsDesc);
+
+		offset += (3 * sizeof(float));
+	}
 
 	// POSITIONS
-	attribsDesc[ATTRIB_POSITION].location = ATTRIB_POSITION;
-	attribsDesc[ATTRIB_POSITION].offset   = (3 * sizeof(float));
-	attribsDesc[ATTRIB_POSITION].format   = VK_FORMAT_R32G32B32_SFLOAT;
+	if (buffer->Vertices() > 0)
+	{
+		VkVertexInputAttributeDescription attribsDesc = {};
+
+		attribsDesc.location = ATTRIB_POSITION;
+		attribsDesc.format   = VK_FORMAT_R32G32B32_SFLOAT;
+		attribsDesc.offset   = offset;
+
+		attribsDescs.push_back(attribsDesc);
+
+		offset += (3 * sizeof(float));
+	}
 
 	// TEXTURE COORDINATES
-	attribsDesc[ATTRIB_TEXCOORDS].location = ATTRIB_TEXCOORDS;
-	attribsDesc[ATTRIB_TEXCOORDS].format   = VK_FORMAT_R32G32_SFLOAT;
-	attribsDesc[ATTRIB_TEXCOORDS].offset   = (6 * sizeof(float));
+	if (buffer->TexCoords() > 0)
+	{
+		VkVertexInputAttributeDescription attribsDesc = {};
 
-	attribsBindingDesc.stride    = ((3 + 3 + 2) * sizeof(float));
+		attribsDesc.location = ATTRIB_TEXCOORDS;
+		attribsDesc.format   = VK_FORMAT_R32G32_SFLOAT;
+		attribsDesc.offset   = offset;
+
+		attribsDescs.push_back(attribsDesc);
+
+		offset += (2 * sizeof(float));
+	}
+
+	attribsBindingDesc.stride    = offset;
 	attribsBindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 	//attribsBindingDesc.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
@@ -1750,10 +1787,10 @@ int VKContext::InitPipelines(Buffer* buffer)
 	// RENDER PIPELINES
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
-		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.Pipelines[i], buffer->Pipeline.Layout, false, attribsDesc, attribsBindingDesc) < 0)
+		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.Pipelines[i], buffer->Pipeline.Layout, false, attribsDescs, attribsBindingDesc) < 0)
 			return -3;
 
-		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.PipelinesFBO[i], buffer->Pipeline.Layout, true, attribsDesc, attribsBindingDesc) < 0)
+		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.PipelinesFBO[i], buffer->Pipeline.Layout, true, attribsDescs, attribsBindingDesc) < 0)
 			return -4;
 	}
 

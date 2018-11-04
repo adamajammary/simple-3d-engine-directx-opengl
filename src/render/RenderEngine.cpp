@@ -84,13 +84,18 @@ void RenderEngine::createWaterFBOs()
 		else
 			parent->FBO()->BindReflection();
 
-		glm::vec3 clipMax = glm::vec3(scale.x,  scale.y,     scale.z);
-		glm::vec3 clipMin = glm::vec3(-scale.x, position.y, -scale.z);
+		DrawProperties drawProperties = {};
+
+		drawProperties.EnableClipping = true;
+		drawProperties.FBO            = true;
+		drawProperties.ClipMax        = glm::vec3(scale.x, scale.y, scale.z);
+		drawProperties.ClipMin        = glm::vec3(-scale.x, position.y, -scale.z);
 
 		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->ReflectionFBO(), cmdBuffer);
-		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin }, cmdBuffer);
-		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin }, cmdBuffer);
-		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin }, cmdBuffer);
+
+		RenderEngine::drawSkybox(drawProperties,      cmdBuffer);
+		RenderEngine::drawTerrains(drawProperties,    cmdBuffer);
+		RenderEngine::drawRenderables(drawProperties, cmdBuffer);
 		
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
@@ -106,13 +111,14 @@ void RenderEngine::createWaterFBOs()
 		else
 			parent->FBO()->BindRefraction();
 
-		clipMax = glm::vec3(scale.x,   position.y, scale.z);
-		clipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
+		drawProperties.ClipMax = glm::vec3(scale.x,   position.y, scale.z);
+		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
 
 		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->RefractionFBO(), cmdBuffer);
-		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin }, cmdBuffer);
-		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin }, cmdBuffer);
-		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin }, cmdBuffer);
+
+		RenderEngine::drawSkybox(drawProperties,      cmdBuffer);
+		RenderEngine::drawTerrains(drawProperties,    cmdBuffer);
+		RenderEngine::drawRenderables(drawProperties, cmdBuffer);
 
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
@@ -159,7 +165,7 @@ int RenderEngine::drawBoundingVolumes()
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
 	DrawProperties properties = {};
-	properties.drawBoundingVolume = true;
+	properties.DrawBoundingVolume = true;
 
 	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
 
@@ -219,7 +225,7 @@ int RenderEngine::drawSelected()
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
 	DrawProperties properties = {};
-	properties.drawSelected = true;
+	properties.DrawSelected   = true;
 
 	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
 
@@ -361,23 +367,23 @@ void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID
 
 	for (auto mesh : meshes)
 	{
-		if (!properties.drawBoundingVolume &&
-			((properties.drawSelected && !mesh->IsSelected()) || (!properties.drawSelected && mesh->IsSelected())))
+		if (!properties.DrawBoundingVolume &&
+			((properties.DrawSelected && !mesh->IsSelected()) || (!properties.DrawSelected && mesh->IsSelected())))
 		{
 			continue;
 		}
 		
 		glm::vec4 oldColor = mesh->Color;
 
-		if (properties.drawSelected)
+		if (properties.DrawSelected)
 			mesh->Color = SceneManager::SelectColor;
 
 		RenderEngine::drawMesh(
-			(properties.drawBoundingVolume ? mesh->GetBoundingVolume() : mesh),
+			(properties.DrawBoundingVolume ? mesh->GetBoundingVolume() : mesh),
 			shaderProgram, properties, cmdBuffer
 		);
 
-		if (properties.drawSelected)
+		if (properties.DrawSelected)
 			mesh->Color = oldColor;
 	}
 

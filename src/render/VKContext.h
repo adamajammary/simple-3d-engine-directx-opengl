@@ -137,7 +137,7 @@ private:
 	VkSampler                              createImageSampler(float mipLevels, float sampleCount, bool cubeMap, VkSamplerCreateInfo &samplerInfo);
 	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageAspectFlags aspectFlags);
 	int                                    createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
-	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, bool fbo, const VkVertexInputAttributeDescription* attribsDesc, const VkVertexInputBindingDescription &attribsBindingDesc);
+	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, bool fbo, const std::vector<VkVertexInputAttributeDescription> &attribsDescs, const VkVertexInputBindingDescription &attribsBindingDesc);
 	int                                    createPipelineLayout(Buffer* buffer);
 	int                                    createUniformBuffers(Buffer* buffer);
 	int                                    createUniformLayout(VkDescriptorSetLayout* uniformLayout);
