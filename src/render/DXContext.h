@@ -72,8 +72,6 @@ public:
 private:
 	int                      commandsExecute();
 	int                      commandsInit();
-	void                     commandsColorBufferPrepare(ID3D12Resource* colorBuffer);
-	void                     commandsColorBufferPresent(ID3D12Resource* colorBuffer);
 	int                      compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
 	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, bool fbo, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
 	int                      createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
@@ -88,6 +86,7 @@ private:
 	D3D11_RASTERIZER_DESC    initRasterizer11(D3D11_CULL_MODE cullMode = D3D11_CULL_BACK,      D3D11_FILL_MODE fillMode = D3D11_FILL_SOLID);
 	D3D12_RASTERIZER_DESC    initRasterizer12(D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK, D3D12_FILL_MODE fillMode = D3D12_FILL_MODE_SOLID);
 	void                     release();
+	void                     transitionResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState);
 	void                     wait();
 
 };

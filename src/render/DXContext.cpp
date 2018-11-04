@@ -29,11 +29,14 @@ void DXContext::Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPT
 {
 	this->commandsInit();
 
-	this->commandList->RSSetViewports(1,    &viewPort);
-	this->commandList->RSSetScissorRects(1, &scissorRect);
+	this->transitionResource(
+		colorBufferResource,
+		(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
 
-	this->commandsColorBufferPrepare(colorBufferResource);
-
+	this->commandList->RSSetViewports(1,     &viewPort);
+	this->commandList->RSSetScissorRects(1,  &scissorRect);
 	this->commandList->OMSetRenderTargets(1, colorBufferHandle, TRUE, depthStencilHandle);
 }
 
@@ -45,7 +48,12 @@ void DXContext::Unbind11()
 
 void DXContext::Unbind12(ID3D12Resource* colorBufferResource)
 {
-	this->commandsColorBufferPresent(colorBufferResource);
+	this->transitionResource(
+		colorBufferResource,
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+	);
+
 	this->commandsExecute();
 	this->wait();
 }
@@ -54,7 +62,8 @@ void DXContext::Clear11(float r, float g, float b, float a)
 {
 	FLOAT color[] = { r, g, b, a };
 
-	this->Bind11(this->colorBuffer, this->depthStencilBuffer11, this->viewPort11);
+	this->deviceContext->RSSetViewports(1,     &this->viewPort11);
+	this->deviceContext->OMSetRenderTargets(1, &this->colorBuffer, this->depthStencilBuffer11);
 
 	this->deviceContext->ClearRenderTargetView(this->colorBuffer, color);
 	this->deviceContext->ClearDepthStencilView(this->depthStencilBuffer11, (D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL), 1.0f, 0);
@@ -76,7 +85,15 @@ void DXContext::Clear12(float r, float g, float b, float a)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(this->colorBufferHeap->GetCPUDescriptorHandleForHeapStart(), this->colorBufferIndex, this->colorBufferSize);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthStencilHandle(this->depthStencilBufferHeap->GetCPUDescriptorHandleForHeapStart());
 
-	this->Bind12(this->colorBuffers[this->colorBufferIndex], &colorBufferHandle, &depthStencilHandle, this->viewPort12, this->scissorRect);
+	this->commandsInit();
+
+	this->transitionResource(
+		this->colorBuffers[this->colorBufferIndex], D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	this->commandList->RSSetViewports(1,     &this->viewPort12);
+	this->commandList->RSSetScissorRects(1,  &this->scissorRect);
+	this->commandList->OMSetRenderTargets(1, &colorBufferHandle, TRUE, &depthStencilHandle);
 
 	this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	this->commandList->ClearDepthStencilView(depthStencilHandle, (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL), 1.0f, 0, 0, nullptr);
@@ -122,24 +139,6 @@ int DXContext::commandsInit()
 		return -1;
 
 	return 0;
-}
-
-void DXContext::commandsColorBufferPrepare(ID3D12Resource* colorBuffer)
-{
-	CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		colorBuffer, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
-	);
-
-	this->commandList->ResourceBarrier(1, &resourceBarrier);
-}
-
-void DXContext::commandsColorBufferPresent(ID3D12Resource* colorBuffer)
-{
-	CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		colorBuffer, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT
-	);
-
-	this->commandList->ResourceBarrier(1, &resourceBarrier);
 }
 
 int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
@@ -444,40 +443,36 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	rootParams[0].DescriptorTable  = { 1, &ranges[0] };
 	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	// SKIP SOLID SHADER (DOESN'T USE TEXTURES)
-	////if (shader->ID() != SHADER_ID_SOLID) {
-	//{
-		// TEXTURE RESOURCES
-		ranges[1].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		ranges[1].NumDescriptors                    = MAX_TEXTURES;
-		ranges[1].Flags                             = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
-		ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	// TEXTURE RESOURCES
+	ranges[1].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	ranges[1].NumDescriptors                    = MAX_TEXTURES;
+	ranges[1].Flags                             = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
+	ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-		rootParams[1].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[1].DescriptorTable  = { 1, &ranges[1] };
-		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[1].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[1].DescriptorTable  = { 1, &ranges[1] };
+	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		// TEXTURE SAMPLERS
-		ranges[2].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-		ranges[2].NumDescriptors                    = MAX_TEXTURES;
-		ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	// TEXTURE SAMPLERS
+	ranges[2].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+	ranges[2].NumDescriptors                    = MAX_TEXTURES;
+	ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-		rootParams[2].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[2].DescriptorTable  = { 1, &ranges[2] };
-		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[2].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[2].DescriptorTable  = { 1, &ranges[2] };
+	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		//// UAV
-		//ranges[3].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-		//ranges[3].NumDescriptors                    = 1;
-		//ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	//// UAV
+	//ranges[3].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	//ranges[3].NumDescriptors                    = 1;
+	//ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-		//rootParams[3].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		//rootParams[3].DescriptorTable  = { 1, &ranges[3] };
-		//rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	//rootParams[3].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	//rootParams[3].DescriptorTable  = { 1, &ranges[3] };
+	//rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-		//nrOfRootParams = 4;
-		nrOfRootParams = 3;
-	//}
+	//nrOfRootParams = 4;
+	nrOfRootParams = 3;
 
 	// ALLOW INPUT LAYOUT AND DENY ACCESS UNNECESSARY TO PIPELINE STAGES
 	rootSignatureFlags = (
@@ -674,8 +669,7 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 	result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureResourceDesc,
-		//(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-		(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_RENDER_TARGET),
+		(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)),
 		nullptr, IID_PPV_ARGS(&texture->Resource12)
 	);
 
@@ -686,7 +680,6 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	{
 		result = this->renderDevice12->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
-			//&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(texture->Resource12, 0, textureResourceDesc.DepthOrArraySize)),
 			&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(texture->Resource12, 0, textureData.size())),
 			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&textureResource)
 		);
@@ -707,10 +700,11 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 			this->commandList, texture->Resource12, textureResource, 0, 0, textureData.size(), textureData.data()
 		);
 
-		D3D12_RESOURCE_STATES stateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-		D3D12_RESOURCE_STATES stateAfter  = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-
-		this->commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(texture->Resource12, stateBefore, stateAfter));
+		this->transitionResource(
+			texture->Resource12,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
+		);
 
 		this->commandsExecute();
 		this->wait();
@@ -745,7 +739,6 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc     = {};
 	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
 	HRESULT                       result              = -1;
-	//std::vector<BYTE*>            pixels;
 
 	result = this->CreateTexture12({}, format, texture);
 
@@ -775,16 +768,6 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 }
 
 int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer)
-//	std::vector<float>        &vertices,
-//	std::vector<float>        &normals,
-//	std::vector<float>        &texCoords,
-//	ID3D11Buffer**            vertexBuffer,
-//	UINT                      &bufferStride,
-//	ID3D11InputLayout**       inputLayouts,
-//	ID3D11RasterizerState**   rasterizerStates,
-//	ID3D11DepthStencilState** depthStencilStates,
-//	ID3D11BlendState**        blendStates
-//)
 {
 	D3D11_SUBRESOURCE_DATA bufferData       = {};
 	D3D11_BUFFER_DESC      bufferDesc       = {};
@@ -1005,7 +988,7 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	ID3D11VertexShader* vertexShader   = shaderProgram->VertexShader();
 	ShaderID            shaderID       = shaderProgram->ID();
 
-	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
+	if ((vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -2;
 
 	ID3D11Buffer* constantBuffer       = nullptr;
@@ -1024,8 +1007,10 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	UINT                      vertexBufferStride     = vertexBuffer->BufferStride;
 	UINT                      vertexBufferOffset     = 0;
 
+	if (indexBuffer != nullptr)
+		this->deviceContext->IASetIndexBuffer(indexBuffer->VertexBufferDX11, DXGI_FORMAT_R32_UINT, 0);
+
 	this->deviceContext->IASetInputLayout(vertexBuffer->InputLayoutsDX11[shaderID]);
-	this->deviceContext->IASetIndexBuffer(indexBuffer->VertexBufferDX11, DXGI_FORMAT_R32_UINT, 0);
 	this->deviceContext->IASetVertexBuffers(0, 1, &vertexBufferData, &vertexBufferStride, &vertexBufferOffset);
 	this->deviceContext->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
@@ -1053,8 +1038,10 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	this->deviceContext->OMSetBlendState(vertexBuffer->BlendStatesDX11[shaderID], blendFactor, sampleMask);
 	this->deviceContext->OMSetDepthStencilState(vertexBuffer->DepthStencilStatesDX11[shaderID], 1);
 
-	this->deviceContext->DrawIndexed(mesh->NrOfIndices(), 0, 0);
-	//this->deviceContext->Draw(mesh->NrOfVertices(), 0);
+	if (indexBuffer != nullptr)
+		this->deviceContext->DrawIndexed(mesh->NrOfIndices(), 0, 0);
+	else
+		this->deviceContext->Draw(mesh->NrOfVertices(), 0);
 
 	ID3D11ShaderResourceView* nullSRV     = nullptr;
 	ID3D11SamplerState*       nullSampler = nullptr;
@@ -1650,9 +1637,6 @@ D3D11_RASTERIZER_DESC DXContext::initRasterizer11(D3D11_CULL_MODE cullMode, D3D1
 	rasterizationInfo.CullMode = cullMode;
 	rasterizationInfo.FillMode = fillMode;
 
-	//if ((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode == D3D_PRIMITIVE_TOPOLOGY_LINESTRIP)
-	//	rasterizationInfo.FillMode = D3D11_FILL_WIREFRAME;
-
 	rasterizationInfo.AntialiasedLineEnable = TRUE;
 	rasterizationInfo.FrontCounterClockwise = TRUE;
 	rasterizationInfo.MultisampleEnable     = TRUE;
@@ -1672,9 +1656,6 @@ D3D12_RASTERIZER_DESC DXContext::initRasterizer12(D3D12_CULL_MODE cullMode, D3D1
 
 	rasterizationInfo.CullMode = cullMode;
 	rasterizationInfo.FillMode = fillMode;
-
-	//if ((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::DrawMode == D3D_PRIMITIVE_TOPOLOGY_LINESTRIP)
-	//	rasterizationInfo.FillMode = D3D12_FILL_MODE_WIREFRAME;
 
 	rasterizationInfo.AntialiasedLineEnable = TRUE;
 	rasterizationInfo.FrontCounterClockwise = TRUE;
@@ -1702,7 +1683,12 @@ void DXContext::Present11()
 
 void DXContext::Present12()
 {
-	this->commandsColorBufferPresent(this->colorBuffers[this->colorBufferIndex]);
+	this->transitionResource(
+		this->colorBuffers[this->colorBufferIndex],
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT
+	);
+
 	this->commandsExecute();
 	this->swapChain12->Present((this->vSync ? 1 : 0), 0);
 	this->wait();
@@ -1772,6 +1758,12 @@ void DXContext::release()
 void DXContext::SetVSync(bool enable)
 {
 	this->vSync = enable;
+}
+
+void DXContext::transitionResource(ID3D12Resource* resource, D3D12_RESOURCE_STATES oldState, D3D12_RESOURCE_STATES newState)
+{
+	CD3DX12_RESOURCE_BARRIER resourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, oldState, newState);
+	this->commandList->ResourceBarrier(1, &resourceBarrier);
 }
 
 void DXContext::wait()
