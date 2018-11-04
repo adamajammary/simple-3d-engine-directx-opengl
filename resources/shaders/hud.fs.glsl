@@ -15,8 +15,8 @@ layout(location = 0) out vec4 GL_FragColor;
 layout(binding = 1) uniform HUDBuffer
 {
 	vec4 MaterialColor;
-	bool IsTransparent;
 	vec3 Padding1;
+	bool IsTransparent;
 } hb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];

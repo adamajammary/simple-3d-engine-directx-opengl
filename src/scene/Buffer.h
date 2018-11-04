@@ -15,6 +15,14 @@ public:
 	~Buffer();
 
 public:
+	UINT            BufferStride;
+	VkBuffer        IndexBuffer;
+	VkDeviceMemory  IndexBufferMemory;
+	VKPipeline      Pipeline;
+	VKUniform       Uniform;
+	VkBuffer        VertexBuffer;
+	VkDeviceMemory  VertexBufferMemory;
+
 	#if defined _WINDOWS
 		ID3D11BlendState*        BlendStatesDX11[NR_OF_SHADERS];
 		ID3D11DepthStencilState* DepthStencilStatesDX11[NR_OF_SHADERS];
@@ -36,50 +44,22 @@ public:
 		DXWireframeBuffer WireframeBufferValues;
 		DXTerrainBuffer   TerrainBufferValues;
 		DXWaterBuffer     WaterBufferValues;
-	#endif
+
+		ID3D11Buffer*            VertexBufferDX11;
+		ID3D12Resource*          VertexBufferDX12;
+		D3D12_INDEX_BUFFER_VIEW  IndexBufferViewDX12;
+		D3D12_VERTEX_BUFFER_VIEW VertexBufferViewDX12;
+#endif
 
 private:
-	UINT                         bufferStride;
-	GLuint                       id;
-	VkBuffer                     indexBuffer;
-	VkDeviceMemory               indexBufferMemory;
-	std::vector<float>           normals;
-	VkPipelineLayout             pipelineLayout;
-	VkPipeline                   pipelines[NR_OF_SHADERS];
-	std::vector<float>           texCoords;
-	VkBuffer                     uniformBuffers[NR_OF_UNIFORM_BUFFERS];
-	VkDeviceMemory               uniformBufferMemories[NR_OF_UNIFORM_BUFFERS];
-	VkBuffer                     vertexBuffer;
-	VkDeviceMemory               vertexBufferMemory;
-	std::vector<float>           vertices;
-	VkDescriptorSetLayout        uniformLayout;
-	VkDescriptorPool             uniformPool;
-	VkDescriptorSet              uniformSet;
-
-	#if defined _WINDOWS
-		ID3D11Buffer*            bufferDX11;
-		ID3D12Resource*          bufferDX12;
-		D3D12_INDEX_BUFFER_VIEW  indexBufferViewDX12;
-		D3D12_VERTEX_BUFFER_VIEW vertexBufferViewDX12;
-	#endif
+	GLuint             id;
+	std::vector<float> normals;
+	std::vector<float> texCoords;
+	std::vector<float> vertices;
 
 public:
-	UINT                         BufferStride();
-	GLuint                       ID();
-	VkBuffer                     IndexBuffer();
-	VkPipeline                   Pipeline(ShaderID shaderID);
-	VkPipelineLayout             PipelineLayout();
-	void                         ResetPipelines();
-	VkBuffer                     UniformBuffer(UniformBufferType uniformBuffer);
-	VkDeviceMemory               UniformBufferMemory(UniformBufferType uniformBuffer);
-	VkDescriptorSet              UniformSet();
-	VkBuffer                     VertexBuffer();
-
-	#if defined _WINDOWS
-		ID3D11Buffer*            BufferDX11();
-		D3D12_INDEX_BUFFER_VIEW  IndexBufferViewDX12();
-		D3D12_VERTEX_BUFFER_VIEW VertexBufferViewDX12();
-	#endif
+	GLuint ID();
+	void   ResetPipelines();
 
 private:
 	void init();

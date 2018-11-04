@@ -125,63 +125,83 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 	}
 }
 
-// 2D FRAMEBUFFER TEXTURE (DIRECTX 11)
-Texture::Texture(D3D11_FILTER filter, DXGI_FORMAT format, int width, int height)
+// 2D FRAMEBUFFER TEXTURE (DIRECTX)
+Texture::Texture(DXGI_FORMAT format, int width, int height)
 {
 	D3D11_SAMPLER_DESC samplerDesc11 = {};
 
 	this->repeat = true;
 	this->Scale  = glm::vec2(1.0f, 1.0f);
 
-	this->colorBufferViewPort11.TopLeftX = 0.0f;
-	this->colorBufferViewPort11.TopLeftY = 0.0f;
-	this->colorBufferViewPort11.Width    = (FLOAT)width;
-	this->colorBufferViewPort11.Height   = (FLOAT)height;
-	this->colorBufferViewPort11.MinDepth = 0.0f;
-	this->colorBufferViewPort11.MaxDepth = 1.0f;
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
+	case GRAPHICS_API_DIRECTX11:
+		this->colorBufferViewPort11.TopLeftX = 0.0f;
+		this->colorBufferViewPort11.TopLeftY = 0.0f;
+		this->colorBufferViewPort11.Width    = (FLOAT)width;
+		this->colorBufferViewPort11.Height   = (FLOAT)height;
+		this->colorBufferViewPort11.MinDepth = 0.0f;
+		this->colorBufferViewPort11.MaxDepth = 1.0f;
 
-	samplerDesc11.Filter   = filter;
-	samplerDesc11.AddressU = samplerDesc11.AddressV = samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		this->setFilteringDX11(samplerDesc11);
+		this->setWrappingDX11(samplerDesc11);
 
-	RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+		RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+
+		break;
+	case GRAPHICS_API_DIRECTX12:
+		this->colorBufferViewPort12.TopLeftX = 0.0f;
+		this->colorBufferViewPort12.TopLeftY = 0.0f;
+		this->colorBufferViewPort12.Width    = (FLOAT)width;
+		this->colorBufferViewPort12.Height   = (FLOAT)height;
+		this->colorBufferViewPort12.MinDepth = 0.0f;
+		this->colorBufferViewPort12.MaxDepth = 1.0f;
+
+		this->setFilteringDX12(this->SamplerDesc12);
+		this->setWrappingDX12(this->SamplerDesc12);
+
+		RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+
+		break;
+	#endif
+	}
 }
 
-// 2D FRAMEBUFFER TEXTURE (DIRECTX 12)
-Texture::Texture(D3D12_FILTER filter, DXGI_FORMAT format, int width, int height)
+// 2D FRAMEBUFFER TEXTURE (VULKAN)
+Texture::Texture(VkFormat format, int width, int height)
 {
 	this->repeat = true;
 	this->Scale  = glm::vec2(1.0f, 1.0f);
+	this->size   = { width, height };
 
-	this->colorBufferViewPort12.TopLeftX = 0.0f;
-	this->colorBufferViewPort12.TopLeftY = 0.0f;
-	this->colorBufferViewPort12.Width    = (FLOAT)width;
-	this->colorBufferViewPort12.Height   = (FLOAT)height;
-	this->colorBufferViewPort12.MinDepth = 0.0f;
-	this->colorBufferViewPort12.MaxDepth = 1.0f;
+	this->colorBufferViewPort.x        = 0.0f;
+	this->colorBufferViewPort.y        = 0.0f;
+	this->colorBufferViewPort.width    = (float)width;
+	this->colorBufferViewPort.height   = (float)height;
+	this->colorBufferViewPort.minDepth = 0.0f;
+	this->colorBufferViewPort.maxDepth = 1.0f;
 
-	this->SamplerDesc12.Filter   = filter;
-	this->SamplerDesc12.AddressU = this->SamplerDesc12.AddressV = this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	this->setFilteringVK(this->SamplerInfo);
+	this->setWrappingVK(this->SamplerInfo);
 
-	RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+	RenderEngine::Canvas.VK->CreateTextureBuffer(format, this);
 }
 
 // 2D FRAMEBUFFER TEXTURE (OPENGL)
-Texture::Texture(GLint filter, GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height)
+Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height)
 {
 	this->repeat = true;
 	this->Scale  = glm::vec2(1.0f, 1.0f);
 	this->type   = GL_TEXTURE_2D;
 
 	glCreateTextures(this->type, 1, &this->id);
+	glBindTexture(this->type, this->id);
 
-	glBindTexture(this->type,   this->id);
-	glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, filter);
-	glTexParameteri(this->type, GL_TEXTURE_MAG_FILTER, filter);
-	glTexImage2D(this->type,    0, formatIn, width, height, 0, formatOut, dataType, nullptr);
+	this->setFilteringGL(false);
+	this->setWrappingGL();
+
+	glTexImage2D(this->type, 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, this->type, this->id, 0);
-
 	glBindTexture(this->type, 0);
 }
 
@@ -239,10 +259,17 @@ Texture::~Texture()
 	}
 
 	RenderEngine::Canvas.VK->DestroyTexture(&this->Image, &this->ImageMemory, &this->ImageView, &this->Sampler);
+	RenderEngine::Canvas.VK->DestroyFramebuffer(&this->ColorBufferVK);
 
 	this->imageFiles.clear();
 }
 
+VkViewport Texture::ColorBufferViewPort()
+{
+	return this->colorBufferViewPort;
+}
+
+#if defined _WINDOWS
 D3D11_VIEWPORT Texture::ColorBufferViewPort11()
 {
 	return this->colorBufferViewPort11;
@@ -252,6 +279,7 @@ D3D12_VIEWPORT Texture::ColorBufferViewPort12()
 {
 	return this->colorBufferViewPort12;
 }
+#endif
 
 bool Texture::FlipY()
 {
@@ -291,6 +319,7 @@ bool Texture::IsOK()
 	return false;
 }
 
+#if defined _WINDOWS
 void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 {
 	std::vector<wxImage>  images2;
@@ -346,6 +375,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			image.Destroy();
 	}
 }
+#endif
 
 void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 {
@@ -472,6 +502,7 @@ void Texture::setAlphaBlendingGL(bool enable)
 	}
 }
 
+#if defined _WINDOWS
 void Texture::setFilteringDX11(D3D11_SAMPLER_DESC &samplerDesc)
 {
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -481,6 +512,7 @@ void Texture::setFilteringDX12(D3D12_SAMPLER_DESC &samplerDesc)
 {
 	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
 }
+#endif
 
 void Texture::setFilteringGL(bool mipmap)
 {
@@ -494,6 +526,7 @@ void Texture::setFilteringVK(VkSamplerCreateInfo &samplerInfo)
 	samplerInfo.minFilter = VK_FILTER_LINEAR;
 }
 
+#if defined _WINDOWS
 void Texture::setWrappingDX11(D3D11_SAMPLER_DESC &samplerDesc)
 {
 	samplerDesc.AddressU = (this->repeat && !this->transparent ? D3D11_TEXTURE_ADDRESS_WRAP : D3D11_TEXTURE_ADDRESS_CLAMP);
@@ -505,6 +538,7 @@ void Texture::setWrappingDX12(D3D12_SAMPLER_DESC &samplerDesc)
 	samplerDesc.AddressU = (this->repeat && !this->transparent ? D3D12_TEXTURE_ADDRESS_MODE_WRAP : D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 	samplerDesc.AddressV = samplerDesc.AddressW = samplerDesc.AddressU;
 }
+#endif
 
 void Texture::setWrappingGL()
 {
@@ -518,11 +552,13 @@ void Texture::setWrappingVK(VkSamplerCreateInfo &samplerInfo)
 	samplerInfo.addressModeV = samplerInfo.addressModeW = samplerInfo.addressModeU;
 }
 
+#if defined _WINDOWS
 void Texture::setWrappingCubemapDX11(D3D11_SAMPLER_DESC &samplerDesc)
 {
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 	samplerDesc.AddressV = samplerDesc.AddressW = samplerDesc.AddressU;
 }
+#endif
 
 void Texture::setWrappingCubemapDX12(D3D12_SAMPLER_DESC &samplerDesc)
 {

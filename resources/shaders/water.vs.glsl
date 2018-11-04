@@ -1,32 +1,26 @@
-attribute vec3 VertexNormal;
-attribute vec3 VertexPosition;
-attribute vec2 VertexTextureCoords;
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
 
-varying vec4 ClipSpace;
-varying vec4 FragmentPosition;
-varying vec2 FragmentTextureCoords;
-//varying vec3 FromVertexToCamera;
-//varying vec3 FromLightToVertex;
+layout(location = 0) in vec3 VertexNormal;
+layout(location = 1) in vec3 VertexPosition;
+layout(location = 2) in vec2 VertexTextureCoords;
 
-// uniform vec3  CameraPosition;
-//uniform float ClipHeight;
+layout(location = 0) out vec4 ClipSpace;
+layout(location = 1) out vec4 FragmentPosition;
+layout(location = 2) out vec2 FragmentTextureCoords;
 
-uniform mat4 MatrixModel;
-//uniform mat4 MatrixView;
-//uniform mat4 MatrixProjection;
-uniform mat4 MatrixMVP;
+layout(binding = 0) uniform MatrixBuffer {
+	mat4 MatrixModel;
+	mat4 MatrixView;
+	mat4 MatrixProjection;
+	mat4 MatrixMVP;
+} mb;
 
 void main()
 {
-    //vec4 worldPosition = (MatrixModel * vec4(VertexPosition, 1.0));
-    //FragmentPosition      = worldPosition;
-    //fragmentTextureCoords = vec2(vertexPosition.x * 0.5 + 0.5, vertexPosition.y * 0.5 + 0.5);
-    //fromVertexToCamera    = (cameraPosition - worldPosition.xyz);
-    //ClipSpace             = (matrixProjection * matrixView * worldPosition);
-
     FragmentTextureCoords = VertexTextureCoords;
-    FragmentPosition      = (MatrixModel * vec4(VertexPosition, 1.0));
-    ClipSpace             = (MatrixMVP   * vec4(VertexPosition, 1.0));
+    FragmentPosition      = (mb.MatrixModel * vec4(VertexPosition, 1.0));
+    ClipSpace             = (mb.MatrixMVP   * vec4(VertexPosition, 1.0));
 
     gl_Position = ClipSpace;
 }

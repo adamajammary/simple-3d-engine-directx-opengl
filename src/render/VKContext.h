@@ -89,9 +89,9 @@ private:
 	uint32_t                     imageIndex;
 	VkInstance                   instance;
 	bool                         isOK;
-	VkSampleCountFlagBits        multiSampleCount;
+	uint32_t                     multiSampleCount;
 	std::vector<VKQueue*>        queues;
-	VkRenderPass                 renderPass;
+	VkRenderPass                 renderPasses[NR_OF_RENDER_PASSES];
 	std::vector<VkSemaphore>     semDrawComplete;
 	std::vector<VkSemaphore>     semImageAvailable;
 	VkSurfaceKHR                 surface;
@@ -104,42 +104,45 @@ private:
 	#endif
 
 public:
-	void Clear(float r, float g, float b, float a);
-	int  CreateIndexBuffer(const std::vector<uint32_t> &indices, VkBuffer* indexBuffer, VkDeviceMemory* indexBufferMemory);
-	int  CreatePipelineLayout(VkPipelineLayout* pipelineLayout, VkDescriptorSetLayout uniformLayout);
-	int  CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	int  CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
-	int  CreateUniformBuffers(VkBuffer* uniformBuffer, VkDeviceMemory* uniformBufferMemory);
-	int  CreateUniformSet(VkDescriptorSet* uniformSet, VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int  CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, VkPipeline* pipelines, VkPipelineLayout pipelineLayout, VkBuffer* vertexBuffer, VkDeviceMemory* vertexBufferMemory);
-	void DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	void DestroyPipeline(VkPipeline* pipeline);
-	void DestroyPipelineLayout(VkPipelineLayout* pipelineLayout);
-	void DestroyShaderModule(VkShaderModule* shaderModule);
-	void DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
-	void DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int  Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	bool IsOK();
-	void Present();
-	void ResetPipelines();
-	bool ResetSwapChain();
-	void SetVSync(bool enable);
+	void            Clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	VkCommandBuffer CommandBufferBegin();
+	void            CommandBufferEnd(VkCommandBuffer cmdBuffer);
+	int             CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* buffer);
+	int             CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
+	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
+	int             CreateTextureBuffer(VkFormat format, Texture* texture);
+	int             CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
+	void            DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
+	void            DestroyFramebuffer(VkFramebuffer* frameBuffer);
+	void            DestroyPipeline(VkPipeline* pipeline);
+	void            DestroyPipelineLayout(VkPipelineLayout* pipelineLayout);
+	void            DestroyShaderModule(VkShaderModule* shaderModule);
+	void            DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
+	void            DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
+	int             Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	int             InitPipelines(Buffer* buffer);
+	bool            IsOK();
+	void            Present(VkCommandBuffer cmdBuffer = nullptr);
+	void            ResetPipelines();
+	bool            ResetSwapChain();
+	void            SetVSync(bool enable);
 
 private:
-	void                                   blitImage(VkCommandBuffer commandBuffer, VkImage image, int mipWidth, int mipHeight, int index);
-	VkCommandBuffer                        commandBufferBegin();
-	void                                   commandBufferEnd(VkCommandBuffer commandBuffer);
+	void                                   blitImage(VkCommandBuffer cmdBuffer, VkImage image, int mipWidth, int mipHeight, int index);
 	int                                    copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
 	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t index = 0);
 	int                                    copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                    createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
-	VkSampler                              createImageSampler(float mipLevels, bool cubeMap, VkSamplerCreateInfo &samplerInfo);
+	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
+	VkSampler                              createImageSampler(float mipLevels, float sampleCount, bool cubeMap, VkSamplerCreateInfo &samplerInfo);
 	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageAspectFlags aspectFlags);
 	int                                    createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
-	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, VkVertexInputBindingDescription attribsBindingDesc, VkVertexInputAttributeDescription attribsDesc[NR_OF_ATTRIBS]);
+	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, bool fbo, const VkVertexInputAttributeDescription* attribsDesc, const VkVertexInputBindingDescription &attribsBindingDesc);
+	int                                    createPipelineLayout(Buffer* buffer);
+	int                                    createUniformBuffers(Buffer* buffer);
 	int                                    createUniformLayout(VkDescriptorSetLayout* uniformLayout);
 	int                                    createUniformPool(VkDescriptorPool* uniformPool);
+	int                                    createUniformSet(Buffer* buffer);
 	bool                                   deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
 	bool                                   deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                               getApiVersion(VkPhysicalDevice device);
@@ -150,7 +153,7 @@ private:
 	VKSwapChainSupport*                    getDeviceSwapChainSupport(VkPhysicalDevice device);
 	VkFormat                               getImageFormat(const std::vector<VkFormat> &formats, VkImageTiling imageTiling, VkFormatFeatureFlags features);
 	uint32_t                               getMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-	VkSampleCountFlagBits                  getMultiSampleCount();
+	uint32_t                               getMultiSampleCount();
 	VkPresentModeKHR                       getPresentationMode(const std::vector<VkPresentModeKHR> &presentationModes);
 	VkSurfaceFormatKHR                     getSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &surfaceFormats);
 	VkExtent2D                             getSurfaceSize(const VkSurfaceCapabilitiesKHR &capabilities);
@@ -163,17 +166,17 @@ private:
 	VkDevice                               initDeviceContext();
 	std::vector<VkFramebuffer>             initFramebuffers();
 	VkInstance                             initInstance();
-	VkPipelineMultisampleStateCreateInfo   initMultisampling();
+	VkPipelineMultisampleStateCreateInfo   initMultisampling(uint32_t sampleCount);
 	VkPipelineRasterizationStateCreateInfo initRasterizer(VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT, VkPolygonMode polyMode = VK_POLYGON_MODE_FILL);
-	VkRenderPass                           initRenderPass();
+	VkRenderPass                           initRenderPass(VkFormat format, uint32_t sampleCount, size_t attachmentCount);
 	VkSurfaceKHR                           initSurface();
 	VKSwapchain*                           initSwapChain();
 	bool                                   initSync();
-	VkPipelineViewportStateCreateInfo      initViewport(VkRect2D &scissorRect, VkViewport &viewport);
+	VkPipelineViewportStateCreateInfo      initViewport();
 	bool                                   init(bool vsync = true);
 	void                                   release();
 	void                                   releaseSwapChain(bool releaseSupport);
-	void                                   transitionImageLayout(VkCommandBuffer commandBuffer, VkImageMemoryBarrier &imageMemBarrier, VkPipelineStageFlagBits destStage);
+	void                                   transitionImageLayout(VkCommandBuffer cmdBuffer, VkImageMemoryBarrier &imageMemBarrier, VkPipelineStageFlagBits destStage);
 	bool                                   updateSwapChain(bool updateSupport);
 
 	#if defined _DEBUG

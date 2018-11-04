@@ -8,19 +8,20 @@
 class Texture
 {
 public:
-	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = glm::vec2(1.0f, 1.0f));
-	Texture(const wxString &imageFile, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = glm::vec2(1.0f, 1.0f));
-	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = glm::vec2(1.0f, 1.0f));
-	Texture(GLint filter, GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width = 100, int height = 100);
+	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture(const wxString &imageFile, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture::Texture(VkFormat format, int width, int height);
+	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height);
 	Texture();
 	~Texture();
 
 	#if defined _WINDOWS
-	Texture(D3D11_FILTER filter, DXGI_FORMAT format, int width = 100, int height = 100);
-	Texture(D3D12_FILTER filter, DXGI_FORMAT format, int width = 100, int height = 100);
-#endif
+		Texture(DXGI_FORMAT format, int width, int height);
+	#endif
 
 public:
+	VkFramebuffer       ColorBufferVK;
 	VkImage             Image;
 	VkDeviceMemory      ImageMemory;
 	VkImageView         ImageView;
@@ -48,6 +49,7 @@ private:
 	wxSize                size;
 	bool                  transparent;
 	GLenum                type;
+	VkViewport            colorBufferViewPort;
 
 	#if defined _WINDOWS
 		D3D11_VIEWPORT      colorBufferViewPort11;
@@ -56,18 +58,19 @@ private:
 	#endif
 
 public:
-	bool     FlipY();
-	bool     Repeat();
-	bool     Transparent();
-	GLuint   ID();
-	wxString ImageFile(int index = 0);
-	bool     IsOK();
-	uint32_t MipLevels();
-	void     SetFlipY(bool newFlipY);
-	void     SetRepeat(bool newRepeat);
-	void     SetTransparent(bool newTransparent);
-	wxSize   Size();
-	GLenum   Type();
+	VkViewport ColorBufferViewPort();
+	bool       FlipY();
+	bool       Repeat();
+	bool       Transparent();
+	GLuint     ID();
+	wxString   ImageFile(int index = 0);
+	bool       IsOK();
+	uint32_t   MipLevels();
+	void       SetFlipY(bool newFlipY);
+	void       SetRepeat(bool newRepeat);
+	void       SetTransparent(bool newTransparent);
+	wxSize     Size();
+	GLenum     Type();
 
 	#if defined _WINDOWS
 		D3D11_VIEWPORT ColorBufferViewPort11();

@@ -76,10 +76,7 @@ void DXContext::Clear12(float r, float g, float b, float a)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(this->colorBufferHeap->GetCPUDescriptorHandleForHeapStart(), this->colorBufferIndex, this->colorBufferSize);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthStencilHandle(this->depthStencilBufferHeap->GetCPUDescriptorHandleForHeapStart());
 
-	this->Bind12(
-		this->colorBuffers[this->colorBufferIndex], &colorBufferHandle,
-		&depthStencilHandle, this->viewPort12, this->scissorRect
-	);
+	this->Bind12(this->colorBuffers[this->colorBufferIndex], &colorBufferHandle, &depthStencilHandle, this->viewPort12, this->scissorRect);
 
 	this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	this->commandList->ClearDepthStencilView(depthStencilHandle, (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL), 1.0f, 0, 0, nullptr);
@@ -282,7 +279,7 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 	return 0;
 }
 
-int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, ID3D11Buffer** indexBuffer)
+int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, Buffer* buffer)
 {
 	D3D11_SUBRESOURCE_DATA bufferData = {};
 	D3D11_BUFFER_DESC      bufferDesc = {};
@@ -292,7 +289,7 @@ int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, ID3D11Buf
 	bufferDesc.ByteWidth = (indices.size() * sizeof(unsigned int));
 	bufferData.pSysMem   = &indices[0];
 
-	result = this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, indexBuffer);
+	result = this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, &buffer->VertexBufferDX11);
 
 	if (FAILED(result))
 		return -1;
@@ -300,7 +297,7 @@ int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, ID3D11Buf
 	return 0;
 }
 
-int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, ID3D12Resource** indexBuffer, D3D12_INDEX_BUFFER_VIEW &bufferView)
+int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* buffer)
 {
 	D3D12_SUBRESOURCE_DATA bufferData     = {};
 	UINT                   bufferSize     = (indices.size() * sizeof(unsigned int));
@@ -309,7 +306,7 @@ int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, ID3D12Res
 
 	result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(indexBuffer)
+		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffer->VertexBufferDX12)
 	);
 
 	if (FAILED(result))
@@ -327,16 +324,16 @@ int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, ID3D12Res
 	bufferData.RowPitch   = bufferSize;
 	bufferData.SlicePitch = bufferSize;
 
-	bufferView.BufferLocation = (*indexBuffer)->GetGPUVirtualAddress();
-	bufferView.Format         = DXGI_FORMAT_R32_UINT;
-	bufferView.SizeInBytes    = bufferSize;
+	buffer->IndexBufferViewDX12.BufferLocation = buffer->VertexBufferDX12->GetGPUVirtualAddress();
+	buffer->IndexBufferViewDX12.Format         = DXGI_FORMAT_R32_UINT;
+	buffer->IndexBufferViewDX12.SizeInBytes    = bufferSize;
 
 	this->commandsInit();
 
-	UpdateSubresources(this->commandList, *indexBuffer, bufferResource, 0, 0, 1, &bufferData);
+	UpdateSubresources(this->commandList, buffer->VertexBufferDX12, bufferResource, 0, 0, 1, &bufferData);
 
 	this->commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(*indexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER)
+		1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer->VertexBufferDX12, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_INDEX_BUFFER)
 	);
 
 	this->commandsExecute();
@@ -552,9 +549,9 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 	if (texture == nullptr)
 		return -1;
 
-	D3D11_RENDER_TARGET_VIEW_DESC   colorBufferDesc = {};
-	HRESULT                         result          = -1;
-	std::vector<BYTE*>              pixels;
+	D3D11_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+	HRESULT                       result          = -1;
+	std::vector<BYTE*>            pixels;
 
 	result = this->CreateTexture11(pixels, format, samplerDesc, texture);
 
@@ -666,7 +663,8 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	
 	texture->SamplerDesc12.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
 	//texture->SamplerDesc12->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	texture->SamplerDesc12.MaxAnisotropy  = this->multiSampleCount;
+	//texture->SamplerDesc12.MaxAnisotropy  = this->multiSampleCount;
+	texture->SamplerDesc12.MaxAnisotropy  = 1;
 	texture->SamplerDesc12.MaxLOD         = D3D12_FLOAT32_MAX;
 
 	return 0;
@@ -677,9 +675,9 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc     = {};
 	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
 	HRESULT                       result              = -1;
-	std::vector<BYTE*>            pixels;
+	//std::vector<BYTE*>            pixels;
 
-	result = this->CreateTexture12(pixels, format, texture);
+	result = this->CreateTexture12({}, format, texture);
 
 	if (FAILED(result))
 		return -1;
@@ -706,17 +704,17 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	return 0;
 }
 
-int DXContext::CreateVertexBuffer11(
-	std::vector<float>        &vertices,
-	std::vector<float>        &normals,
-	std::vector<float>        &texCoords,
-	ID3D11Buffer**            vertexBuffer,
-	UINT                      &bufferStride,
-	ID3D11InputLayout**       inputLayouts,
-	ID3D11RasterizerState**   rasterizerStates,
-	ID3D11DepthStencilState** depthStencilStates,
-	ID3D11BlendState**        blendStates
-)
+int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer)
+//	std::vector<float>        &vertices,
+//	std::vector<float>        &normals,
+//	std::vector<float>        &texCoords,
+//	ID3D11Buffer**            vertexBuffer,
+//	UINT                      &bufferStride,
+//	ID3D11InputLayout**       inputLayouts,
+//	ID3D11RasterizerState**   rasterizerStates,
+//	ID3D11DepthStencilState** depthStencilStates,
+//	ID3D11BlendState**        blendStates
+//)
 {
 	D3D11_SUBRESOURCE_DATA bufferData       = {};
 	D3D11_BUFFER_DESC      bufferDesc       = {};
@@ -726,7 +724,7 @@ int DXContext::CreateVertexBuffer11(
 	bufferDesc.ByteWidth = (vertexBufferData.size() * sizeof(float));
 	bufferData.pSysMem   = &vertexBufferData[0];
 
-	if (FAILED(this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, vertexBuffer)))
+	if (FAILED(this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, &buffer->VertexBufferDX11)))
 		return -1;
 
 	D3D11_INPUT_ELEMENT_DESC inputElementDesc[NR_OF_ATTRIBS] = {};
@@ -752,7 +750,7 @@ int DXContext::CreateVertexBuffer11(
 	inputElementDesc[ATTRIB_TEXCOORDS].AlignedByteOffset = (6 * sizeof(float));
 	inputElementDesc[ATTRIB_TEXCOORDS].InputSlotClass    = D3D11_INPUT_PER_VERTEX_DATA;
 
-	bufferStride = (8 * sizeof(float));
+	buffer->BufferStride = (8 * sizeof(float));
 
 	D3D11_BLEND_DESC         blendDesc        = {};
 	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
@@ -769,7 +767,7 @@ int DXContext::CreateVertexBuffer11(
 			return -3;
 
 		HRESULT result = this->renderDevice11->CreateInputLayout(
-			inputElementDesc, NR_OF_ATTRIBS, vs->GetBufferPointer(), vs->GetBufferSize(), &inputLayouts[i]
+			inputElementDesc, NR_OF_ATTRIBS, vs->GetBufferPointer(), vs->GetBufferSize(), &buffer->InputLayoutsDX11[i]
 		);
 
 		if (FAILED(result))
@@ -786,11 +784,6 @@ int DXContext::CreateVertexBuffer11(
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE, D3D11_COMPARISON_LESS_EQUAL);
 			rasterizerDesc   = this->initRasterizer11(D3D11_CULL_NONE);
 			break;
-		case SHADER_ID_WATER:
-			blendDesc        = this->initColorBlending11(FALSE);
-			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
-			rasterizerDesc   = this->initRasterizer11();
-			break;
 		default:
 			blendDesc        = this->initColorBlending11(FALSE);
 			depthStencilDesc = this->initDepthStencilBuffer11(TRUE);
@@ -801,29 +794,29 @@ int DXContext::CreateVertexBuffer11(
 		if ((ShaderID)i == SHADER_ID_WIREFRAME)
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 
-		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &rasterizerStates[i])))
+		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &buffer->RasterizerStatesDX11[i])))
 			return -5;
 
-		if (FAILED(this->renderDevice11->CreateBlendState(&blendDesc, &blendStates[i])))
+		if (FAILED(this->renderDevice11->CreateBlendState(&blendDesc, &buffer->BlendStatesDX11[i])))
 			return -6;
 
-		if (FAILED(this->renderDevice11->CreateDepthStencilState(&depthStencilDesc, &depthStencilStates[i])))
+		if (FAILED(this->renderDevice11->CreateDepthStencilState(&depthStencilDesc, &buffer->DepthStencilStatesDX11[i])))
 			return -7;
 	}
 
 	return 0;
 }
 
-int DXContext::CreateVertexBuffer12(
-	std::vector<float>       &vertices,
-	std::vector<float>       &normals,
-	std::vector<float>       &texCoords,
-	ID3D12Resource**         vertexBuffer,
-	UINT                     &bufferStride,
-	D3D12_VERTEX_BUFFER_VIEW &bufferView,
-	ID3D12PipelineState**    pipelineStates,
-	ID3D12RootSignature**    rootSignatures
-)
+int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer)
+//	std::vector<float>       &vertices,
+//	std::vector<float>       &normals,
+//	std::vector<float>       &texCoords,
+//	ID3D12Resource**         vertexBuffer,
+//	UINT                     &bufferStride,
+//	D3D12_VERTEX_BUFFER_VIEW &bufferView,
+//	ID3D12PipelineState**    pipelineStates,
+//	ID3D12RootSignature**    rootSignatures
+//)
 {
 	UINT offset = 0;
 
@@ -836,14 +829,14 @@ int DXContext::CreateVertexBuffer12(
 	if (!texCoords.empty())
 		offset += (2 * sizeof(float));
 
-	bufferStride = offset;
+	buffer->BufferStride = offset;
 
 	std::vector<float> vertexBufferData = Utils::ToVertexBufferData(vertices, normals, texCoords);
 	UINT               bufferSize       = (vertexBufferData.size() * sizeof(float));
 
 	HRESULT result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
-		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(vertexBuffer)
+		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffer->VertexBufferDX12)
 	);
 
 	if (FAILED(result))
@@ -865,16 +858,16 @@ int DXContext::CreateVertexBuffer12(
 	bufferData.RowPitch   = bufferSize;
 	bufferData.SlicePitch = bufferSize;
 
-	bufferView.BufferLocation = (*vertexBuffer)->GetGPUVirtualAddress();
-	bufferView.StrideInBytes  = bufferStride;
-	bufferView.SizeInBytes    = bufferSize;
+	buffer->VertexBufferViewDX12.BufferLocation = (buffer->VertexBufferDX12)->GetGPUVirtualAddress();
+	buffer->VertexBufferViewDX12.StrideInBytes  = buffer->BufferStride;
+	buffer->VertexBufferViewDX12.SizeInBytes    = bufferSize;
 
 	this->commandsInit();
 
-	UpdateSubresources(this->commandList, *vertexBuffer, bufferResource, 0, 0, 1, &bufferData);
+	UpdateSubresources(this->commandList, buffer->VertexBufferDX12, bufferResource, 0, 0, 1, &bufferData);
 
 	this->commandList->ResourceBarrier(
-		1, &CD3DX12_RESOURCE_BARRIER::Transition(*vertexBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
+		1, &CD3DX12_RESOURCE_BARRIER::Transition(buffer->VertexBufferDX12, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER)
 	);
 
 	this->commandsExecute();
@@ -910,6 +903,8 @@ int DXContext::CreateVertexBuffer12(
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
 	pipelineStateDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
+	//pipelineStateDesc.DSVFormat        = DXGI_FORMAT_UNKNOWN;
+	//pipelineStateDesc.DepthStencilState.DepthEnable = FALSE;
 	pipelineStateDesc.InputLayout      = { inputElementDesc, _countof(inputElementDesc) };
 	pipelineStateDesc.NumRenderTargets = 1;
 	pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -928,12 +923,12 @@ int DXContext::CreateVertexBuffer12(
 		if ((vs == nullptr) || (fs == nullptr))
 			return -1;
 
-		result = this->createRootSignature(ShaderManager::Programs[i], &rootSignatures[i]);
+		result = this->createRootSignature(ShaderManager::Programs[i], &buffer->RootSignaturesDX12[i]);
 
 		if (FAILED(result))
 			return -1;
 
-		pipelineStateDesc.pRootSignature = rootSignatures[i];
+		pipelineStateDesc.pRootSignature = buffer->RootSignaturesDX12[i];
 
 		pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
 		pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
@@ -952,11 +947,6 @@ int DXContext::CreateVertexBuffer12(
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE, D3D12_COMPARISON_FUNC_LESS_EQUAL);
 			pipelineStateDesc.RasterizerState   = this->initRasterizer12(D3D12_CULL_MODE_NONE);
 			break;
-		case SHADER_ID_WATER:
-			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
-			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
-			pipelineStateDesc.RasterizerState   = this->initRasterizer12();
-			break;
 		default:
 			pipelineStateDesc.BlendState        = this->initColorBlending12(FALSE);
 			pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(TRUE);
@@ -969,7 +959,7 @@ int DXContext::CreateVertexBuffer12(
 			pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		}
 
-		result = this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&pipelineStates[i]));
+		result = this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(&buffer->PipelineStatesDX12[i]));
 
 		if (FAILED(result))
 			return -1;
@@ -1004,12 +994,12 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 
 	ID3D11SamplerState*       samplers[MAX_TEXTURES] = {};
 	ID3D11ShaderResourceView* srvs[MAX_TEXTURES]     = {};
-	ID3D11Buffer*             vertexBufferData       = vertexBuffer->BufferDX11();
-	UINT                      vertexBufferStride     = vertexBuffer->BufferStride();
+	ID3D11Buffer*             vertexBufferData       = vertexBuffer->VertexBufferDX11;
+	UINT                      vertexBufferStride     = vertexBuffer->BufferStride;
 	UINT                      vertexBufferOffset     = 0;
 
 	this->deviceContext->IASetInputLayout(vertexBuffer->InputLayoutsDX11[shaderID]);
-	this->deviceContext->IASetIndexBuffer(indexBuffer->BufferDX11(), DXGI_FORMAT_R32_UINT, 0);
+	this->deviceContext->IASetIndexBuffer(indexBuffer->VertexBufferDX11, DXGI_FORMAT_R32_UINT, 0);
 	this->deviceContext->IASetVertexBuffers(0, 1, &vertexBufferData, &vertexBufferStride, &vertexBufferOffset);
 	this->deviceContext->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
@@ -1056,11 +1046,11 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*    indexBuffer    = mesh->IndexBuffer();
-	Buffer*    vertexBuffer   = mesh->VertexBuffer();
-	ID3DBlob*  fragmentShader = shaderProgram->FS();
-	ID3DBlob*  vertexShader   = shaderProgram->VS();
-	ShaderID   shaderID       = shaderProgram->ID();
+	Buffer*   indexBuffer    = mesh->IndexBuffer();
+	Buffer*   vertexBuffer   = mesh->VertexBuffer();
+	ID3DBlob* fragmentShader = shaderProgram->FS();
+	ID3DBlob* vertexShader   = shaderProgram->VS();
+	ShaderID  shaderID       = shaderProgram->ID();
 
 	if ((indexBuffer == nullptr) || (vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -1;
@@ -1068,8 +1058,8 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	if (shaderProgram->UpdateUniformsDX12(mesh, properties) < 0)
 		return -1;
 
-	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = indexBuffer->IndexBufferViewDX12();
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = vertexBuffer->VertexBufferViewDX12();
+	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = indexBuffer->IndexBufferViewDX12;
+	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = vertexBuffer->VertexBufferViewDX12;
 	
 	ID3D12DescriptorHeap* descHeaps[2] = {
 		vertexBuffer->ConstantBufferHeapsDX12[shaderProgram->ID()],

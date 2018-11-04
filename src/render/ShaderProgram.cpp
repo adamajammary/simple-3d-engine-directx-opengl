@@ -372,33 +372,28 @@ void ShaderProgram::setUniformsGL()
 	glUseProgram(this->program);
 
 	// MATRIX BUFFER
-	this->Uniforms[MATRIX_BUFFER] = glGetUniformBlockIndex(this->program, "MatrixBuffer");
-	glGenBuffers(1, &this->UniformBuffers[MATRIX_BUFFER]);
+	this->Uniforms[UBO_GL_MATRIX] = glGetUniformBlockIndex(this->program, "MatrixBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_MATRIX]);
 
 	// DEFAULT BUFFER
-	this->Uniforms[DEFAULT_BUFFER] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
-	glGenBuffers(1, &this->UniformBuffers[DEFAULT_BUFFER]);
+	this->Uniforms[UBO_GL_DEFAULT] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_DEFAULT]);
 
 	// HUD BUFFER
-	this->Uniforms[HUD_BUFFER] = glGetUniformBlockIndex(this->program, "HUDBuffer");
-	glGenBuffers(1, &this->UniformBuffers[HUD_BUFFER]);
+	this->Uniforms[UBO_GL_HUD] = glGetUniformBlockIndex(this->program, "HUDBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_HUD]);
+
+	// WATER BUFFER
+	this->Uniforms[UBO_GL_WATER] = glGetUniformBlockIndex(this->program, "WaterBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WATER]);
 
 	// WIREFRAME BUFFER
-	this->Uniforms[WIREFRAME_BUFFER] = glGetUniformBlockIndex(this->program, "WireframeBuffer");
-	glGenBuffers(1, &this->UniformBuffers[WIREFRAME_BUFFER]);
-
-	// CAMERA
-	this->Uniforms[CAMERA_POSITION] = glGetUniformLocation(this->program, "CameraMain.Position");
-	this->Uniforms[CAMERA_NEAR]     = glGetUniformLocation(this->program, "CameraMain.Near");
-	this->Uniforms[CAMERA_FAR]      = glGetUniformLocation(this->program, "CameraMain.Far");
-
-	// WATER
-	this->Uniforms[MOVE_FACTOR]   = glGetUniformLocation(this->program, "MoveFactor");
-	this->Uniforms[WAVE_STRENGTH] = glGetUniformLocation(this->program, "WaveStrength");
+	this->Uniforms[UBO_GL_WIREFRAME] = glGetUniformBlockIndex(this->program, "WireframeBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WIREFRAME]);
 
 	// BIND TEXTURES
 	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Uniforms[TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
+		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
 
 	glUseProgram(0);
 }
@@ -431,7 +426,7 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 	bool  removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
 
 	// MATRIX BUFFER
-	id = this->Uniforms[MATRIX_BUFFER];
+	id = this->Uniforms[UBO_GL_MATRIX];
 
 	if (id >= 0)
 	{
@@ -442,11 +437,11 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 		mb.Projection = RenderEngine::Camera->Projection();
 		mb.View       = RenderEngine::Camera->View(removeTranslation);
 
-		this->updateUniformGL(id, MATRIX_BUFFER, &mb, sizeof(mb));
+		this->updateUniformGL(id, UBO_GL_MATRIX, &mb, sizeof(mb));
 	}
 
 	// DEFAULT BUFFER
-	id = this->Uniforms[DEFAULT_BUFFER];
+	id = this->Uniforms[UBO_GL_DEFAULT];
 
 	if (id >= 0)
 	{
@@ -463,11 +458,11 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 		for (int i = 0; i < MAX_TEXTURES; i++)
 			db.TextureScales[i] = mesh->Textures[i]->Scale;
 
-		this->updateUniformGL(id, DEFAULT_BUFFER, &db, sizeof(db));
+		this->updateUniformGL(id, UBO_GL_DEFAULT, &db, sizeof(db));
 	}
 
 	// HUD BUFFER
-	id = this->Uniforms[HUD_BUFFER];
+	id = this->Uniforms[UBO_GL_HUD];
 
 	if (id >= 0)
 	{
@@ -476,31 +471,40 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 		hb.MaterialColor = mesh->Color;
 		hb.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
 
-		this->updateUniformGL(id, HUD_BUFFER, &hb, sizeof(hb));
+		this->updateUniformGL(id, UBO_GL_HUD, &hb, sizeof(hb));
+	}
+
+	// WATER BUFFER
+	id = this->Uniforms[UBO_GL_WATER];
+
+	if (id >= 0)
+	{
+		GLWaterBuffer wb;
+
+		wb.CameraMain.Position = RenderEngine::Camera->Position();
+		wb.CameraMain.Near     = RenderEngine::Camera->Near();
+		wb.CameraMain.Far      = RenderEngine::Camera->Far();
+		wb.SunLight            = SceneManager::SunLight;
+		wb.EnableClipping      = properties.enableClipping;
+		wb.ClipMax             = properties.clipMax;
+		wb.ClipMin             = properties.clipMin;
+		wb.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
+		wb.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			wb.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		this->updateUniformGL(id, UBO_GL_WATER, &wb, sizeof(wb));
 	}
 
 	// WIREFRAME BUFFER
-	id = this->Uniforms[WIREFRAME_BUFFER];
+	id = this->Uniforms[UBO_GL_WIREFRAME];
 
 	if (id >= 0)
 	{
 		GLWireframeBuffer wb = { mesh->Color };
-		this->updateUniformGL(id, WIREFRAME_BUFFER, &wb, sizeof(wb));
+		this->updateUniformGL(id, UBO_GL_WIREFRAME, &wb, sizeof(wb));
 	}
-
-    // CAMERA
-    if ((id = this->Uniforms[CAMERA_POSITION]) >= 0)
-		glUniform3fv(id, 1, glm::value_ptr(RenderEngine::Camera->Position()));
-    if ((id = this->Uniforms[CAMERA_NEAR]) >= 0)
-		glUniform1f(id, RenderEngine::Camera->Near());
-    if ((id = this->Uniforms[CAMERA_FAR]) >= 0)
-		glUniform1f(id, RenderEngine::Camera->Far());
-        
-    // WATER
-	if (((id = this->Uniforms[MOVE_FACTOR]) >= 0) && (mesh->Parent != nullptr))
-		glUniform1f(id, dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor());
-	if (((id = this->Uniforms[WAVE_STRENGTH]) >= 0) && (mesh->Parent != nullptr))
-		glUniform1f(id, dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength);
 
     // BIND TEXTURES
     for (int i = 0; i < MAX_TEXTURES; i++)
@@ -508,7 +512,7 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
         if (mesh->Textures[i] == nullptr)
 			continue;
 
-        glUniform1i(this->Uniforms[TEXTURES0 + i], i);
+        glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
     }
@@ -516,21 +520,20 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 	return 0;
 }
 
-void ShaderProgram::updateUniformGL(GLint id, Uniform buffer, void* values, size_t valuesSize)
+void ShaderProgram::updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* values, size_t valuesSize)
 {
 	glBindBufferBase(GL_UNIFORM_BUFFER, id, this->UniformBuffers[buffer]);
 	glBufferData(GL_UNIFORM_BUFFER, valuesSize, values, GL_STATIC_DRAW);
 	glUniformBlockBinding(this->program, id, id);
 }
 
-int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const DrawProperties &properties)
+int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VKUniform &uniform, const DrawProperties &properties)
 {
 	GLDefaultBuffer   defaultValues     = {};
 	GLHUDBuffer       hudValues         = {};
 	GLMatrixBuffer    matrices          = {};
+	GLWaterBuffer     waterValues       = {};
 	GLWireframeBuffer wireframeValues   = {};
-	void*             values            = nullptr;
-	size_t            valuesSize        = 0;
 	bool              removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
 
 	matrices.Model      = mesh->Matrix();
@@ -539,7 +542,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const Dr
 	matrices.MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
 
 	int result = ShaderProgram::updateUniformsVK(
-		UNIFORM_BUFFER_MATRIX, UNIFORM_BINDING_MATRIX, &matrices, sizeof(matrices), deviceContext, mesh
+		UBO_VK_MATRIX, UBO_BINDING_MATRIX, uniform, &matrices, sizeof(matrices), deviceContext, mesh
 	);
 
 	if (result < 0)
@@ -559,37 +562,53 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const Dr
 		for (int i = 0; i < MAX_TEXTURES; i++)
 			defaultValues.TextureScales[i] = mesh->Textures[i]->Scale;
 
-		values     = &defaultValues;
-		valuesSize = sizeof(defaultValues);
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_DEFAULT, UBO_BINDING_DEFAULT, uniform, &defaultValues, sizeof(defaultValues), deviceContext, mesh
+		);
 
 		break;
 	case SHADER_ID_HUD:
 		hudValues.MaterialColor = mesh->Color;
 		hudValues.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
 
-		values     = &hudValues;
-		valuesSize = sizeof(hudValues);
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_HUD, UBO_BINDING_DEFAULT, uniform, &hudValues, sizeof(hudValues), deviceContext, mesh
+		);
 
 		break;
 	case SHADER_ID_WATER:
+		waterValues.CameraMain.Position = RenderEngine::Camera->Position();
+		waterValues.CameraMain.Near     = RenderEngine::Camera->Near();
+		waterValues.CameraMain.Far      = RenderEngine::Camera->Far();
+		waterValues.SunLight            = SceneManager::SunLight;
+		waterValues.EnableClipping      = properties.enableClipping;
+		waterValues.ClipMax             = properties.clipMax;
+		waterValues.ClipMin             = properties.clipMin;
+		waterValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
+		waterValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			waterValues.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_WATER, UBO_BINDING_DEFAULT, uniform, &waterValues, sizeof(waterValues), deviceContext, mesh
+		);
+
 		break;
 	case SHADER_ID_WIREFRAME:
 		wireframeValues.Color = mesh->Color;
 
-		values     = &wireframeValues;
-		valuesSize = sizeof(wireframeValues);
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_WIREFRAME, UBO_BINDING_DEFAULT, uniform, &wireframeValues, sizeof(wireframeValues), deviceContext, mesh
+		);
 
 		break;
 	}
 
-	result = ShaderProgram::updateUniformsVK(
-		UNIFORM_BUFFER_DEFAULT, UNIFORM_BINDING_DEFAULT, values, valuesSize, deviceContext, mesh
-	);
-
 	if (result < 0)
 		return -2;
 
-	result = ShaderProgram::updateUniformSamplersVK(deviceContext, mesh);
+	result = ShaderProgram::updateUniformSamplersVK(uniform.Set, deviceContext, mesh);
 
 	if (result < 0)
 		return -3;
@@ -597,7 +616,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const Dr
 	return 0;
 }
 
-int ShaderProgram::updateUniformsVK(UniformBufferType type, UniformBinding binding, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh)
+int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh)
 {
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
@@ -607,21 +626,20 @@ int ShaderProgram::updateUniformsVK(UniformBufferType type, UniformBinding bindi
 	if (vertexBuffer == nullptr)
 		return -2;
 
-	void*                  bufferMemData = nullptr;
-	VkBuffer               uniformBuffer       = vertexBuffer->UniformBuffer(type);
+	void*                  bufferMemData       = nullptr;
+	VkBuffer               uniformBuffer       = uniform.Buffers[type];
 	VkDescriptorBufferInfo uniformBufferInfo   = {};
-	VkDeviceMemory         uniformBufferMemory = vertexBuffer->UniformBufferMemory(type);
-	VkDescriptorSet        uniformSet          = vertexBuffer->UniformSet();
+	VkDeviceMemory         uniformBufferMemory = uniform.BufferMemories[type];
 	VkWriteDescriptorSet   uniformWriteSet     = {};
 
-	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr) || (uniformSet == nullptr))
+	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr) || (uniform.Set == nullptr))
 		return -3;
 
 	// Initialize uniform buffer descriptor set
 	uniformBufferInfo.range = VK_WHOLE_SIZE;
 
 	uniformWriteSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	uniformWriteSet.dstSet          = uniformSet;
+	uniformWriteSet.dstSet          = uniform.Set;
 	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uniformWriteSet.descriptorCount = 1;
 	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
@@ -645,7 +663,7 @@ int ShaderProgram::updateUniformsVK(UniformBufferType type, UniformBinding bindi
 	return 0;
 }
 
-int ShaderProgram::updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh)
+int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Mesh* mesh)
 {
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
@@ -657,7 +675,6 @@ int ShaderProgram::updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh)
 
 	VkDescriptorBufferInfo uniformBufferInfo              = {};
 	VkDescriptorImageInfo  uniformImageInfo[MAX_TEXTURES] = {};
-	VkDescriptorSet        uniformSet                     = vertexBuffer->UniformSet();
 	VkWriteDescriptorSet   uniformWriteSet                = {};
 
 	if (uniformSet == nullptr)
@@ -686,7 +703,7 @@ int ShaderProgram::updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh)
 	// Update the descriptor set for binding 2 (texture sampler)
 	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	uniformWriteSet.descriptorCount = MAX_TEXTURES;
-	uniformWriteSet.dstBinding      = UNIFORM_BINDING_TEXTURES;
+	uniformWriteSet.dstBinding      = UBO_BINDING_TEXTURES;
 	uniformWriteSet.pBufferInfo     = nullptr;
 	uniformWriteSet.pImageInfo      = uniformImageInfo;
 	//uniformWriteSet.pTexelBufferView = nullptr;

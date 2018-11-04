@@ -48,18 +48,6 @@ Mesh::~Mesh()
 
 void Mesh::BindBuffer(GLuint bufferID, GLuint shaderAttrib, GLsizei size, GLenum arrayType, GLboolean normalized, const GLvoid* offset)
 {
-	//GLsizei stride = 0;
-
-	//switch (arrayType) {
-	//	case GL_BYTE:           stride = (size * sizeof(char));           break;
-	//	case GL_UNSIGNED_BYTE:  stride = (size * sizeof(unsigned char));  break;
-	//	case GL_SHORT:          stride = (size * sizeof(short));          break;
-	//	case GL_UNSIGNED_SHORT: stride = (size * sizeof(unsigned short)); break;
-	//	case GL_INT:            stride = (size * sizeof(int));            break;
-	//	case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
-	//	case GL_FLOAT:          stride = (size * sizeof(float));          break;
-	//}
-
 	glBindBuffer(GL_ARRAY_BUFFER, bufferID);
 		glVertexAttribPointer(shaderAttrib, size, GL_FLOAT, normalized, Utils::GetStride(size, arrayType), offset);
 		glEnableVertexAttribArray(shaderAttrib);
@@ -113,9 +101,7 @@ bool Mesh::IsOK()
 	case GRAPHICS_API_OPENGL:
 		return ((this->IBO() > 0) && (this->VBO() > 0));
 	case GRAPHICS_API_VULKAN:
-		//return false;
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
-		//return (this->VertexBuffer() != nullptr);
 	}
 
 	return false;

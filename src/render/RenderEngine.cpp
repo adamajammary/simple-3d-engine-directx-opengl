@@ -1,7 +1,6 @@
 #include "RenderEngine.h"
 
 GLCanvas           RenderEngine::Canvas              = {};
-//uint16_t           RenderEngine::DrawMode            = 0;
 DrawModeType       RenderEngine::DrawMode            = DRAW_MODE_FILLED;
 Camera*            RenderEngine::Camera              = nullptr;
 GPUDescription     RenderEngine::GPU                 = {};
@@ -14,7 +13,7 @@ GraphicsAPI        RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
 std::vector<Mesh*> RenderEngine::Terrains;
 std::vector<Mesh*> RenderEngine::Waters;
 
-void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo)
+void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
@@ -34,7 +33,7 @@ void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo)
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK != nullptr)
-			RenderEngine::Canvas.VK->Clear(r, g, b, a);
+			RenderEngine::Canvas.VK->Clear(r, g, b, a, fbo, cmdBuffer);
 		break;
 	}
 }
@@ -68,51 +67,64 @@ void RenderEngine::createWaterFBOs()
 
 		Water* parent = dynamic_cast<Water*>(water->Parent);
 
-		if (water->Parent == nullptr)
+		if (parent == nullptr)
 			continue;
 
-		glm::vec3 position       = water->Position();
-		glm::vec3 scale          = water->Scale();
-		float     cameraDistance = ((RenderEngine::Camera->Position().y - position.y) * 2.0f);
+		glm::vec3       position       = water->Position();
+		glm::vec3       scale          = water->Scale();
+		float           cameraDistance = ((RenderEngine::Camera->Position().y - position.y) * 2.0f);
+		VkCommandBuffer cmdBuffer      = nullptr;
 
 		// WATER REFLECTION PASS - ABOVE WATER
 		RenderEngine::Camera->MoveBy(glm::vec3(0.0f, -cameraDistance, 0.0f));
 		RenderEngine::Camera->InvertPitch();
 
-		parent->FBO()->BindReflection();
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
+		else
+			parent->FBO()->BindReflection();
 
 		glm::vec3 clipMax = glm::vec3(scale.x,  scale.y,     scale.z);
 		glm::vec3 clipMin = glm::vec3(-scale.x, position.y, -scale.z);
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->ReflectionFBO());
-		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin });
-		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin });
-		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin });
+		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->ReflectionFBO(), cmdBuffer);
+		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin }, cmdBuffer);
+		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin }, cmdBuffer);
+		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin }, cmdBuffer);
 		
-		parent->FBO()->UnbindReflection();
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			RenderEngine::Canvas.VK->Present(cmdBuffer);
+		else
+			parent->FBO()->UnbindReflection();
 
 		RenderEngine::Camera->InvertPitch();
 		RenderEngine::Camera->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
 
 		// WATER REFRACTION PASS - BELOW WATER
-		parent->FBO()->BindRefraction();
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
+		else
+			parent->FBO()->BindRefraction();
 
 		clipMax = glm::vec3(scale.x,   position.y, scale.z);
 		clipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->RefractionFBO());
-		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin });
-		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin });
-		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin });
+		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->RefractionFBO(), cmdBuffer);
+		RenderEngine::drawSkybox({      false, false, true, clipMax, clipMin }, cmdBuffer);
+		RenderEngine::drawTerrains({    false, false, true, clipMax, clipMin }, cmdBuffer);
+		RenderEngine::drawRenderables({ false, false, true, clipMax, clipMin }, cmdBuffer);
 
-		parent->FBO()->UnbindRefraction();
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			RenderEngine::Canvas.VK->Present(cmdBuffer);
+		else
+			parent->FBO()->UnbindRefraction();
 	}
 }
 
 void RenderEngine::Draw()
 {
 	RenderEngine::createWaterFBOs();
-    RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
+	RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
 	RenderEngine::drawScene();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -176,7 +188,7 @@ int RenderEngine::drawHUDs(const DrawProperties &properties)
 	return 0;
 }
 
-int RenderEngine::drawRenderables(const DrawProperties &properties)
+int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Renderables.empty())
 		return -1;
@@ -195,7 +207,7 @@ int RenderEngine::drawRenderables(const DrawProperties &properties)
 
 	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_WIREFRAME);
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, shaderID, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, shaderID, properties, cmdBuffer);
 
 	return 0;
 }
@@ -216,7 +228,7 @@ int RenderEngine::drawSelected()
 	return 0;
 }
 
-int RenderEngine::drawSkybox(const DrawProperties &properties)
+int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Skybox == nullptr)
 		return -1;
@@ -231,12 +243,12 @@ int RenderEngine::drawSkybox(const DrawProperties &properties)
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes({ RenderEngine::Skybox }, SHADER_ID_SKYBOX, properties);
+	RenderEngine::drawMeshes({ RenderEngine::Skybox }, SHADER_ID_SKYBOX, properties, cmdBuffer);
 
 	return 0;
 }
 
-int RenderEngine::drawTerrains(const DrawProperties &properties)
+int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Terrains.empty())
 		return -1;
@@ -253,7 +265,7 @@ int RenderEngine::drawTerrains(const DrawProperties &properties)
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::Terrains, SHADER_ID_TERRAIN, properties);
+	RenderEngine::drawMeshes(RenderEngine::Terrains, SHADER_ID_TERRAIN, properties, cmdBuffer);
 
 	return 0;
 }
@@ -280,7 +292,7 @@ int RenderEngine::drawWaters(const DrawProperties &properties)
 	return 0;
 }
 
-void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
@@ -295,7 +307,7 @@ void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const Draw
 			RenderEngine::drawMeshGL(mesh, shaderProgram, properties);
 			break;
 		case GRAPHICS_API_VULKAN:
-			RenderEngine::drawMeshVulkan(mesh, shaderProgram, properties);
+			RenderEngine::drawMeshVK(mesh, shaderProgram, properties, cmdBuffer);
 			break;
 		default:
 			break;
@@ -338,12 +350,12 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, const Dra
     return 0;
 }
 
-int RenderEngine::drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshVK(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
-	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, properties);
+	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, properties, cmdBuffer);
 }
 
-void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties)
+void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, shaderID);
 
@@ -362,7 +374,7 @@ void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID
 
 		RenderEngine::drawMesh(
 			(properties.drawBoundingVolume ? mesh->GetBoundingVolume() : mesh),
-			shaderProgram, properties
+			shaderProgram, properties, cmdBuffer
 		);
 
 		if (properties.drawSelected)
@@ -546,20 +558,10 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	RenderEngine::Close();
 
 	// RE-CREATE THE CANVAS
-	wxGLAttributes attribs;
+	if (RenderEngine::setGraphicsApiCanvas() < 0)
+		return -1;
 
-	// Defaults: RGBA, Z-depth 16 bits, double buffering, 1 sample buffer, 4 samplers.
-	attribs.PlatformDefaults().Defaults().Samplers(16).EndList();
-
-	RenderEngine::Canvas.Canvas = new wxGLCanvas(
-		RenderEngine::Canvas.Window, attribs, ID_CANVAS, RenderEngine::Canvas.Position, RenderEngine::Canvas.Size
-	);
-
-	RenderEngine::Canvas.Window->SetCanvas(RenderEngine::Canvas.Canvas);
-
-	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
-
-	int result = -1;
+	int result = -2;
 
 	// RE-CREATE THE GRAPHICS CONTEXT
 	switch (api) {
@@ -586,11 +588,6 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 		return result;
 
 	// RE-INITIALIZE ENGINE MODULES AND RESOURCES
-	if (InputManager::Init() < 0) {
-		RenderEngine::Close();
-		return -2;
-	}
-
 	if (ShaderManager::Init() < 0) {
 		RenderEngine::Close();
 		return -3;
@@ -601,7 +598,39 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 		return -4;
 	}
 
+	if (InputManager::Init() < 0) {
+		RenderEngine::Close();
+		return -5;
+	}
+
 	RenderEngine::Ready = true;
+
+	return 0;
+}
+
+int RenderEngine::setGraphicsApiCanvas()
+{
+	// Defaults: RGBA, Z-depth 16 bits, double buffering, 1 sample buffer, 4 samplers.
+	wxGLAttributes attribs = {};
+	attribs.PlatformDefaults().Defaults().Samplers(16).EndList();
+
+	RenderEngine::Canvas.Canvas = new wxGLCanvas(
+		RenderEngine::Canvas.Window, attribs, ID_CANVAS,
+		RenderEngine::Canvas.Position, RenderEngine::Canvas.Size
+	);
+
+	RenderEngine::Canvas.Window->SetCanvas(RenderEngine::Canvas.Canvas);
+	RenderEngine::SetDrawMode(RenderEngine::Canvas.Window->SelectedDrawMode());
+
+	RenderEngine::Canvas.GL = new wxGLContext(RenderEngine::Canvas.Canvas);
+
+	if (!RenderEngine::Canvas.GL->IsOK())
+		return -1;
+
+	RenderEngine::Canvas.Canvas->SetCurrent(*RenderEngine::Canvas.GL);
+
+	if (glewInit() != GLEW_OK)
+		return -2;
 
 	return 0;
 }
@@ -620,20 +649,6 @@ int RenderEngine::setGraphicsApiDX(GraphicsAPI api)
 
 int RenderEngine::setGraphicsApiGL()
 {
-	RenderEngine::Canvas.GL = new wxGLContext(RenderEngine::Canvas.Canvas);
-
-	if (!RenderEngine::Canvas.GL->IsOK()) {
-		RenderEngine::Close();
-		return -1;
-	}
-
-	RenderEngine::Canvas.Canvas->SetCurrent(*RenderEngine::Canvas.GL);
-
-	if (glewInit() != GLEW_OK) {
-		RenderEngine::Close();
-		return -2;
-	}
-
 	glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 		
 	RenderEngine::SetVSync(RenderEngine::Canvas.Window->VSyncEnable->GetValue());

@@ -12,9 +12,6 @@ int ShaderManager::Init()
 {
 	ShaderManager::Close();
 
-	// TODO: Shaders GL+VK
-	const int nr_of_shaders = 5;
-
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
@@ -32,14 +29,10 @@ int ShaderManager::Init()
 	#endif
 	case GRAPHICS_API_OPENGL:
 	case GRAPHICS_API_VULKAN:
-		if ((int)Utils::SHADER_RESOURCES_GL_VK.size() < nr_of_shaders * 2)
+		if ((int)Utils::SHADER_RESOURCES_GL_VK.size() < NR_OF_SHADERS * 2)
 			return -1;
 
-		for (int i = 0; i < nr_of_shaders; i++)
-		//if ((int)Utils::SHADER_RESOURCES_GL.size() < NR_OF_SHADERS * 2)
-		//	return -1;
-
-		//for (int i = 0; i < NR_OF_SHADERS; i++)
+		for (int i = 0; i < NR_OF_SHADERS; i++)
 		{
 			Resource vs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 0];
 			Resource fs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 1];

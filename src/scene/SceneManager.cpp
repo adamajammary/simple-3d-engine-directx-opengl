@@ -309,12 +309,8 @@ Terrain* SceneManager::LoadTerrain(int size, float octaves, float redistribution
 
 Water* SceneManager::LoadWater()
 {
-	std::vector<wxString> imageFiles;
-
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["duDvMap"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["normalMap"]);
-
-	Water* water = new Water(Utils::RESOURCE_MODELS[ID_ICON_PLANE], imageFiles);
+	std::vector<wxString> imageFiles = { Utils::RESOURCE_IMAGES["duDvMap"], Utils::RESOURCE_IMAGES["normalMap"] };
+	Water*                water      = new Water(Utils::RESOURCE_MODELS[ID_ICON_PLANE], imageFiles);
 
 	if ((water == nullptr) || !water->IsValid())
 		return nullptr;

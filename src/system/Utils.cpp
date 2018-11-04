@@ -141,9 +141,9 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 	{ "resources/shaders/default.hlsl",   "default",   "" },
 	{ "resources/shaders/hud.hlsl",       "hud",       "" },
 	{ "resources/shaders/skybox.hlsl",    "skybox",    "" },
-	{ "resources/shaders/wireframe.hlsl", "wireframe", "" },
 	{ "resources/shaders/terrain.hlsl",   "terrain",   "" },
-	{ "resources/shaders/water.hlsl",     "water",     "" }
+	{ "resources/shaders/water.hlsl",     "water",     "" },
+	{ "resources/shaders/wireframe.hlsl", "wireframe", "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
@@ -153,12 +153,12 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
 	{ "resources/shaders/hud.fs.glsl",       "hud_fs",       "" },
 	{ "resources/shaders/skybox.vs.glsl",    "skybox_vs",    "" },
 	{ "resources/shaders/skybox.fs.glsl",    "skybox_fs",    "" },
-	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
-	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" },
 	{ "resources/shaders/terrain.vs.glsl",   "terrain_vs",   "" },
 	{ "resources/shaders/terrain.fs.glsl",   "terrain_fs",   "" },
-	//{ "resources/shaders/water.vs.glsl",   "water_vs",    "" },
-	//{ "resources/shaders/water.fs.glsl",   "water_fs",    "" }
+	{ "resources/shaders/water.vs.glsl",     "water_vs",     "" },
+	{ "resources/shaders/water.fs.glsl",     "water_fs",     "" },
+	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
+	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)

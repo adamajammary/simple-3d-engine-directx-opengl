@@ -40,24 +40,25 @@ public:
 	static void     SetVSync(bool enable);
 
 private:
-	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr);
+	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
 	static void           createWaterFBOs();
 	static int            drawBoundingVolumes();
 	static int            drawSelected();
-	static int            drawHUDs(const DrawProperties &properties = {});
-	static int            drawRenderables(const DrawProperties &properties = {});
-	static int            drawSkybox(const DrawProperties &properties = {});
-	static int            drawTerrains(const DrawProperties &properties = {});
-	static int            drawWaters(const DrawProperties &properties = {});
-	static void           drawMesh(Mesh*       mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshDX11(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshDX12(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshGL(Mesh*     mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshVulkan(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static void           drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties = {});
+	static int            drawHUDs(const DrawProperties        &properties = {});
+	static int            drawRenderables(const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	static int            drawSkybox(const DrawProperties      &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	static int            drawTerrains(const DrawProperties    &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	static int            drawWaters(const DrawProperties      &properties = {});
+	static int            drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshGL(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	static int            drawMeshVK(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	static void           drawMesh(Mesh*     mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	static void           drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
 	static void           drawScene(const DrawProperties &properties = {});
 	static int            initResources();
 	static int            setGraphicsAPI(GraphicsAPI api);
+	static int            setGraphicsApiCanvas();
 	static int            setGraphicsApiDX(GraphicsAPI api);
 	static int            setGraphicsApiGL();
 	static int            setGraphicsApiVK();

@@ -2,40 +2,15 @@
 
 Buffer::Buffer(std::vector<uint32_t> &indices)
 {
-	////this->bufferStride = 0;
-	//this->id                = 0;
-	//this->indexBuffer       = nullptr;
-	//this->indexBufferMemory = nullptr;
-
-	//#if defined _WINDOWS
-	//	this->bufferDX11           = nullptr;
-	//	this->bufferDX12           = nullptr;
-	//	this->indexBufferViewDX12 = {};
-
-	//	this->ConstantBuffersDX11[NR_OF_SHADERS]     = {};
-	//	this->ConstantBuffersDX12[NR_OF_SHADERS]     = {};
-	//	this->ConstantBufferHeapsDX12[NR_OF_SHADERS] = {};
-	//	this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
-
-	//	this->MatrixBufferValues  = {};
-	//	this->LightBufferValues   = {};
-	//	this->DefaultBufferValues = {};
-	//	this->HUDBufferValues     = {};
-	//	this->SkyboxBufferValues  = {};
-	//	this->SolidBufferValues   = {};
-	//	this->TerrainBufferValues = {};
-	//	this->WaterBufferValues   = {};
-	//#endif
-
 	this->init();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->CreateIndexBuffer11(indices, &this->bufferDX11);
+		RenderEngine::Canvas.DX->CreateIndexBuffer11(indices, this);
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->CreateIndexBuffer12(indices, &this->bufferDX12, this->indexBufferViewDX12);
+		RenderEngine::Canvas.DX->CreateIndexBuffer12(indices, this);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
@@ -49,7 +24,7 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, &this->indexBuffer, &this->indexBufferMemory);
+		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, this);
 		break;
 	default:
 		break;
@@ -58,8 +33,6 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 
 Buffer::Buffer(std::vector<float> &data)
 {
-	//this->id = 0;
-
 	this->init();
 
 	glCreateBuffers(1, &this->id);
@@ -73,35 +46,20 @@ Buffer::Buffer(std::vector<float> &data)
 
 Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords)
 {
-	//this->vertexBuffer       = nullptr;
-	//this->vertexBufferMemory = nullptr;
-
-	//#if defined _WINDOWS
-	//	this->bufferDX11           = nullptr;
-	//	this->bufferDX12           = nullptr;
-	//	this->bufferStride         = 0;
-	//	this->vertexBufferViewDX12 = {};
-	//#endif
-
 	this->init();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, &this->bufferDX11, this->bufferStride,this->InputLayoutsDX11, this->RasterizerStatesDX11, this->DepthStencilStatesDX11, this->BlendStatesDX11);
+		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.DX->CreateConstantBuffers11(this);
-
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->CreateVertexBuffer12(vertices, normals, texCoords, &this->bufferDX12, this->bufferStride,this->vertexBufferViewDX12, this->PipelineStatesDX12, this->RootSignaturesDX12);
+		RenderEngine::Canvas.DX->CreateVertexBuffer12(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.DX->CreateConstantBuffers12(this);
-
 		break;
 	case GRAPHICS_API_VULKAN:
-		RenderEngine::Canvas.VK->CreateUniformSet(&this->uniformSet, &this->uniformPool, &this->uniformLayout);
-		RenderEngine::Canvas.VK->CreatePipelineLayout(&this->pipelineLayout, this->uniformLayout);
-		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory);
-		RenderEngine::Canvas.VK->CreateUniformBuffers(this->uniformBuffers, this->uniformBufferMemories);
-
+		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this);
+		RenderEngine::Canvas.VK->InitPipelines(this);
 		break;
 	}
 
@@ -112,18 +70,6 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 
 Buffer::Buffer()
 {
-	//this->id                 = 0;
-	//this->vertexBuffer       = nullptr;
-	//this->vertexBufferMemory = nullptr;
-
-	//#if defined _WINDOWS
-	//	this->bufferDX11           = nullptr;
-	//	this->bufferDX12           = nullptr;
-	//	this->bufferStride         = 0;
-	//	this->indexBufferViewDX12  = {};
-	//	this->vertexBufferViewDX12 = {};
-	//#endif
-
 	this->init();
 }
 
@@ -146,8 +92,8 @@ Buffer::~Buffer()
 			_RELEASEP(this->RootSignaturesDX12[i]);
 		}
 
-		_RELEASEP(this->bufferDX11);
-		_RELEASEP(this->bufferDX12);
+		_RELEASEP(this->VertexBufferDX11);
+		_RELEASEP(this->VertexBufferDX12);
 	#endif
 
 	if (this->id > 0) {
@@ -155,36 +101,36 @@ Buffer::~Buffer()
 		this->id = 0;
 	}
 
-	for (uint32_t i = 0; i < NR_OF_UNIFORM_BUFFERS; i++)
-		RenderEngine::Canvas.VK->DestroyBuffer(&this->uniformBuffers[i], &this->uniformBufferMemories[i]);
+	for (uint32_t i = 0; i < NR_OF_UBOS_VK; i++)
+		RenderEngine::Canvas.VK->DestroyBuffer(&this->Uniform.Buffers[i], &this->Uniform.BufferMemories[i]);
 
-	for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
+	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.Pipelines[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.PipelinesFBO[i]);
+	}
 
-	RenderEngine::Canvas.VK->DestroyPipelineLayout(&this->pipelineLayout);
-	RenderEngine::Canvas.VK->DestroyUniformSet(&this->uniformPool, &this->uniformLayout);
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->indexBuffer,     &this->indexBufferMemory);
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer,    &this->vertexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyPipelineLayout(&this->Pipeline.Layout);
+	RenderEngine::Canvas.VK->DestroyUniformSet(&this->Uniform.Pool, &this->Uniform.Layout);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->IndexBuffer,  &this->IndexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);
 }
 
 void Buffer::init()
 {
-	this->bufferStride       = 0;
+	this->BufferStride       = 0;
 	this->id                 = 0;
-	this->indexBuffer        = nullptr;
-	this->indexBufferMemory  = nullptr;
-	this->vertexBuffer       = nullptr;
-	this->vertexBufferMemory = nullptr;
-
-	this->pipelines[NR_OF_SHADERS]             = {};
-	this->uniformBuffers[NR_OF_SHADERS]        = {};
-	this->uniformBufferMemories[NR_OF_SHADERS] = {};
+	this->IndexBuffer        = nullptr;
+	this->IndexBufferMemory  = nullptr;
+	this->Pipeline           = {};
+	this->Uniform            = {};
+	this->VertexBuffer       = nullptr;
+	this->VertexBufferMemory = nullptr;
 
 	#if defined _WINDOWS
-		this->bufferDX11           = nullptr;
-		this->bufferDX12           = nullptr;
-		this->indexBufferViewDX12  = {};
-		this->vertexBufferViewDX12 = {};
+		this->VertexBufferDX11     = nullptr;
+		this->VertexBufferDX12     = nullptr;
+		this->IndexBufferViewDX12  = {};
+		this->VertexBufferViewDX12 = {};
 
 		this->BlendStatesDX11[NR_OF_SHADERS]         = {};
 		this->ConstantBuffersDX11[NR_OF_SHADERS]     = {};
@@ -208,78 +154,18 @@ void Buffer::init()
 	#endif
 }
 
-UINT Buffer::BufferStride()
-{
-	return this->bufferStride;
-}
-
 GLuint Buffer::ID()
 {
 	return this->id;
 }
 
-VkBuffer Buffer::IndexBuffer()
-{
-	return this->indexBuffer;
-}
-
-VkPipeline Buffer::Pipeline(ShaderID shaderID)
-{
-	return (((shaderID >= 0) || (shaderID < NR_OF_SHADERS)) ? this->pipelines[shaderID] : nullptr);
-}
-
-VkPipelineLayout Buffer::PipelineLayout()
-{
-	return this->pipelineLayout;
-}
-
 void Buffer::ResetPipelines()
 {
-	// TODO: VULKAN
-	//for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
-	for (uint32_t i = SHADER_ID_DEFAULT; i < (SHADER_ID_DEFAULT + 1); i++)
-		RenderEngine::Canvas.VK->DestroyPipeline(&this->pipelines[i]);
+	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
+		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.Pipelines[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.PipelinesFBO[i]);
+	}
 
-	RenderEngine::Canvas.VK->DestroyBuffer(&this->vertexBuffer, &this->vertexBufferMemory);
-
-	RenderEngine::Canvas.VK->CreateVertexBuffer(
-		this->vertices, this->normals, this->texCoords, this->pipelines, this->pipelineLayout, &this->vertexBuffer, &this->vertexBufferMemory
-	);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);
+	RenderEngine::Canvas.VK->CreateVertexBuffer(this->vertices, this->normals, this->texCoords, this);
 }
-
-VkBuffer Buffer::UniformBuffer(UniformBufferType uniformBuffer)
-{
-	return (((uniformBuffer >= 0) || (uniformBuffer < NR_OF_UNIFORM_BUFFERS)) ? this->uniformBuffers[uniformBuffer] : nullptr);
-}
-
-VkDeviceMemory Buffer::UniformBufferMemory(UniformBufferType uniformBuffer)
-{
-	return (((uniformBuffer >= 0) || (uniformBuffer < NR_OF_UNIFORM_BUFFERS)) ? this->uniformBufferMemories[uniformBuffer] : nullptr);
-}
-
-VkDescriptorSet Buffer::UniformSet()
-{
-	return this->uniformSet;
-}
-
-VkBuffer Buffer::VertexBuffer()
-{
-	return this->vertexBuffer;
-}
-
-#if defined _WINDOWS
-ID3D11Buffer* Buffer::BufferDX11()
-{
-	return this->bufferDX11;
-}
-
-D3D12_INDEX_BUFFER_VIEW Buffer::IndexBufferViewDX12()
-{
-	return this->indexBufferViewDX12;
-}
-
-D3D12_VERTEX_BUFFER_VIEW Buffer::VertexBufferViewDX12()
-{
-	return this->vertexBufferViewDX12;
-}
-#endif

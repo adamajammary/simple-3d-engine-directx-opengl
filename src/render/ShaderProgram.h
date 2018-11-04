@@ -13,12 +13,11 @@ public:
 
 public:
 	GLuint Attribs[NR_OF_ATTRIBS];
-	GLint  Uniforms[NR_OF_UNIFORMS];
-	GLuint UniformBuffers[NR_OF_UNIFORMS];
+	GLint  Uniforms[NR_OF_UBOS_GL];
+	GLuint UniformBuffers[NR_OF_UBOS_GL];
 
 private:
 	wxString       name;
-	//VkPipeline     pipeline;
 	GLuint         program;
 	VkShaderModule vulkanFS;
 	VkShaderModule vulkanVS;
@@ -38,11 +37,10 @@ public:
 	void           Log();
 	void           Log(GLuint shader);
 	wxString       Name();
-	//VkPipeline     Pipeline();
 	GLuint         Program();
 	int            UpdateAttribsGL(Mesh* mesh);
 	int            UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties = {});
-	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const DrawProperties &properties = {});
+	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VKUniform &uniform, const DrawProperties &properties = {});
 	VkShaderModule VulkanFS();
 	VkShaderModule VulkanVS();
 
@@ -60,9 +58,9 @@ private:
 	int  loadShaderGL(GLuint type, const wxString &sourceText);
 	void setAttribsGL();
 	void setUniformsGL();
-	void updateUniformGL(GLint id, Uniform buffer, void* values, size_t valuesSize);
-	int  updateUniformsVK(UniformBufferType type, UniformBinding binding, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh);
-	int  updateUniformSamplersVK(VkDevice deviceContext, Mesh* mesh);
+	void updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* values, size_t valuesSize);
+	int  updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh);
+	int  updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Mesh* mesh);
 
 	#if defined _WINDOWS
 		DXLightBuffer  getBufferLight();

@@ -191,61 +191,52 @@ enum IconType
 	ID_REMOVE_CHILD,
 };
 
+enum RenderPass
+{
+	RENDER_PASS_DEFAULT, RENDER_PASS_FBO, NR_OF_RENDER_PASSES
+};
+
 enum ShaderID
 {
 	SHADER_ID_UNKNOWN = -1,
 	SHADER_ID_DEFAULT,
 	SHADER_ID_HUD,
 	SHADER_ID_SKYBOX,
-	SHADER_ID_WIREFRAME,
 	SHADER_ID_TERRAIN,
 	SHADER_ID_WATER,
+	SHADER_ID_WIREFRAME,
 	NR_OF_SHADERS
 };
 
-enum Uniform
+enum UniformBufferTypeGL
 {
-	//AMBIENT_LIGHT_INTENSITY,
-	CAMERA_POSITION,
-	CAMERA_NEAR,
-	CAMERA_FAR,
-	//CLIP_MAX,
-	//CLIP_MIN,
-	//ENABLE_CLIPPING,
-	//IS_TEXTURED,
-	//IS_TRANSPARENT,
-	//MATERIAL_COLOR,
-	//MATRIX_MODEL,
-	//MATRIX_VIEW,
-	//MATRIX_PROJECTION,
-	//MATRIX_MVP,
-	MOVE_FACTOR,
-	//SOLID_COLOR,
-	//SUNLIGHT_COLOR,
-	//SUNLIGHT_DIRECTION,
-	//SUNLIGHT_POSITION,
-	//SUNLIGHT_REFLECTION,
-	//SUNLIGHT_SHINE,
-	TEXTURES0, TEXTURES1, TEXTURES2, TEXTURES3, TEXTURES4, TEXTURES5,
-	//TEXTURE_SCALES0, TEXTURE_SCALES1, TEXTURE_SCALES2, TEXTURE_SCALES3, TEXTURE_SCALES4, TEXTURE_SCALES5,
-	WAVE_STRENGTH,
-
-	MATRIX_BUFFER,
-	DEFAULT_BUFFER,
-	HUD_BUFFER,
-	WIREFRAME_BUFFER,
-
-	NR_OF_UNIFORMS
+	UBO_GL_MATRIX,
+	UBO_GL_DEFAULT,
+	UBO_GL_HUD,
+	UBO_GL_WATER,
+	UBO_GL_WIREFRAME,
+	UBO_GL_TEXTURES0,
+	UBO_GL_TEXTURES1,
+	UBO_GL_TEXTURES2,
+	UBO_GL_TEXTURES3,
+	UBO_GL_TEXTURES4,
+	UBO_GL_TEXTURES5,
+	NR_OF_UBOS_GL
 };
 
 enum UniformBinding
 {
-	UNIFORM_BINDING_MATRIX, UNIFORM_BINDING_DEFAULT, UNIFORM_BINDING_TEXTURES, NR_OF_UNIFORM_BINDINGS
+	UBO_BINDING_MATRIX, UBO_BINDING_DEFAULT, UBO_BINDING_TEXTURES, NR_OF_UBO_BINDINGS
 };
 
-enum UniformBufferType
+enum UniformBufferTypeVK
 {
-	UNIFORM_BUFFER_MATRIX, UNIFORM_BUFFER_DEFAULT, NR_OF_UNIFORM_BUFFERS
+	UBO_VK_MATRIX,
+	UBO_VK_DEFAULT,
+	UBO_VK_HUD,
+	UBO_VK_WATER,
+	UBO_VK_WIREFRAME,
+	NR_OF_UBOS_VK
 };
 
 struct AssImpMesh
@@ -313,6 +304,30 @@ struct Time
 	}
 };
 
+struct VKPipeline
+{
+	VkPipelineLayout Layout;
+	VkPipeline       Pipelines[NR_OF_SHADERS];
+	VkPipeline       PipelinesFBO[NR_OF_SHADERS];
+};
+
+struct VKUniform
+{
+	VkBuffer              Buffers[NR_OF_UBOS_VK]        = {};
+	VkDeviceMemory        BufferMemories[NR_OF_UBOS_VK] = {};
+	VkDescriptorSetLayout Layout = {};
+	VkDescriptorPool      Pool   = {};
+	VkDescriptorSet       Set    = {};
+};
+
+struct GLCameraBuffer
+{
+	glm::vec3 Position;
+	float     Near;
+	glm::vec3 Padding1;
+	float     Far;
+};
+
 struct GLCanvas
 {
 	bool           Active      = false;
@@ -350,8 +365,21 @@ struct GLDefaultBuffer
 struct GLHUDBuffer
 {
 	glm::vec4 MaterialColor;
-	int       IsTransparent;
 	glm::vec3 Padding1;
+	int       IsTransparent;
+};
+
+struct GLWaterBuffer
+{
+	GLCameraBuffer CameraMain;
+	Light          SunLight;
+	glm::vec3      ClipMax;
+	int            EnableClipping;
+	glm::vec3      ClipMin;
+	float          MoveFactor;
+	glm::vec3      Padding1;
+	float          WaveStrength;
+	glm::vec2      TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
 struct GLWireframeBuffer
@@ -368,8 +396,8 @@ struct DXCameraBuffer
 {
 	DirectX::XMFLOAT3 Position;
 	float             Near;
-	float             Far;
 	DirectX::XMFLOAT3 Padding1;
+	float             Far;
 };
 
 struct DXMatrixBuffer
@@ -407,8 +435,8 @@ struct DXHUDBuffer
 {
 	DXMatrixBuffer    Matrices;
 	DirectX::XMFLOAT4 MaterialColor;
-	int               IsTransparent;
 	DirectX::XMFLOAT3 Padding1;
+	int               IsTransparent;
 };
 
 struct DXSkyboxBuffer
@@ -441,12 +469,12 @@ struct DXWaterBuffer
 	DXCameraBuffer    CameraMain;
 	DXMatrixBuffer    Matrices;
 	DXLightBuffer     SunLight;
-	int               EnableClipping;
 	DirectX::XMFLOAT3 ClipMax;
+	int               EnableClipping;
 	DirectX::XMFLOAT3 ClipMin;
 	float             MoveFactor;
-	float             WaveStrength;
 	DirectX::XMFLOAT3 Padding1;
+	float             WaveStrength;
 	DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
