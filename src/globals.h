@@ -331,7 +331,6 @@ struct GLCameraBuffer
 
 struct GLCanvas
 {
-	bool           Active      = false;
 	float          AspectRatio = 0.0f;
 	wxGLCanvas*    Canvas      = nullptr;
 	DXContext*     DX          = nullptr;

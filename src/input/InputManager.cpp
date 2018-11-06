@@ -6,7 +6,6 @@ int InputManager::Init()
 {
 	RenderEngine::Canvas.Window->Parent->Bind(wxEVT_KEY_DOWN, &InputManager::OnKeyboard);
 
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_DOWN,   &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_DOWN, &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_DOWN,  &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_UP,     &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
@@ -23,7 +22,7 @@ void InputManager::OnKeyboard(wxKeyEvent &event)
 {
 	bool result = false;
 
-	if (RenderEngine::Canvas.Active && (RenderEngine::Camera != nullptr) && (event.GetEventType() == wxEVT_KEY_DOWN))
+	if ((RenderEngine::Camera != nullptr) && !RenderEngine::Canvas.Window->IsDetailsActive())
 		result = RenderEngine::Camera->InputKeyboard(event.GetKeyCode());
 
 	if (result)
@@ -34,13 +33,10 @@ void InputManager::OnKeyboard(wxKeyEvent &event)
 
 void InputManager::OnMouseDown(wxMouseEvent &event)
 {
-	RenderEngine::Canvas.Active = (event.GetId() == ID_CANVAS);
+	InputManager::mouseState.Position = event.GetPosition();
 
-	if (RenderEngine::Canvas.Active && ((event.GetButton() == wxMOUSE_BTN_MIDDLE) || (event.GetButton() == wxMOUSE_BTN_RIGHT))) {
-		InputManager::mouseState.Position = event.GetPosition();
-		wxSetCursor(wxCursor(wxCURSOR_BLANK));
-		RenderEngine::Canvas.Canvas->CaptureMouse();
-	}
+	wxSetCursor(wxCursor(wxCURSOR_BLANK));
+	RenderEngine::Canvas.Canvas->CaptureMouse();
 }
 
 void InputManager::OnMouseMove(wxMouseEvent &event)
@@ -61,7 +57,7 @@ void InputManager::OnMouseMove(wxMouseEvent &event)
 
 void InputManager::OnMouseScroll(wxMouseEvent &event)
 {
-	if ((event.GetId() == ID_CANVAS) && (RenderEngine::Camera != nullptr)) {
+	if (RenderEngine::Camera != nullptr) {
 		RenderEngine::Camera->InputMouseScroll(event);
 		RenderEngine::Canvas.Window->UpdateDetails();
 	} else {
@@ -76,8 +72,10 @@ void InputManager::OnMouseUp(wxMouseEvent &event)
 		wxSetCursor(wxNullCursor);
 	}
 
-	if (RenderEngine::Canvas.Active && (event.GetButton() == wxMOUSE_BTN_LEFT))
+	if (event.GetButton() == wxMOUSE_BTN_LEFT)
 		PhysicsEngine::CheckRayCasts(event);
+
+	RenderEngine::Canvas.Window->DeactivateDetails();
 }
 
 void InputManager::OnGraphicsMenu(wxCommandEvent &event)
@@ -145,7 +143,6 @@ void InputManager::Reset()
 
 	if (RenderEngine::Canvas.Canvas != nullptr)
 	{
-		RenderEngine::Canvas.Canvas->Unbind(wxEVT_LEFT_DOWN,   &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 		RenderEngine::Canvas.Canvas->Unbind(wxEVT_MIDDLE_DOWN, &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 		RenderEngine::Canvas.Canvas->Unbind(wxEVT_RIGHT_DOWN,  &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 		RenderEngine::Canvas.Canvas->Unbind(wxEVT_LEFT_UP,     &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);

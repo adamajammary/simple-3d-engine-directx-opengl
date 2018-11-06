@@ -262,6 +262,11 @@ void WindowFrame::ClearScene()
 	}
 }
 
+void WindowFrame::DeactivateDetails()
+{
+	this->propertyGrid->UnfocusEditor();
+}
+
 void WindowFrame::InitDetails()
 {
 	this->sizerSceneDetails->Clear(true);
@@ -300,6 +305,10 @@ void WindowFrame::InitDetails()
 
 		// NAME
 		this->propertyGrid->Append(new wxStringProperty("Name", "ID_NAME", static_cast<wxString>(selected->Name)));
+		this->propertyGrid->GetProperty("ID_NAME")->SetValidator(wxTextValidator(wxFILTER_EMPTY));
+
+		if (selected->Type() == COMPONENT_CAMERA)
+			this->propertyGrid->SetPropertyReadOnly("ID_NAME");
 
 		// LOCATION
 		if (selected->Type() != COMPONENT_SKYBOX) {
@@ -454,6 +463,11 @@ void WindowFrame::InitDetails()
 	}
 
 	this->sizerSceneDetails->Layout();
+}
+
+bool WindowFrame::IsDetailsActive()
+{
+	return this->propertyGrid->IsEditorFocused();
 }
 
 void WindowFrame::OnAbout(wxCommandEvent &event)
@@ -634,16 +648,13 @@ int WindowFrame::UpdateDetails()
 	if ((selected == nullptr) || (this->propertyGrid == nullptr))
 		return -1;
 
-	if (!selected->Name.Trim().IsEmpty())
-	{
-		this->propertyGrid->SetPropertyValue("ID_NAME", static_cast<wxString>(selected->Name));
+	this->propertyGrid->SetPropertyValue("ID_NAME", static_cast<wxString>(selected->Name));
 
-		// UPDATE LIST OF COMPONENTS/CHILDREN
-		if (selected->Type() == COMPONENT_CAMERA)
-			this->listBoxComponents->SetString(0, selected->Name);
-		else
-			this->SelectComponent(this->listBoxComponents->GetSelection());
-	}
+	// UPDATE LIST OF COMPONENTS/CHILDREN
+	if (selected->Type() == COMPONENT_CAMERA)
+		this->listBoxComponents->SetString(0, selected->Name);
+	else
+		this->SelectComponent(this->listBoxComponents->GetSelection());
 
 	if (selected->Type() != COMPONENT_SKYBOX) {
 		glm::vec3 position = selected->Position();

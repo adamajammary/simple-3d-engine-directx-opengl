@@ -28,7 +28,9 @@ public:
 	void     AddListComponent(Component* component);
 	void     AddListChildren(std::vector<Mesh*> children);
 	void     ClearScene();
+	void     DeactivateDetails();
 	void     InitDetails();
+	bool     IsDetailsActive();
 	void     OnAbout(wxCommandEvent &event);
 	void     OnExit(wxCommandEvent &event);
 	void     RemoveComponent(int index);

@@ -58,13 +58,9 @@ void SceneManager::Clear()
     RenderEngine::Waters.clear();
     RenderEngine::Renderables.clear();
 
-	if (SceneManager::Components.size() > 1)
-	{
+	if (SceneManager::Components.size() > 1) {
 		for (auto it = SceneManager::Components.begin() + 1; it != SceneManager::Components.end(); it++)
 			_DELETEP(*it);
-
-		//if (!SceneManager::Components.empty())
-		//	SceneManager::Components.erase(SceneManager::Components.begin() + 1, SceneManager::Components.end());
 	}
 
 	SceneManager::SelectedComponent = nullptr;
@@ -78,15 +74,8 @@ void SceneManager::Clear()
 
 int SceneManager::GetComponentIndex(Component* component)
 {
-	if (component == nullptr)
-		return -1;
-
-	for (int i = 0; i < (int)SceneManager::Components.size(); i++)
-	{
-		if (SceneManager::Components[i] == nullptr)
-			continue;
-
-		if ((SceneManager::Components[i]->Name == component->Name) && (SceneManager::Components[i]->Type() == component->Type()))
+	for (int i = 0; i < (int)SceneManager::Components.size(); i++) {
+		if (SceneManager::Components[i] == component)
 			return i;
 	}
 
