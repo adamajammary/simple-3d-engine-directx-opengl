@@ -38,8 +38,8 @@ public:
 	wxString SelectedDrawMode();
 	void     SetCanvas(wxGLCanvas* canvas);
 	void     SetGraphicsAPI(int index);
-	void     UpdateComponents(wxPGProperty* property);
-	void     UpdateDetails();
+	int      UpdateComponents(wxPGProperty* property);
+	int      UpdateDetails();
 
 private:
 	void      addPropertyCheckbox(const wxString &label, const wxString &id, bool value);
