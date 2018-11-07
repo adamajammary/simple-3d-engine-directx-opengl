@@ -215,6 +215,9 @@ int SceneManager::LoadScene(const wxString &file)
 			child->AutoRotate   = childJSON["auto_rotate"].bool_value();
 			child->Color        = Utils::ToVec4(childJSON["color"].array_items());
 
+			if (child->Type() == COMPONENT_HUD)
+				dynamic_cast<HUD*>(child->Parent)->Update();
+
 			child->SetBoundingVolume(static_cast<BoundingVolumeType>(childJSON["bounding_box"].int_value()));
 
 			// TEXTURES
@@ -260,6 +263,8 @@ int SceneManager::LoadScene(const wxString &file)
 			}
 		}
 	}
+
+	RenderEngine::Canvas.Window->SetStatusText("Finished loading the scene '" + file + "'");
 
 	return 0;
 }
@@ -368,6 +373,8 @@ int SceneManager::SaveScene(const wxString &file)
 {
 	if (file.empty())
 		return -1;
+
+	RenderEngine::Canvas.Window->SetStatusText("Saving the scene to file '" + file + "'");
 
 	json11::Json::array componentsJSON;
 
@@ -507,6 +514,8 @@ int SceneManager::SaveScene(const wxString &file)
 	std::string          sceneData = sceneDataJSON.dump();
 	std::vector<uint8_t> outBuffer = Utils::Compress(std::vector<uint8_t>(sceneData.c_str(), sceneData.c_str() + sceneData.size()));
 	int                  result    = Utils::SaveDataToFile(outBuffer, file, sceneData.size());
+
+	RenderEngine::Canvas.Window->SetStatusText("Finished saving the scene to file '" + file + "'");
 
 	return result;
 }

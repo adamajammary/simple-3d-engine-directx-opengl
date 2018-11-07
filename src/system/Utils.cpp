@@ -28,7 +28,7 @@ const wxString Utils::FOVS[]             = { "45\u00B0", "60\u00B0", "75\u00B0",
 const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
 const wxSize   Utils::RENDER_SIZE        = wxSize(640, 360);
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
-const wxSize   Utils::WINDOW_SIZE        = wxSize(1510, 800);
+const wxSize   Utils::WINDOW_SIZE        = wxSize(1600, 900);
 
 const wxString Utils::GRAPHIC_APIS[] = {
 	"OpenGL", "Vulkan"
