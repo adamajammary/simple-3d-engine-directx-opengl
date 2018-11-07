@@ -451,19 +451,6 @@ struct DXWireframeBuffer
 	DirectX::XMFLOAT4 Color;
 };
 
-struct DXTerrainBuffer
-{
-	DXMatrixBuffer    Matrices;
-	DXLightBuffer     SunLight;
-	DirectX::XMFLOAT3 Ambient;
-	int               EnableClipping;
-	DirectX::XMFLOAT3 ClipMax;
-	float             Padding1;
-	DirectX::XMFLOAT3 ClipMin;
-	float             Padding2;
-	DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
 struct DXWaterBuffer
 {
 	DXCameraBuffer    CameraMain;

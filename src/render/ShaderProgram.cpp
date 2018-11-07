@@ -80,6 +80,7 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 
 	switch (this->ID()) {
 	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
 		vertexBuffer->DefaultBufferValues.Matrices       = matrices;
 		vertexBuffer->DefaultBufferValues.SunLight       = sunLight;
 		vertexBuffer->DefaultBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
@@ -107,20 +108,6 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->SkyboxBufferValues.Matrices = matrices;
 
 		bufferValues = &vertexBuffer->SkyboxBufferValues;
-
-		break;
-	case SHADER_ID_TERRAIN:
-		vertexBuffer->TerrainBufferValues.Matrices       = matrices;
-		vertexBuffer->TerrainBufferValues.SunLight       = sunLight;
-		vertexBuffer->TerrainBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->TerrainBufferValues.EnableClipping = properties.EnableClipping;
-		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.ClipMax);
-		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.ClipMin);
-
-		for (int i = 0; i < MAX_TEXTURES; i++)
-			vertexBuffer->TerrainBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
-
-		bufferValues = &vertexBuffer->TerrainBufferValues;
 
 		break;
 	case SHADER_ID_WATER:
@@ -722,7 +709,7 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	Buffer* vertexBuffer = mesh->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
-		return -1;
+		return -2;
 
 	DXMatrixBuffer matrices = {};
 	DXLightBuffer  sunLight = {};
@@ -739,7 +726,7 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	*constBuffer       = vertexBuffer->ConstantBuffersDX11[this->ID()];
 	
 	if ((*constBuffer == nullptr) || (*constBufferValues == nullptr))
-		return -1;
+		return -3;
 
 	return 0;
 }
@@ -752,7 +739,7 @@ int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properti
 	Buffer* vertexBuffer = mesh->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
-		return -1;
+		return -2;
 
 	DXMatrixBuffer matrices = {};
 	DXLightBuffer  sunLight = {};
@@ -771,23 +758,35 @@ int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properti
 	size_t          constBufferSize;
 
 	switch (this->ID()) {
-		case SHADER_ID_DEFAULT:   constBufferSize = sizeof(vertexBuffer->DefaultBufferValues);   break;
-		case SHADER_ID_HUD:       constBufferSize = sizeof(vertexBuffer->HUDBufferValues);       break;
-		case SHADER_ID_SKYBOX:    constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);    break;
-		case SHADER_ID_TERRAIN:   constBufferSize = sizeof(vertexBuffer->TerrainBufferValues);   break;
-		case SHADER_ID_WATER:     constBufferSize = sizeof(vertexBuffer->WaterBufferValues);     break;
-		case SHADER_ID_WIREFRAME: constBufferSize = sizeof(vertexBuffer->WireframeBufferValues); break;
-		default:                  constBufferSize = 0; break;
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
+		constBufferSize = sizeof(vertexBuffer->DefaultBufferValues);
+		break;
+	case SHADER_ID_HUD:
+		constBufferSize = sizeof(vertexBuffer->HUDBufferValues);
+		break;
+	case SHADER_ID_SKYBOX:
+		constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);
+		break;
+	case SHADER_ID_WATER:
+		constBufferSize = sizeof(vertexBuffer->WaterBufferValues);
+		break;
+	case SHADER_ID_WIREFRAME:
+		constBufferSize = sizeof(vertexBuffer->WireframeBufferValues);
+		break;
+	default:
+		constBufferSize = 0;
+		break;
 	}
 
 	if ((constBuffer == nullptr) || (constBufferValues == nullptr))
-		return -1;
+		return -3;
 
 	CD3DX12_RANGE readRange(0, 0);
 	HRESULT       result = constBuffer->Map(0, &readRange, reinterpret_cast<void**>(&bufferData));
 
 	if (FAILED(result))
-		return -1;
+		return -4;
 
 	std::memcpy(bufferData, constBufferValues, constBufferSize);
 	constBuffer->Unmap(0, nullptr);

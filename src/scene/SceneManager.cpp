@@ -195,8 +195,20 @@ int SceneManager::LoadScene(const wxString &file)
 
 			child->Name = childJSON["name"].string_value();
 
-			child->MoveTo(Utils::ToVec3(childJSON["position"].array_items()));
-			child->ScaleTo(Utils::ToVec3(childJSON["scale"].array_items()));
+			glm::vec3 position = Utils::ToVec3(childJSON["position"].array_items());
+			glm::vec3 scale    = Utils::ToVec3(childJSON["scale"].array_items());
+
+			if (child->Type() == COMPONENT_HUD)
+			{
+				// Invert Y-axis for both mesh and vertex positions on Vulkan
+				if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+					position.y *= -1;
+					scale.y    *= -1;
+				}
+			}
+
+			child->MoveTo(position);
+			child->ScaleTo(scale);
 			child->RotateTo(Utils::ToVec3(childJSON["rotation"].array_items()));
 
 			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
@@ -230,8 +242,13 @@ int SceneManager::LoadScene(const wxString &file)
 					if ((type == COMPONENT_HUD) && (j > 0))
 						continue;
 
+					wxString imageFile = textureJSON["image_file"].string_value();
+
+					if (imageFile.IsEmpty())
+						continue;
+
 					texture = new Texture(
-						textureJSON["image_file"].string_value(),
+						imageFile,
 						textureJSON["repeat"].bool_value(),
 						textureJSON["flip"].bool_value(),
 						textureJSON["transparent"].bool_value(),
@@ -369,8 +386,7 @@ int SceneManager::SaveScene(const wxString &file)
 				for (int i = 0; i < MAX_TEXTURES; i++)
 				{
 					json11::Json textureJSON;
-
-					Texture* texture;
+					Texture*     texture;
 
 					if (component->Type() == COMPONENT_WATER)
 						texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
@@ -389,11 +405,22 @@ int SceneManager::SaveScene(const wxString &file)
 				}
 
 				BoundingVolume* boundingVolume = child->GetBoundingVolume();
+				glm::vec3       position       = child->Position();
+				glm::vec3       scale          = child->Scale();
+
+				if (child->Type() == COMPONENT_HUD)
+				{
+					// Invert Y-axis for both mesh and vertex positions on Vulkan
+					if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+						position.y *= -1;
+						scale.y    *= -1;
+					}
+				}
 
 				childJSON = json11::Json::object {
 					{ "name",            static_cast<std::string>(child->Name) },
-					{ "position",        Utils::ToJsonArray(child->Position()) },
-					{ "scale",           Utils::ToJsonArray(child->Scale()) },
+					{ "position",        Utils::ToJsonArray(position) },
+					{ "scale",           Utils::ToJsonArray(scale) },
 					{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
 					{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
 					{ "auto_rotate",     child->AutoRotate },

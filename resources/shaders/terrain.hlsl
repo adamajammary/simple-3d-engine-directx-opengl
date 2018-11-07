@@ -24,9 +24,10 @@ cbuffer DefaultBuffer : register(b0)
 	float3       Ambient;
 	int          EnableClipping;
 	float3       ClipMax;
-	float        Padding1;
+	int          IsTextured;
 	float3       ClipMin;
-	float        Padding2;
+	float        Padding1;
+	float4       MaterialColor;
 	float2       TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 

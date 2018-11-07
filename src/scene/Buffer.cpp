@@ -151,7 +151,6 @@ void Buffer::init()
 		this->HUDBufferValues       = {};
 		this->SkyboxBufferValues    = {};
 		this->WireframeBufferValues = {};
-		this->TerrainBufferValues   = {};
 		this->WaterBufferValues     = {};
 	#endif
 }

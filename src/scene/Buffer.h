@@ -43,7 +43,6 @@ public:
 		DXHUDBuffer       HUDBufferValues;
 		DXSkyboxBuffer    SkyboxBufferValues;
 		DXWireframeBuffer WireframeBufferValues;
-		DXTerrainBuffer   TerrainBufferValues;
 		DXWaterBuffer     WaterBufferValues;
 
 		ID3D11Buffer*            VertexBufferDX11;

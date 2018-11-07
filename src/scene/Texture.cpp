@@ -31,6 +31,13 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 			break;
 		}
 	}
+	else
+	{
+		wxMessageBox(
+			"ERROR: Failed to create a texture from image: wxImage is NULL",
+			RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR
+		);
+	}
 }
 
 // 2D TEXTURE FROM IMAGE FILE
@@ -71,6 +78,13 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 		}
 
 		image->Destroy();
+	}
+	else
+	{
+		wxMessageBox(
+			("ERROR: Failed to create a texture from image file: " + imageFile),
+			RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR
+		);
 	}
 }
 
@@ -128,6 +142,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 // 2D FRAMEBUFFER TEXTURE (DIRECTX)
 Texture::Texture(DXGI_FORMAT format, int width, int height)
 {
+	int                result;
 	D3D11_SAMPLER_DESC samplerDesc11 = {};
 
 	this->repeat = true;
@@ -146,7 +161,10 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 		this->setFilteringDX11(samplerDesc11);
 		this->setWrappingDX11(samplerDesc11);
 
-		RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+		result = RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+
+		if (result < 0)
+			wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
@@ -160,7 +178,10 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 		this->setFilteringDX12(this->SamplerDesc12);
 		this->setWrappingDX12(this->SamplerDesc12);
 
-		RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+		result = RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+
+		if (result < 0)
+			wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 		break;
 	#endif
@@ -184,7 +205,10 @@ Texture::Texture(VkFormat format, int width, int height)
 	this->setFilteringVK(this->SamplerInfo);
 	this->setWrappingVK(this->SamplerInfo);
 
-	RenderEngine::Canvas.VK->CreateTextureBuffer(format, this);
+	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(format, this);
+
+	if (result < 0)
+		wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 }
 
 // 2D FRAMEBUFFER TEXTURE (OPENGL)
@@ -334,6 +358,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 	if (!images2.empty())
 	{
+		int                result;
 		DXGI_FORMAT        format        = Utils::GetImageFormatDXGI(&images2[0]);
 		D3D11_SAMPLER_DESC samplerDesc11 = {};
 
@@ -350,7 +375,10 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX11(samplerDesc11);
 
-			RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this);
+			result = RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this);
+
+			if (result < 0)
+				wxMessageBox(("ERROR: Texture::loadTextureImagesDX11: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
 		case GRAPHICS_API_DIRECTX12:
@@ -361,7 +389,10 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX12(this->SamplerDesc12);
 
-			RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this);
+			result = RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this);
+
+			if (result < 0)
+				wxMessageBox(("ERROR: Texture::loadTextureImagesDX12: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
 		}
@@ -457,7 +488,10 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 		else
 			this->setWrappingVK(this->SamplerInfo);
 
-		RenderEngine::Canvas.VK->CreateTexture(pixels2, this);
+		int result = RenderEngine::Canvas.VK->CreateTexture(pixels2, this);
+
+		if (result < 0)
+			wxMessageBox(("ERROR: Texture::loadTextureImagesVK: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 	}
 
 	for (auto pixels : pixels2)

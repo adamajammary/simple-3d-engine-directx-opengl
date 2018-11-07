@@ -143,15 +143,14 @@ int DXContext::commandsInit()
 
 int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 {
-	ID3DBlob* error  = nullptr;
-	DWORD     flags  = 0;
-	HRESULT   result = -1;
+	ID3DBlob* error = nullptr;
+	DWORD     flags = 0;
 
 	#if defined _DEBUG
 		flags |= (D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION | D3DCOMPILE_ENABLE_STRICTNESS);
     #endif
 
-	result = D3DCompileFromFile(file.wc_str(), nullptr, nullptr, "VS", "vs_5_0", flags, 0, vs, &error);
+	HRESULT result = D3DCompileFromFile(file.wc_str(), nullptr, nullptr, "VS", "vs_5_0", flags, 0, vs, &error);
 
 	if (FAILED(result))
 	{
@@ -176,7 +175,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 		}
 		#endif
 
-		return -1;
+		return -2;
 	}
 
 	return 0;
@@ -187,24 +186,24 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 	if (buffer == nullptr)
 		return -1;
 
-	D3D11_BUFFER_DESC bufferDesc    = {};
-	UINT              bufferSizes[] = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXWireframeBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
-	HRESULT           result        = -1;
-
-	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-
 	for (int i = 0; i < NR_OF_SHADERS; i++) {
 		_RELEASEP(buffer->ConstantBuffersDX11[i]);
 	}
+
+	UINT bufferSizes[NR_OF_SHADERS] = {
+		sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer),   sizeof(DXSkyboxBuffer),
+		sizeof(DXDefaultBuffer), sizeof(DXWaterBuffer), sizeof(DXWireframeBuffer)
+	};
+
+	D3D11_BUFFER_DESC bufferDesc = {};
+	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
 		bufferDesc.ByteWidth = bufferSizes[i];
 
-		result = this->renderDevice11->CreateBuffer(&bufferDesc, nullptr, &buffer->ConstantBuffersDX11[i]);
-
-		if (FAILED(result))
-			return -1;
+		if (FAILED(this->renderDevice11->CreateBuffer(&bufferDesc, nullptr, &buffer->ConstantBuffersDX11[i])))
+			return -2;
 	}
 
 	return 0;
@@ -215,12 +214,6 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 	if (buffer == nullptr)
 		return -1;
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc      = {};
-	D3D12_DESCRIPTOR_HEAP_DESC      bufferHeapDesc  = {};
-	UINT                            bufferSizes[]   = { sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer), sizeof(DXSkyboxBuffer), sizeof(DXWireframeBuffer), sizeof(DXTerrainBuffer), sizeof(DXWaterBuffer) };
-	D3D12_DESCRIPTOR_HEAP_DESC      samplerHeapDesc = {};
-	HRESULT                         result          = -1;
-
 	for (int i = 0; i < NR_OF_SHADERS; i++) {
 		_RELEASEP(buffer->ConstantBuffersDX12[i]);
 	}
@@ -229,9 +222,13 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 		_RELEASEP(buffer->ConstantBufferHeapsDX12[i]);
 	}
 
+	D3D12_DESCRIPTOR_HEAP_DESC bufferHeapDesc  = {};
+
 	bufferHeapDesc.NumDescriptors = (1 + MAX_TEXTURES);
 	bufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	bufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
 
 	samplerHeapDesc.NumDescriptors = MAX_TEXTURES;
 	samplerHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
@@ -244,14 +241,14 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 		);
 
 		if (FAILED(result))
-			return -1;
+			return -2;
 
 		result = this->renderDevice12->CreateDescriptorHeap(
 			&samplerHeapDesc, IID_PPV_ARGS(&buffer->SamplerHeapsDX12[i])
 		);
 
 		if (FAILED(result))
-			return -1;
+			return -3;
 
 		// https://social.msdn.microsoft.com/Forums/sqlserver/en-US/78dec419-6827-40fc-a048-01c3cccb92ef/directx-10-11-and-12-constant-buffer-alignment?forum=vsga
 		// Buffer View = 64 KB aligned = 65536 bytes
@@ -263,7 +260,14 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 		);
 
 		if (FAILED(result))
-			return -1;
+			return -4;
+
+		UINT bufferSizes[NR_OF_SHADERS] = {
+			sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer),   sizeof(DXSkyboxBuffer),
+			sizeof(DXDefaultBuffer), sizeof(DXWaterBuffer), sizeof(DXWireframeBuffer)
+		};
+
+		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {};
 
 		bufferDesc.BufferLocation = buffer->ConstantBuffersDX12[i]->GetGPUVirtualAddress();
 		bufferDesc.SizeInBytes    = (bufferSizes[i] + (BYTE_ALIGN_BUFFER_VIEW - (bufferSizes[i] % BYTE_ALIGN_BUFFER_VIEW)));
@@ -282,15 +286,12 @@ int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, Buffer* b
 {
 	D3D11_SUBRESOURCE_DATA bufferData = {};
 	D3D11_BUFFER_DESC      bufferDesc = {};
-	HRESULT                result     = -1;
 
 	bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	bufferDesc.ByteWidth = (indices.size() * sizeof(unsigned int));
 	bufferData.pSysMem   = &indices[0];
 
-	result = this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, &buffer->VertexBufferDX11);
-
-	if (FAILED(result))
+	if (FAILED(this->renderDevice11->CreateBuffer(&bufferDesc, &bufferData, &buffer->VertexBufferDX11)))
 		return -1;
 
 	return 0;
@@ -298,12 +299,9 @@ int DXContext::CreateIndexBuffer11(std::vector<unsigned int> &indices, Buffer* b
 
 int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* buffer)
 {
-	D3D12_SUBRESOURCE_DATA bufferData     = {};
-	UINT                   bufferSize     = (indices.size() * sizeof(unsigned int));
-	ID3D12Resource*        bufferResource = nullptr;
-	HRESULT                result         = -1;
+	UINT bufferSize = (indices.size() * sizeof(unsigned int));
 
-	result = this->renderDevice12->CreateCommittedResource(
+	HRESULT result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&buffer->VertexBufferDX12)
 	);
@@ -311,13 +309,17 @@ int DXContext::CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* b
 	if (FAILED(result))
 		return -1;
 
+	ID3D12Resource* bufferResource = nullptr;
+
 	result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
 		&CD3DX12_RESOURCE_DESC::Buffer(bufferSize), D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&bufferResource)
 	);
 
 	if (FAILED(result))
-		return -1;
+		return -2;
+
+	D3D12_SUBRESOURCE_DATA bufferData = {};
 
 	bufferData.pData      = &indices[0];
 	bufferData.RowPitch   = bufferSize;
@@ -419,7 +421,6 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	ID3DBlob*                           error             = nullptr;
 	D3D12_FEATURE_DATA_ROOT_SIGNATURE   featureData       = {};
 	int                                 nrOfRootParams    = 1;
-	HRESULT                             result            = -1;
 	D3D12_DESCRIPTOR_RANGE1             ranges[3]         = {};
 	D3D12_ROOT_PARAMETER1               rootParams[3]     = {};
 	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
@@ -428,7 +429,7 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 
 	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
-	result = this->renderDevice12->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData));
+	HRESULT result = this->renderDevice12->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData));
 
 	if (FAILED(result))
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
@@ -501,14 +502,14 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	result = D3D12SerializeVersionedRootSignature(&rootSignatureDesc, &signature, &error);
 
 	if (FAILED(result))
-		return false;
+		return -1;
 
 	result = this->renderDevice12->CreateRootSignature(
 		0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(rootSignature)
 	);
 
 	if (FAILED(result))
-		return false;
+		return -2;
 
 	return 0;
 }
@@ -519,10 +520,10 @@ int DXContext::CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** fs
 		return -1;
 
 	if (FAILED(this->renderDevice11->CreateVertexShader((*vs)->GetBufferPointer(), (*vs)->GetBufferSize(), NULL, shaderVS)))
-		return -1;
+		return -2;
 
 	if (FAILED(this->renderDevice11->CreatePixelShader((*fs)->GetBufferPointer(), (*fs)->GetBufferSize(), NULL, shaderFS)))
-		return -1;
+		return -3;
 
 	return 0;
 }
@@ -538,7 +539,6 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		return -1;
 
 	std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
-	HRESULT                             result      = -1;
 	D3D11_SHADER_RESOURCE_VIEW_DESC     srvDesc     = {};
 	D3D11_TEXTURE2D_DESC                textureDesc = {};
 	wxSize                              textureSize = texture->Size();
@@ -570,7 +570,7 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		}
 	}
 
-	result = this->renderDevice11->CreateTexture2D(
+	HRESULT result = this->renderDevice11->CreateTexture2D(
 		&textureDesc, (!pixels.empty() ? textureData.data() : nullptr), &texture->Resource11
 	);
 
@@ -614,16 +614,16 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 	if (texture == nullptr)
 		return -1;
 
-	D3D11_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
-	HRESULT                       result          = -1;
-	std::vector<BYTE*>            pixels;
+	std::vector<BYTE*> pixels;
 
-	result = this->CreateTexture11(pixels, format, samplerDesc, texture);
+	HRESULT result = this->CreateTexture11(pixels, format, samplerDesc, texture);
 
 	if (FAILED(result))
 		return -2;
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
+	D3D11_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 
@@ -641,12 +641,8 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	if (texture == nullptr)
 		return -1;
 
-	std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size());
-	//std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
-	HRESULT                             result              = -1;
-	ID3D12Resource*                     textureResource     = nullptr;
-	D3D12_RESOURCE_DESC                 textureResourceDesc = {};
-	wxSize                              textureSize         = texture->Size();
+	D3D12_RESOURCE_DESC textureResourceDesc = {};
+	wxSize              textureSize         = texture->Size();
 
 	textureResourceDesc.DepthOrArraySize = (!pixels.empty() ? pixels.size() : 1);
 	textureResourceDesc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -667,7 +663,7 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		textureResourceDesc.Height = (UINT64)bufferViewPort.Height;
 	}
 
-	result = this->renderDevice12->CreateCommittedResource(
+	HRESULT result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureResourceDesc,
 		(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)),
 		nullptr, IID_PPV_ARGS(&texture->Resource12)
@@ -678,6 +674,10 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 	if (!pixels.empty())
 	{
+		//std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
+		std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size());
+		ID3D12Resource*                     textureResource = nullptr;
+
 		result = this->renderDevice12->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD), D3D12_HEAP_FLAG_NONE,
 			&CD3DX12_RESOURCE_DESC::Buffer(GetRequiredIntermediateSize(texture->Resource12, 0, textureData.size())),
@@ -736,16 +736,14 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 {
-	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc     = {};
-	D3D12_DESCRIPTOR_HEAP_DESC    colorBufferHeapDesc = {};
-	HRESULT                       result              = -1;
-
-	result = this->CreateTexture12({}, format, texture);
+	HRESULT result = this->CreateTexture12({}, format, texture);
 
 	if (FAILED(result))
 		return -1;
 
 	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION
+	D3D12_DESCRIPTOR_HEAP_DESC colorBufferHeapDesc = {};
+
 	colorBufferHeapDesc.NumDescriptors = 1;
 	colorBufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	//colorBufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
@@ -759,6 +757,8 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
+	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
 
@@ -1135,11 +1135,10 @@ IDXGIAdapter* DXContext::getAdapter11(IDXGIFactory* factory)
 	D3D_FEATURE_LEVEL featureLevel    = D3D_FEATURE_LEVEL_11_0;
 	D3D_FEATURE_LEVEL featureLevels[] = { D3D_FEATURE_LEVEL_11_0 };
 	UINT              i               = 0;
-	HRESULT           result          = -1;
 
 	while (factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND)
 	{
-		result = D3D11CreateDevice(
+		HRESULT result = D3D11CreateDevice(
 			adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, 0, featureLevels, 1, D3D11_SDK_VERSION, nullptr, &featureLevel, nullptr
 		);
 
@@ -1147,6 +1146,7 @@ IDXGIAdapter* DXContext::getAdapter11(IDXGIFactory* factory)
 			return adapter;
 
 		_RELEASEP(adapter);
+		i++;
 	}
 
 	return nullptr;
@@ -1158,16 +1158,16 @@ IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory5* factory)
 
 	IDXGIAdapter1* adapter = nullptr;
 	UINT           i       = 0;
-	HRESULT        result  = -1;
 
 	while (factory->EnumAdapters1(i, &adapter) != DXGI_ERROR_NOT_FOUND)
 	{
-		result = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
+		HRESULT result = D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, _uuidof(ID3D12Device), nullptr);
 
 		if (SUCCEEDED(result))
 			return adapter;
 
 		_RELEASEP(adapter);
+		i++;
 	}
 
 	return nullptr;

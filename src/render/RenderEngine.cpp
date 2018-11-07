@@ -158,7 +158,7 @@ void RenderEngine::Draw()
 int RenderEngine::drawBoundingVolumes()
 {
     if (!RenderEngine::DrawBoundingVolume)
-		return -1;
+		return 1;
 
 	DrawModeType oldDrawMode = RenderEngine::DrawMode;
 
@@ -177,7 +177,7 @@ int RenderEngine::drawBoundingVolumes()
 int RenderEngine::drawHUDs(const DrawProperties &properties)
 {
 	if (RenderEngine::HUDs.empty())
-		return -1;
+		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
@@ -197,7 +197,7 @@ int RenderEngine::drawHUDs(const DrawProperties &properties)
 int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Renderables.empty())
-		return -1;
+		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
@@ -237,7 +237,7 @@ int RenderEngine::drawSelected()
 int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Skybox == nullptr)
-		return -1;
+		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
@@ -257,7 +257,7 @@ int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer c
 int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if (RenderEngine::Terrains.empty())
-		return -1;
+		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
@@ -279,7 +279,7 @@ int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer
 int RenderEngine::drawWaters(const DrawProperties &properties)
 {
 	if (RenderEngine::Waters.empty())
-		return -1;
+		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
