@@ -80,14 +80,14 @@
       <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";WXDEBUG;GLM_ENABLE_EXPERIMENTAL;WIN32;DEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Debug;3rd\glew-2.1.0\lib\Debug\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Debug;3rd\lzma1805\C\Util\LzmaLib\Debug;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\Debug;3rd\glew-2.1.0\lib\Debug\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Debug;3rd\lzma1805\C\Util\LzmaLib\Debug;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)resources"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\Debug\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Debug\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\Debug\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(TargetDir)"
@@ -106,14 +106,14 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(Tar
       <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";WXDEBUG;GLM_ENABLE_EXPERIMENTAL;WIN64;DEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Debug;3rd\glew-2.1.0\lib\Debug\x64;3rd\libnoisesrc-1.0.0\noise\x64\Debug;3rd\lzma1805\C\Util\LzmaLib\x64\Debug;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;$(VK_SDK_PATH)/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\x64\Debug;3rd\glew-2.1.0\lib\Debug\x64;3rd\libnoisesrc-1.0.0\noise\x64\Debug;3rd\lzma1805\C\Util\LzmaLib\x64\Debug;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;$(VK_SDK_PATH)/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)resources"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\x64\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\x64\Debug\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Debug\x64\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\x64\Debug\*.dll" "$(TargetDir)"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)"
@@ -136,18 +136,20 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Release;3rd\glew-2.1.0\lib\Release\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Release;3rd\lzma1805\C\Util\LzmaLib\Release;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\Release;3rd\glew-2.1.0\lib\Release\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Release;3rd\lzma1805\C\Util\LzmaLib\Release;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
+      <Command>RMDIR /Q /S "$(TargetDir)$(ProjectName)"
+MKDIR "$(TargetDir)$(ProjectName)"
+COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)$(ProjectName)\img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)$(ProjectName)\resources"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\Release\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\*.dll" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(TargetDir)$(ProjectName)\"
 </Command>
     </PostBuildEvent>
     <ResourceCompile>
@@ -167,16 +169,18 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(Tar
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Release;3rd\glew-2.1.0\lib\Release\x64;3rd\libnoisesrc-1.0.0\noise\x64\Release;3rd\lzma1805\C\Util\LzmaLib\x64\Release;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\x64\Release;3rd\glew-2.1.0\lib\Release\x64;3rd\libnoisesrc-1.0.0\noise\x64\Release;3rd\lzma1805\C\Util\LzmaLib\x64\Release;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
+      <Command>RMDIR /Q /S "$(TargetDir)$(ProjectName)"
+MKDIR "$(TargetDir)$(ProjectName)"
+COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)$(ProjectName)\img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)$(ProjectName)\resources"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\x64\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\x64\*.dll" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)$(ProjectName)\"</Command>
     </PostBuildEvent>

@@ -36,7 +36,7 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 		wxWebView*        webView  = nullptr;
 
 		for (int i = 0; i < 2; i++) {
-			webView = wxWebView::New(this, wxID_ANY, "http://jammary.com/google_ad_horizontal.html", wxDefaultPosition, wxSize(730, 90), wxWebViewBackendDefault, wxBORDER_NONE);
+			webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, wxSize(730, 90), wxWebViewBackendDefault, wxBORDER_NONE);
 			sizerAds->Add(webView, 0, wxALL, 10);
 		}
 

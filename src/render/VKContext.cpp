@@ -944,11 +944,13 @@ int VKContext::CreateVertexBuffer(const std::vector<float> &vertices, const std:
 	return 0;
 }
 
+#if defined _DEBUG
 VKAPI_ATTR VkBool32 VKAPI_CALL VKContext::debugLog(VkDebugReportFlagsEXT f, VkDebugReportObjectTypeEXT ot, uint64_t o, size_t l, int32_t c, const char* lp, const char* m, void* ud)
 {
 	wxLogDebug("%s\n", m);
 	return VK_FALSE;
 }
+#endif
 
 void VKContext::DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory)
 {

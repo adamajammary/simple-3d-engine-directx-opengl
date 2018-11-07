@@ -22,6 +22,7 @@ public:
 	static const wxChar*                BOUNDING_VOLUMES[];
 	static const wxString               COPYRIGHT;
 	static const wxString               TESTED;
+	static const wxString               GOOGLE_ADS_URL;
 	static const wxString               DRAW_MODES[];
 	static const wxChar*                FONTS[];
 	static const wxString               FOVS[];
