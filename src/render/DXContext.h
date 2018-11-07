@@ -76,7 +76,7 @@ private:
 	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, bool fbo, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
 	int                      createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
 	IDXGIAdapter*            getAdapter11(IDXGIFactory*  factory);
-	IDXGIAdapter1*           getAdapter12(IDXGIFactory4* factory);
+	IDXGIAdapter1*           getAdapter12(IDXGIFactory5* factory);
 	bool                     init11(bool vsync = true);
 	bool                     init12(bool vsync = true);
 	D3D11_BLEND_DESC         initColorBlending11(BOOL enableBlend);

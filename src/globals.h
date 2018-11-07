@@ -16,7 +16,7 @@
 	#include <d3d12.h>
 	#include <d3dx12.h>
 	#include <d3dcompiler.h>
-	#include <dxgi1_4.h>
+	#include <dxgi1_5.h>
 	#include <DirectXMath.h>
 #endif
 

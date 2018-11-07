@@ -1152,7 +1152,7 @@ IDXGIAdapter* DXContext::getAdapter11(IDXGIFactory* factory)
 	return nullptr;
 }
 
-IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory4* factory)
+IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory5* factory)
 {
 	if (factory == nullptr) { return nullptr; }
 
@@ -1326,7 +1326,7 @@ bool DXContext::init12(bool vsync)
 	#endif
 
 	// FACTORY
-	IDXGIFactory4* factory = nullptr;
+	IDXGIFactory5* factory = nullptr;
 	HRESULT        result  = CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&factory));
 	
 	if (FAILED(result))
@@ -1366,17 +1366,22 @@ bool DXContext::init12(bool vsync)
 	#endif
 	
 	// COMMAND QUEUE
-	D3D12_COMMAND_QUEUE_DESC commandQueue = {};
+	D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
 
-	commandQueue.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	commandQueue.Type  = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	commandQueueDesc.Type  = D3D12_COMMAND_LIST_TYPE_DIRECT;
 
-	result = this->renderDevice12->CreateCommandQueue(&commandQueue, IID_PPV_ARGS(&this->commandQueue));
+	result = this->renderDevice12->CreateCommandQueue(&commandQueueDesc, IID_PPV_ARGS(&this->commandQueue));
 	
 	if (FAILED(result)) {
 		_RELEASEP(factory);
 		return false;
 	}
+
+	// Check if tearing is supported for variable refresh rate
+	BOOL tearing      = FALSE;
+	result            = factory->CheckFeatureSupport(DXGI_FEATURE_PRESENT_ALLOW_TEARING, &tearing, sizeof(tearing));
+	UINT tearingFlags = (SUCCEEDED(result) && tearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0);
 
 	// SWAP CHAIN
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -1388,6 +1393,7 @@ bool DXContext::init12(bool vsync)
 	swapChainDesc.BufferDesc.RefreshRate.Numerator   = (this->vSync ? 60 : 0);
 	swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
 	swapChainDesc.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapChainDesc.Flags                              = (this->vSync ? 0 : tearingFlags);
 	swapChainDesc.SwapEffect                         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	swapChainDesc.OutputWindow                       = (HWND)RenderEngine::Canvas.Canvas->GetHWND();
 	swapChainDesc.SampleDesc.Count                   = 1;
@@ -1690,7 +1696,12 @@ void DXContext::Present12()
 	);
 
 	this->commandsExecute();
-	this->swapChain12->Present((this->vSync ? 1 : 0), 0);
+
+	if (this->vSync)
+		this->swapChain12->Present(1, 0);
+	else
+		this->swapChain12->Present(0, DXGI_PRESENT_ALLOW_TEARING);
+
 	this->wait();
 }
 
