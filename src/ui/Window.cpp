@@ -2,11 +2,26 @@
 
 void Window::GameLoop(wxIdleEvent &event)
 {
-	event.RequestMore();
+	if (RenderEngine::Ready)
+	{
+		event.RequestMore();
 
-	TimeManager::UpdateFPS();
-	PhysicsEngine::Update();
-	RenderEngine::Draw();
+		TimeManager::UpdateFPS();
+		PhysicsEngine::Update();
+		RenderEngine::Draw();
+	}
+}
+
+int Window::OnExit()
+{
+	RenderEngine::Ready         = false;
+	RenderEngine::Canvas.Canvas = nullptr;
+	RenderEngine::Canvas.Window = nullptr;
+
+	RenderEngine::Close();
+	_DELETEP(RenderEngine::Camera);
+
+	return 0;
 }
 
 bool Window::OnInit()
@@ -17,18 +32,18 @@ bool Window::OnInit()
 	// WINDOW
 	wxString title = wxString(Utils::APP_NAME).append(" ").append(Utils::APP_VERSION);
 
-	this->frame = new WindowFrame(title, wxDefaultPosition, wxSize(1510, 860), this);
+	this->frame = new WindowFrame(title, wxDefaultPosition, Utils::WINDOW_SIZE, this);
 	this->frame->Show(true);
 	//this->frame->Maximize(true);
 
 	// RENDER ENGINE
 	this->frame->SetStatusText("Initializing the Render Engine ...");
 
-	int result = RenderEngine::Init(this->frame, wxSize(640, 360));
+	int result = RenderEngine::Init(this->frame, Utils::RENDER_SIZE);
 
-	if (result != 0)
+	if (result < 0)
 	{
-		wxMessageBox("ERROR: Failed to initialize the render engine.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		wxMessageBox(("ERROR: Failed to initialize the render engine: " + std::to_wstring(result)), this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		this->frame->SetStatusText("Initializing the Render Engine ... FAIL");
 
 		return false;
@@ -56,9 +71,9 @@ bool Window::OnInit()
 
 	result = InputManager::Init();
 
-	if (result != 0)
+	if (result < 0)
 	{
-		wxMessageBox("ERROR: Failed to initialize the Input Manager.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		wxMessageBox(("ERROR: Failed to initialize the Input Manager: " + std::to_wstring(result)), this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		this->frame->SetStatusText("Initializing the Input Manager ... FAIL");
 
 		return false;

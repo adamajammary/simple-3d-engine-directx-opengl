@@ -255,7 +255,16 @@ void WindowFrame::ClearScene()
 	this->listBoxComponents->Clear();
 	this->listBoxChildren->Clear();
 
-	SceneManager::AddComponent(RenderEngine::Camera);
+	// Add camera back to the scene
+	if (RenderEngine::Camera != NULL) {
+		RenderEngine::Camera->UpdateProjection();
+		SceneManager::AddComponent(RenderEngine::Camera);
+	}
+}
+
+void WindowFrame::DeactivateDetails()
+{
+	this->propertyGrid->UnfocusEditor();
 }
 
 void WindowFrame::InitDetails()
@@ -294,29 +303,39 @@ void WindowFrame::InitDetails()
 	{
 		this->propertyGrid->Clear();
 
+		// NAME
 		this->propertyGrid->Append(new wxStringProperty("Name", "ID_NAME", static_cast<wxString>(selected->Name)));
+		this->propertyGrid->GetProperty("ID_NAME")->SetValidator(wxTextValidator(wxFILTER_EMPTY));
 
+		if (selected->Type() == COMPONENT_CAMERA)
+			this->propertyGrid->SetPropertyReadOnly("ID_NAME");
+
+		// LOCATION
 		if (selected->Type() != COMPONENT_SKYBOX) {
 			glm::vec3 position = selected->Position();
 			this->addPropertyXYZ("Location", "ID_LOCATION", position[0], position[1], position[2], -100.0f, 100.0f, 0.01f);
 		}
 
+		// ROTATION
 		if (selected->Type() != COMPONENT_SKYBOX) {
 			glm::vec3 rotation = selected->Rotation();
 			this->addPropertyXYZ("Rotation (rad)", "ID_ROTATION", rotation[0], rotation[1], rotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 		}
 
+		// SCALE
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			glm::vec3 scale = selected->Scale();
 			this->addPropertyXYZ("Scale", "ID_SCALE", scale[0], scale[1], scale[2], -100.0f, 100.0f, 0.01f);
 		}
 
+		// AUTO-ROTATE
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			glm::vec3 autoRotation = selected->AutoRotation;
 			this->addPropertyXYZ("Auto-Rotate (rad)", "ID_AUTO_ROTATION", autoRotation[0], autoRotation[1], autoRotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 			this->addPropertyCheckbox("Enable", "ID_ENABLE_AUTO_ROTATION", selected->AutoRotate);
 		}
 
+		// MATERIAL
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
 			this->propertyGrid->Append(new wxPropertyCategory("Material"));
 			this->propertyGrid->Append(new wxColourProperty((selected->Type() == COMPONENT_HUD ? "Background" : "Color"), "ID_COLOR", Utils::ToWxColour(selected->Color)));
@@ -324,22 +343,30 @@ void WindowFrame::InitDetails()
 
 		if (selected->Type() == COMPONENT_HUD)
 		{
+			// MATERIAL
 			this->addPropertyRange("Opacity (alpha)", "ID_OPACITY",      (selected->Color.a * 255.0f), 0.0f, 255.0f, 1.0f);
 			this->addPropertyCheckbox("Transparency", "ID_TRANSPARENCY", dynamic_cast<HUD*>(selected->Parent)->Transparent);
 
+			// TEXT
 			this->propertyGrid->Append(new wxPropertyCategory("Text"));
+
 			this->propertyGrid->Append(new wxStringProperty("Text", "ID_TEXT", "HUD"));
 			this->addPropertyEnum("Alignment", "ID_TEXT_ALIGNMENT", Utils::ALIGNMENTS, dynamic_cast<HUD*>(selected->Parent)->TextAlign);
 			this->addPropertyEnum("Font",      "ID_TEXT_FONT",      Utils::FONTS,      dynamic_cast<HUD*>(selected->Parent)->TextFont);
 			this->addPropertyRange("Size",     "ID_TEXT_SIZE",      dynamic_cast<HUD*>(selected->Parent)->TextSize, 10.0f, 100.0f, 1.0f);
 			this->propertyGrid->Append(new wxColourProperty("Color", "ID_TEXT_COLOR",  dynamic_cast<HUD*>(selected->Parent)->TextColor));
 			
+			// TEXTURE
 			this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+
 			this->propertyGrid->Append(new wxImageFileProperty("Texture", "ID_HUD_TEXTURE", selected->Textures[0]->ImageFile()));
+			this->propertyGrid->SetPropertyAttribute("ID_HUD_TEXTURE", wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
 			this->addPropertyCheckbox(" Remove Texture", "ID_HUD_REMOVE_TEXTURE", false);
 		}
 		else if (selected->Type() != COMPONENT_CAMERA)
 		{
+			// TEXTURE
 			wxString label, imageFile;
 			wxString skyboxLabels[]  = { "Right", "Left", "Top", "Bottom", "Back", "Front" };
 			wxString terrainLabels[] = { "Background", "Red",  "Green", "Blue", "Blend Map", "" };
@@ -378,7 +405,10 @@ void WindowFrame::InitDetails()
 				}
 
 				this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+				
 				this->propertyGrid->Append(new wxImageFileProperty(label, wxString("ID_TEXTURE_" + std::to_string(i)), imageFile));
+				this->propertyGrid->SetPropertyAttribute(wxString("ID_TEXTURE_" + std::to_string(i)), wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
 				this->addPropertyCheckbox(" Remove Texture", wxString("ID_REMOVE_TEXTURE_" + std::to_string(i)), false);
 
 				if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
@@ -391,6 +421,7 @@ void WindowFrame::InitDetails()
 			}
 		}
 
+		// PHYSICS
 		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
 		{
 			BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
@@ -400,6 +431,7 @@ void WindowFrame::InitDetails()
 			this->addPropertyEnum("Bounding Volume", "ID_BOUNDING_VOLUME", Utils::BOUNDING_VOLUMES, Utils::BOUNDING_VOLUMES[volumeType]);
 		}
 
+		// TERRAIN
 		if (selected->Type() == COMPONENT_TERRAIN)
 		{
 			this->propertyGrid->Append(new wxPropertyCategory("Terrain"));
@@ -409,6 +441,7 @@ void WindowFrame::InitDetails()
 			this->addPropertyRange("Redistribution", "ID_TERRAIN_REDISTRIBUTION", dynamic_cast<Terrain*>(selected->Parent)->Redistribution(), 0.01f, 10.0f,  0.01f);
 		}
 
+		// WATER
 		if (selected->Type() == COMPONENT_WATER)
 		{
 			WaterFBO* fbo = dynamic_cast<Water*>(selected->Parent)->FBO();
@@ -432,18 +465,23 @@ void WindowFrame::InitDetails()
 	this->sizerSceneDetails->Layout();
 }
 
+bool WindowFrame::IsDetailsActive()
+{
+	return this->propertyGrid->IsEditorFocused();
+}
+
 void WindowFrame::OnAbout(wxCommandEvent &event)
 {
 	wxString title = wxString(Utils::APP_NAME).append(" v.").append(Utils::APP_VERSION);
 	wxString about = wxString(title).append("\n").append(Utils::COPYRIGHT).append(
 		"\n\n"
-		"Keyboard WASD:                     Move forward / left / back / right.\n"
-		"Mouse-Middle:                        Rotate horizontal / vertical (yaw / pitch).\n"
-		"Mouse-Middle + CTRL-key:  Move forward / back.\n"
-		"Mouse-Middle + SHIFT-key: Move horizontal / vertical.\n"
-		"Mouse-Scroll:                           Move forward / back.\n"
-		"Mouse-Scroll + CTRL-key:     Move left / right.\n"
-		"Mouse-Scroll + SHIFT-key:    Move up / down."
+		"Keyboard WASD:                                Move forward / left / back / right.\n"
+		"Mouse Middle/Right:                        Rotate horizontal / vertical (yaw / pitch).\n"
+		"Mouse Middle/Right + CTRL-key:  Move forward / back.\n"
+		"Mouse Middle/Right + SHIFT-key: Move horizontal / vertical.\n"
+		"Mouse Scroll:                                      Move forward / back.\n"
+		"Mouse Scroll + CTRL-key:                Move left / right.\n"
+		"Mouse Scroll + SHIFT-key:               Move up / down."
 	).append("\n\n").append(Utils::TESTED);
 
 	wxMessageBox(about, title, wxOK | wxICON_INFORMATION);
@@ -451,9 +489,6 @@ void WindowFrame::OnAbout(wxCommandEvent &event)
 
 void WindowFrame::OnExit(wxCommandEvent &event)
 {
-	_DELETEP(Utils::EmptyCubemap);
-	_DELETEP(Utils::EmptyTexture);
-
 	this->Close(true);
 }
 
@@ -534,174 +569,183 @@ glm::vec3 WindowFrame::updatePropertyXYZ(const wxString &id, float value, const 
 	return xyz;
 }
 
-void WindowFrame::UpdateComponents(wxPGProperty* property)
+int WindowFrame::UpdateComponents(wxPGProperty* property)
 {
 	Component* selected = (SceneManager::SelectedChild != nullptr ? SceneManager::SelectedChild : SceneManager::SelectedComponent);
 
-	if ((selected != nullptr) && (this->propertyGrid != nullptr))
-	{
-		if (property->GetName() == "ID_BOUNDING_VOLUME")
-			dynamic_cast<Mesh*>(selected)->SetBoundingVolume(static_cast<BoundingVolumeType>(property->GetChoiceSelection()));
-		else if (property->GetName() == "ID_COLOR")
-			selected->Color = Utils::ToVec4Color(Utils::ToWxColour(property->GetValue()));
-		else if (property->GetName() == "ID_ENABLE_AUTO_ROTATION")
-			selected->AutoRotate = property->GetValue().GetBool();
-		else if (property->GetName() == "ID_NAME")
-			selected->Name = property->GetValueAsString();
-		else if (property->GetName() == "ID_OPACITY")
-			selected->Color.a = (property->GetValue().GetDouble() / 255.0f);
-		else if (property->GetName() == "ID_TRANSPARENCY")
-			dynamic_cast<HUD*>(selected->Parent)->Transparent = property->GetValue().GetBool();
-		else if (property->GetName() == "ID_TEXT")
-			dynamic_cast<HUD*>(selected->Parent)->Update(property->GetValueAsString());
-		else if (property->GetName() == "ID_TEXT_ALIGNMENT")
-			dynamic_cast<HUD*>(selected->Parent)->TextAlign = property->GetValueAsString();
-		else if (property->GetName() == "ID_TEXT_FONT")
-			dynamic_cast<HUD*>(selected->Parent)->TextFont = property->GetValueAsString();
-		else if (property->GetName() == "ID_TEXT_SIZE")
-			dynamic_cast<HUD*>(selected->Parent)->TextSize = property->GetValue().GetInteger();
-		else if (property->GetName() == "ID_TEXT_COLOR")
-			dynamic_cast<HUD*>(selected->Parent)->TextColor = Utils::ToWxColour(property->GetValue());
-		else if (property->GetName() == "ID_HUD_TEXTURE")
-			dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), 0);
-		else if (property->GetName() == "ID_HUD_REMOVE_TEXTURE")
-			dynamic_cast<Mesh*>(selected)->RemoveTexture(0);
-		else if (property->GetName() == "ID_TERRAIN_SIZE")
-			dynamic_cast<Terrain*>(selected->Parent)->Resize(property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
-		else if (property->GetName() == "ID_TERRAIN_OCTAVES")
-			dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
-		else if (property->GetName() == "ID_TERRAIN_REDISTRIBUTION")
-			dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), property->GetValue().GetDouble());
-		else if (property->GetName() == "ID_WATER_SPEED")
-			dynamic_cast<Water*>(selected->Parent)->FBO()->Speed = property->GetValue().GetDouble();
-		else if (property->GetName() == "ID_WATER_WAVE_STRENGTH")
-			dynamic_cast<Water*>(selected->Parent)->FBO()->WaveStrength = property->GetValue().GetDouble();
-		else if (property->GetName().substr(0, 17) == "ID_AUTO_ROTATION_")
-			selected->AutoRotation = this->updatePropertyXYZ(property->GetName(), property->GetValue().GetDouble(), selected->AutoRotation);
-		else if (property->GetName().substr(0, 16) == "ID_FLIP_TEXTURE_")
-			dynamic_cast<Mesh*>(selected)->Textures[std::atoi(property->GetName().substr(16))]->SetFlipY(property->GetValue().GetBool());
-		else if (property->GetName().substr(0, 12) == "ID_LOCATION_")
-			selected->MoveTo(this->updatePropertyXYZ(property->GetName(), property->GetValue().GetDouble(), selected->Position()));
-		else if (property->GetName().substr(0, 18) == "ID_REMOVE_TEXTURE_")
-			dynamic_cast<Mesh*>(selected)->RemoveTexture(std::atoi(property->GetName().substr(18)));
-		else if (property->GetName().substr(0, 18) == "ID_REPEAT_TEXTURE_")
-			dynamic_cast<Mesh*>(selected)->Textures[std::atoi(property->GetName().substr(18))]->SetRepeat(property->GetValue().GetBool());
-		else if (property->GetName().substr(0, 12) == "ID_ROTATION_")
-			selected->RotateTo(this->updatePropertyXYZ(property->GetName(), property->GetValue().GetDouble(), selected->Rotation()));
-		else if (property->GetName().substr(0, 11) == "ID_TILING_U_")
-			dynamic_cast<Mesh*>(selected)->Textures[std::atoi(property->GetName().substr(11))]->Scale[0] = property->GetValue().GetDouble();
-		else if (property->GetName().substr(0, 11) == "ID_TILING_V_")
-			dynamic_cast<Mesh*>(selected)->Textures[std::atoi(property->GetName().substr(11))]->Scale[1] = property->GetValue().GetDouble();
-		else if (property->GetName().substr(0, 9) == "ID_SCALE_")
-			selected->ScaleTo(this->updatePropertyXYZ(property->GetName(), property->GetValue().GetDouble(), selected->Scale()));
-		else if (property->GetName().substr(0, 11) == "ID_TEXTURE_")
-			dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), std::atoi(property->GetName().substr(11)));
+	if (selected == nullptr)
+		return -1;
 
-		if (selected->Type() == COMPONENT_HUD)
-			dynamic_cast<HUD*>(selected->Parent)->Update();
-	}
+	wxString propertyName = property->GetName();
 
-	this->UpdateDetails();
+	if (propertyName == "ID_BOUNDING_VOLUME")
+		dynamic_cast<Mesh*>(selected)->SetBoundingVolume(static_cast<BoundingVolumeType>(property->GetChoiceSelection()));
+	else if (propertyName == "ID_COLOR")
+		selected->Color = Utils::ToVec4Color(Utils::ToWxColour(property->GetValue()));
+	else if (propertyName == "ID_ENABLE_AUTO_ROTATION")
+		selected->AutoRotate = property->GetValue().GetBool();
+	else if (propertyName == "ID_NAME")
+		selected->Name = (!property->GetValueAsString().Trim().IsEmpty() ? property->GetValueAsString() : selected->Name);
+	else if (propertyName == "ID_OPACITY")
+		selected->Color.a = (property->GetValue().GetDouble() / 255.0f);
+	else if (propertyName == "ID_TRANSPARENCY")
+		dynamic_cast<HUD*>(selected->Parent)->Transparent = property->GetValue().GetBool();
+	else if (propertyName == "ID_TEXT")
+		dynamic_cast<HUD*>(selected->Parent)->Update(property->GetValueAsString());
+	else if (propertyName == "ID_TEXT_ALIGNMENT")
+		dynamic_cast<HUD*>(selected->Parent)->TextAlign = property->GetValueAsString();
+	else if (propertyName == "ID_TEXT_FONT")
+		dynamic_cast<HUD*>(selected->Parent)->TextFont = property->GetValueAsString();
+	else if (propertyName == "ID_TEXT_SIZE")
+		dynamic_cast<HUD*>(selected->Parent)->TextSize = property->GetValue().GetInteger();
+	else if (propertyName == "ID_TEXT_COLOR")
+		dynamic_cast<HUD*>(selected->Parent)->TextColor = Utils::ToWxColour(property->GetValue());
+	else if (propertyName == "ID_HUD_TEXTURE")
+		dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), 0);
+	else if (propertyName == "ID_HUD_REMOVE_TEXTURE")
+		dynamic_cast<Mesh*>(selected)->RemoveTexture(0);
+	else if (propertyName == "ID_TERRAIN_SIZE")
+		dynamic_cast<Terrain*>(selected->Parent)->Resize(property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
+	else if (propertyName == "ID_TERRAIN_OCTAVES")
+		dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
+	else if (propertyName == "ID_TERRAIN_REDISTRIBUTION")
+		dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), property->GetValue().GetDouble());
+	else if (propertyName == "ID_WATER_SPEED")
+		dynamic_cast<Water*>(selected->Parent)->FBO()->Speed = property->GetValue().GetDouble();
+	else if (propertyName == "ID_WATER_WAVE_STRENGTH")
+		dynamic_cast<Water*>(selected->Parent)->FBO()->WaveStrength = property->GetValue().GetDouble();
+	else if (propertyName.substr(0, 17) == "ID_AUTO_ROTATION_")
+		selected->AutoRotation = this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->AutoRotation);
+	else if (propertyName.substr(0, 16) == "ID_FLIP_TEXTURE_")
+		dynamic_cast<Mesh*>(selected)->Textures[std::atoi(propertyName.substr(16))]->SetFlipY(property->GetValue().GetBool());
+	else if (propertyName.substr(0, 12) == "ID_LOCATION_")
+		selected->MoveTo(this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->Position()));
+	else if (propertyName.substr(0, 18) == "ID_REMOVE_TEXTURE_")
+		dynamic_cast<Mesh*>(selected)->RemoveTexture(std::atoi(propertyName.substr(18)));
+	else if (propertyName.substr(0, 18) == "ID_REPEAT_TEXTURE_")
+		dynamic_cast<Mesh*>(selected)->Textures[std::atoi(propertyName.substr(18))]->SetRepeat(property->GetValue().GetBool());
+	else if (propertyName.substr(0, 12) == "ID_ROTATION_")
+		selected->RotateTo(this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->Rotation()));
+	else if (propertyName.substr(0, 11) == "ID_TILING_U_")
+		dynamic_cast<Mesh*>(selected)->Textures[std::atoi(propertyName.substr(11))]->Scale[0] = property->GetValue().GetDouble();
+	else if (propertyName.substr(0, 11) == "ID_TILING_V_")
+		dynamic_cast<Mesh*>(selected)->Textures[std::atoi(propertyName.substr(11))]->Scale[1] = property->GetValue().GetDouble();
+	else if (propertyName.substr(0, 9) == "ID_SCALE_")
+		selected->ScaleTo(this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->Scale()));
+	else if (propertyName.substr(0, 11) == "ID_TEXTURE_")
+		dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), std::atoi(propertyName.substr(11)));
+
+	if (selected->Type() == COMPONENT_HUD)
+		dynamic_cast<HUD*>(selected->Parent)->Update();
+
+	return this->UpdateDetails();
 }
 
-void WindowFrame::UpdateDetails()
+int WindowFrame::UpdateDetails()
 {
 	Component* selected = (SceneManager::SelectedChild != nullptr ? SceneManager::SelectedChild : SceneManager::SelectedComponent);
 
-	if ((selected != nullptr) && (this->propertyGrid != nullptr))
+	if ((selected == nullptr) || (this->propertyGrid == nullptr))
+		return -1;
+
+	this->propertyGrid->SetPropertyValue("ID_NAME", static_cast<wxString>(selected->Name));
+
+	// UPDATE LIST OF COMPONENTS/CHILDREN
+	if (selected->Type() == COMPONENT_CAMERA)
+		this->listBoxComponents->SetString(0, selected->Name);
+	else
+		this->SelectComponent(this->listBoxComponents->GetSelection());
+
+	if (selected->Type() != COMPONENT_SKYBOX) {
+		glm::vec3 position = selected->Position();
+		this->setPropertyXYZ("ID_LOCATION", position[0], position[1], position[2]);
+	}
+
+	if (selected->Type() != COMPONENT_SKYBOX) {
+		glm::vec3 rotation = selected->Rotation();
+		this->setPropertyXYZ("ID_ROTATION", rotation[0], rotation[1], rotation[2]);
+	}
+
+	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
+		glm::vec3 scale = selected->Scale();
+		this->setPropertyXYZ("ID_SCALE", scale[0], scale[1], scale[2]);
+	}
+
+	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
 	{
-		this->propertyGrid->SetPropertyValue("ID_NAME", static_cast<wxString>(selected->Name));
+		glm::vec3 autoRotation = selected->AutoRotation;
 
-		if (selected->Type() != COMPONENT_SKYBOX) {
-			glm::vec3 position = selected->Position();
-			this->setPropertyXYZ("ID_LOCATION", position[0], position[1], position[2]);
-		}
+		this->setPropertyXYZ("ID_AUTO_ROTATION", autoRotation[0], autoRotation[1], autoRotation[2]);
+		this->propertyGrid->SetPropertyValue("ID_ENABLE_AUTO_ROTATION", selected->AutoRotate);
+	}
 
-		if (selected->Type() != COMPONENT_SKYBOX) {
-			glm::vec3 rotation = selected->Rotation();
-			this->setPropertyXYZ("ID_ROTATION", rotation[0], rotation[1], rotation[2]);
-		}
+	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
+		this->propertyGrid->SetPropertyValue("ID_COLOR", Utils::ToWxColour(selected->Color));
 
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
-			glm::vec3 scale = selected->Scale();
-			this->setPropertyXYZ("ID_SCALE", scale[0], scale[1], scale[2]);
-		}
-
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
+	if (selected->Type() == COMPONENT_HUD)
+	{
+		this->propertyGrid->SetPropertyValue("ID_OPACITY",            (selected->Color.a * 255.0f));
+		this->propertyGrid->SetPropertyValue("ID_TRANSPARENCY",       dynamic_cast<HUD*>(selected->Parent)->Transparent);
+		this->propertyGrid->SetPropertyValue("ID_TEXT",               dynamic_cast<HUD*>(selected->Parent)->Text());
+		this->propertyGrid->SetPropertyValue("ID_TEXT_ALIGNMENT",     dynamic_cast<HUD*>(selected->Parent)->TextAlign);
+		this->propertyGrid->SetPropertyValue("ID_TEXT_FONT",          dynamic_cast<HUD*>(selected->Parent)->TextFont);
+		this->propertyGrid->SetPropertyValue("ID_TEXT_SIZE",          dynamic_cast<HUD*>(selected->Parent)->TextSize);
+		this->propertyGrid->SetPropertyValue("ID_TEXT_COLOR",         dynamic_cast<HUD*>(selected->Parent)->TextColor);
+		this->propertyGrid->SetPropertyValue("ID_HUD_TEXTURE",        selected->Textures[0]->ImageFile());
+		this->propertyGrid->SetPropertyValue("ID_HUD_REMOVE_TEXTURE", false);
+	}
+	else if (selected->Type() != COMPONENT_CAMERA)
+	{
+		for (int i = 0; i < MAX_TEXTURES; i++)
 		{
-			glm::vec3 autoRotation = selected->AutoRotation;
-
-			this->setPropertyXYZ("ID_AUTO_ROTATION", autoRotation[0], autoRotation[1], autoRotation[2]);
-			this->propertyGrid->SetPropertyValue("ID_ENABLE_AUTO_ROTATION", selected->AutoRotate);
-		}
-
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
-			this->propertyGrid->SetPropertyValue("ID_COLOR", Utils::ToWxColour(selected->Color));
-
-		if (selected->Type() == COMPONENT_HUD)
-		{
-			this->propertyGrid->SetPropertyValue("ID_OPACITY",            (selected->Color.a * 255.0f));
-			this->propertyGrid->SetPropertyValue("ID_TRANSPARENCY",       dynamic_cast<HUD*>(selected->Parent)->Transparent);
-			this->propertyGrid->SetPropertyValue("ID_TEXT",               dynamic_cast<HUD*>(selected->Parent)->Text());
-			this->propertyGrid->SetPropertyValue("ID_TEXT_ALIGNMENT",     dynamic_cast<HUD*>(selected->Parent)->TextAlign);
-			this->propertyGrid->SetPropertyValue("ID_TEXT_FONT",          dynamic_cast<HUD*>(selected->Parent)->TextFont);
-			this->propertyGrid->SetPropertyValue("ID_TEXT_SIZE",          dynamic_cast<HUD*>(selected->Parent)->TextSize);
-			this->propertyGrid->SetPropertyValue("ID_TEXT_COLOR",         dynamic_cast<HUD*>(selected->Parent)->TextColor);
-			this->propertyGrid->SetPropertyValue("ID_HUD_TEXTURE",        selected->Textures[0]->ImageFile());
-			this->propertyGrid->SetPropertyValue("ID_HUD_REMOVE_TEXTURE", false);
-		}
-		else if (selected->Type() != COMPONENT_CAMERA)
-		{
-			for (int i = 0; i < MAX_TEXTURES; i++)
-			{
-				if (selected->Type() == COMPONENT_TERRAIN) {
-					if (selected->Textures[i]->ImageFile(i).empty())
-						continue;
-				} else if (selected->Type() == COMPONENT_WATER) {
-					if (selected->Textures[i]->ImageFile(i).empty())
-						continue;
-				} else {
-					if (i > 0)
-						continue;
-				}
-
-				this->propertyGrid->SetPropertyValue(wxString("ID_TEXTURE_"        + std::to_string(i)), selected->Textures[i]->ImageFile());
-				this->propertyGrid->SetPropertyValue(wxString("ID_REMOVE_TEXTURE_" + std::to_string(i)), false);
-
-				if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
-					this->propertyGrid->SetPropertyValue(wxString("ID_FLIP_TEXTURE_"   + std::to_string(i)), selected->Textures[i]->FlipY());
-					this->propertyGrid->SetPropertyValue(wxString("ID_REPEAT_TEXTURE_" + std::to_string(i)), selected->Textures[i]->Repeat());
-				}
-
-				this->propertyGrid->SetPropertyValue(wxString("ID_TILING_U_" + std::to_string(i)), selected->Textures[i]->Scale[0]);
-				this->propertyGrid->SetPropertyValue(wxString("ID_TILING_V_" + std::to_string(i)), selected->Textures[i]->Scale[1]);
+			if (selected->Type() == COMPONENT_TERRAIN) {
+				if (selected->Textures[i]->ImageFile(i).empty())
+					continue;
+			} else if (selected->Type() == COMPONENT_WATER) {
+				if (selected->Textures[i]->ImageFile(i).empty())
+					continue;
+			} else {
+				if (i > 0)
+					continue;
 			}
-		}
 
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
-		{
-			BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
-			BoundingVolumeType volumeType = (volume != nullptr ? volume->VolumeType() : BOUNDING_VOLUME_NONE);
+			this->propertyGrid->SetPropertyValue(wxString("ID_TEXTURE_"        + std::to_string(i)), selected->Textures[i]->ImageFile());
+			this->propertyGrid->SetPropertyValue(wxString("ID_REMOVE_TEXTURE_" + std::to_string(i)), false);
 
-			this->propertyGrid->SetPropertyValue("ID_BOUNDING_VOLUME", volumeType);
-		}
-
-		if (selected->Type() == COMPONENT_TERRAIN)
-		{
-			this->propertyGrid->SetPropertyValue("ID_TERRAIN_SIZE",           dynamic_cast<Terrain*>(selected->Parent)->Size());
-			this->propertyGrid->SetPropertyValue("ID_TERRAIN_OCTAVES",        dynamic_cast<Terrain*>(selected->Parent)->Octaves());
-			this->propertyGrid->SetPropertyValue("ID_TERRAIN_REDISTRIBUTION", dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
-		}
-
-		if (selected->Type() == COMPONENT_WATER)
-		{
-			WaterFBO* fbo = dynamic_cast<Water*>(selected->Parent)->FBO();
-
-			if (fbo != nullptr)
-			{
-				this->propertyGrid->SetPropertyValue("ID_WATER_SPEED",         fbo->Speed);
-				this->propertyGrid->SetPropertyValue("ID_WATER_WAVE_STRENGTH", fbo->WaveStrength);
+			if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
+				this->propertyGrid->SetPropertyValue(wxString("ID_FLIP_TEXTURE_"   + std::to_string(i)), selected->Textures[i]->FlipY());
+				this->propertyGrid->SetPropertyValue(wxString("ID_REPEAT_TEXTURE_" + std::to_string(i)), selected->Textures[i]->Repeat());
 			}
+
+			this->propertyGrid->SetPropertyValue(wxString("ID_TILING_U_" + std::to_string(i)), selected->Textures[i]->Scale[0]);
+			this->propertyGrid->SetPropertyValue(wxString("ID_TILING_V_" + std::to_string(i)), selected->Textures[i]->Scale[1]);
 		}
 	}
+
+	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
+	{
+		BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
+		BoundingVolumeType volumeType = (volume != nullptr ? volume->VolumeType() : BOUNDING_VOLUME_NONE);
+
+		this->propertyGrid->SetPropertyValue("ID_BOUNDING_VOLUME", volumeType);
+	}
+
+	if (selected->Type() == COMPONENT_TERRAIN)
+	{
+		this->propertyGrid->SetPropertyValue("ID_TERRAIN_SIZE",           dynamic_cast<Terrain*>(selected->Parent)->Size());
+		this->propertyGrid->SetPropertyValue("ID_TERRAIN_OCTAVES",        dynamic_cast<Terrain*>(selected->Parent)->Octaves());
+		this->propertyGrid->SetPropertyValue("ID_TERRAIN_REDISTRIBUTION", dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
+	}
+
+	if (selected->Type() == COMPONENT_WATER)
+	{
+		WaterFBO* fbo = dynamic_cast<Water*>(selected->Parent)->FBO();
+
+		if (fbo != nullptr) {
+			this->propertyGrid->SetPropertyValue("ID_WATER_SPEED",         fbo->Speed);
+			this->propertyGrid->SetPropertyValue("ID_WATER_WAVE_STRENGTH", fbo->WaveStrength);
+		}
+	}
+
+	return 0;
 }

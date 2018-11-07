@@ -2,15 +2,15 @@
 
 Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 {
-	this->boundingVolume       = nullptr;
-	this->isSelected           = false;
-	this->maxScale             = 0.0f;
-	this->Parent               = parent;
-	this->indexBuffer          = nullptr;
-	this->normalBuffer         = nullptr;
-	this->textureCoordsBuffer  = nullptr;
-	this->vertexBuffer         = nullptr;
-	this->type                 = parent->Type();
+	this->boundingVolume      = nullptr;
+	this->isSelected          = false;
+	this->maxScale            = 0.0f;
+	this->Parent              = parent;
+	this->indexBuffer         = nullptr;
+	this->normalBuffer        = nullptr;
+	this->textureCoordsBuffer = nullptr;
+	this->type                = parent->Type();
+	this->vertexBuffer        = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -18,14 +18,14 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 
 Mesh::Mesh() : Component("")
 {
-	this->boundingVolume       = nullptr;
-	this->isSelected           = false;
-	this->maxScale             = 0.0f;
-	this->indexBuffer          = nullptr;
-	this->normalBuffer         = nullptr;
-	this->textureCoordsBuffer  = nullptr;
-	this->vertexBuffer         = nullptr;
-	this->type                 = COMPONENT_MESH;
+	this->boundingVolume      = nullptr;
+	this->isSelected          = false;
+	this->maxScale            = 0.0f;
+	this->indexBuffer         = nullptr;
+	this->normalBuffer        = nullptr;
+	this->textureCoordsBuffer = nullptr;
+	this->type                = COMPONENT_MESH;
+	this->vertexBuffer        = nullptr;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -42,25 +42,15 @@ Mesh::~Mesh()
 	_DELETEP(this->normalBuffer);
 	_DELETEP(this->textureCoordsBuffer);
 	_DELETEP(this->vertexBuffer);
+
+	_DELETEP(this->boundingVolume);
 }
 
 void Mesh::BindBuffer(GLuint bufferID, GLuint shaderAttrib, GLsizei size, GLenum arrayType, GLboolean normalized, const GLvoid* offset)
 {
-	GLsizei stride = 0;
-
-	switch (arrayType) {
-		case GL_BYTE:           stride = (size * sizeof(char));           break;
-		case GL_UNSIGNED_BYTE:  stride = (size * sizeof(unsigned char));  break;
-		case GL_SHORT:          stride = (size * sizeof(short));          break;
-		case GL_UNSIGNED_SHORT: stride = (size * sizeof(unsigned short)); break;
-		case GL_INT:            stride = (size * sizeof(int));            break;
-		case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
-		case GL_FLOAT:          stride = (size * sizeof(float));          break;
-	}
-
 	glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-	glVertexAttribPointer(shaderAttrib, size, GL_FLOAT, normalized, stride, offset);
-	glEnableVertexAttribArray(shaderAttrib);
+		glVertexAttribPointer(shaderAttrib, size, GL_FLOAT, normalized, Utils::GetStride(size, arrayType), offset);
+		glEnableVertexAttribArray(shaderAttrib);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
@@ -101,8 +91,8 @@ GLuint Mesh::VBO()
 
 bool Mesh::IsOK()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
 	case GRAPHICS_API_DIRECTX12:
@@ -111,7 +101,7 @@ bool Mesh::IsOK()
 	case GRAPHICS_API_OPENGL:
 		return ((this->IBO() > 0) && (this->VBO() > 0));
 	case GRAPHICS_API_VULKAN:
-		return false;
+		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
 	}
 
 	return false;
@@ -139,6 +129,7 @@ bool Mesh::LoadArrays(std::vector<unsigned int> &indices, std::vector<float> &no
 	return this->IsOK();
 }
 
+// TODO: Optimize by checking for duplicate vertices
 bool Mesh::loadModelData(aiMesh* mesh)
 {
 	if (mesh == nullptr)
@@ -192,8 +183,11 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
     this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
 
-	this->loadModelData(mesh);
-	this->setModelData();
+	if (!this->loadModelData(mesh))
+		return false;
+
+	if (!this->setModelData())
+		return false;
 
     // http://assimp.sourceforge.net/lib_html/classai_matrix4x4t.html
 	RenderEngine::Canvas.Window->SetStatusText("Decomposing the Transformation Matrix ...");
@@ -207,7 +201,7 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
 	this->isValid = this->IsOK();
 
-	return this->IsOK();
+	return this->isValid;
 }
 
 void Mesh::LoadTexture(Texture* texture, int index)
@@ -227,6 +221,22 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
     return 0;
 }
 
+void Mesh::MoveBy(const glm::vec3 &amount)
+{
+	Component::MoveBy(amount);
+
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->updateTranslation();
+}
+
+void Mesh::MoveTo(const glm::vec3 &newPosition)
+{
+	Component::MoveTo(newPosition);
+
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->updateTranslation();
+}
+
 size_t Mesh::NrOfIndices()
 {
 	return this->indices.size();
@@ -239,7 +249,7 @@ size_t Mesh::NrOfVertices()
 
 void Mesh::RemoveTexture(int index)
 {
-	this->LoadTexture(Utils::EmptyTexture, index);
+	this->LoadTexture(SceneManager::EmptyTexture, index);
 }
 
 void Mesh::Select(bool selected)
@@ -269,8 +279,8 @@ void Mesh::setMaxScale()
 
 bool Mesh::setModelData()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		if (!this->indices.empty())
@@ -296,6 +306,12 @@ bool Mesh::setModelData()
 
 		break;
 	case GRAPHICS_API_VULKAN:
+		if (!this->indices.empty())
+			this->indexBuffer = new Buffer(this->indices);
+
+		if (!this->vertices.empty())
+			this->vertexBuffer = new Buffer(this->vertices, this->normals, this->textureCoords);
+
 		break;
 	default:
 		return false;
@@ -312,7 +328,7 @@ void Mesh::updateModelData()
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
-			this->LoadTexture(Utils::EmptyTexture, i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }
 
@@ -324,6 +340,6 @@ void Mesh::updateModelData(const aiVector3D &position, const aiVector3D &scale, 
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
-			this->LoadTexture(Utils::EmptyTexture, i);
+			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
 }

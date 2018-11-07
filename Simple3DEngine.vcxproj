@@ -22,7 +22,7 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{A271D4E8-38B0-4403-A4A3-1B16C6B5B76B}</ProjectGuid>
     <RootNamespace>Simple3DEngine</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
     <ProjectName>Simple3DEngine</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -76,23 +76,25 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>3rd;3rd\assimp-4.1.0\include;3rd\glew-2.0.0\include;3rd\glm-0.9.9-a2;3rd\libnoisesrc-1.0.0\noise\src;3rd\lzma1801\C;3rd\wxWidgets-3.1.0\include\msvc;3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>GLM_ENABLE_EXPERIMENTAL;WIN32;DEBUG;_WINDOWS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>3rd;3rd/assimp-4.1.0/include;3rd/glew-2.1.0/include;3rd/glm;3rd/libnoisesrc-1.0.0/noise/src;3rd/lzma1805/C;3rd/wxWidgets-3.1.1/include/msvc;3rd/wxWidgets-3.1.1/include;$(VK_SDK_PATH)/Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";WXDEBUG;GLM_ENABLE_EXPERIMENTAL;WIN32;DEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Debug;3rd\glew-2.0.0\lib\Release\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Debug;3rd\lzma1801\C\Util\LzmaLib\Debug;3rd\wxWidgets-3.1.0\lib\vc_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Debug;3rd\glew-2.1.0\lib\Debug\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Debug;3rd\lzma1805\C\Util\LzmaLib\Debug;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32s.lib;libnoise.lib;LzmaLib.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)resources"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\Debug\*.dll" "$(TargetDir)"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(TargetDir)"
 </Command>
     </PostBuildEvent>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.1\include</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -100,23 +102,25 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\Debug\*.dll" "$(
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>3rd;3rd\assimp-4.1.0\include;3rd\glew-2.0.0\include;3rd\glm-0.9.9-a2;3rd\libnoisesrc-1.0.0\noise\src;3rd\lzma1801\C;3rd\wxWidgets-3.1.0\include\msvc;3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>GLM_ENABLE_EXPERIMENTAL;WIN64;DEBUG;_WINDOWS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>3rd;3rd/assimp-4.1.0/include;3rd/glew-2.1.0/include;3rd/glm;3rd/libnoisesrc-1.0.0/noise/src;3rd/lzma1805/C;3rd/wxWidgets-3.1.1/include/msvc;3rd/wxWidgets-3.1.1/include;$(VK_SDK_PATH)/Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";WXDEBUG;GLM_ENABLE_EXPERIMENTAL;WIN64;DEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Debug;3rd\glew-2.0.0\lib\Release\x64;3rd\libnoisesrc-1.0.0\noise\x64\Debug;3rd\lzma1801\C\Util\LzmaLib\x64\Debug;3rd\wxWidgets-3.1.0\lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Debug;3rd\glew-2.1.0\lib\Debug\x64;3rd\libnoisesrc-1.0.0\noise\x64\Debug;3rd\lzma1805\C\Util\LzmaLib\x64\Debug;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;$(VK_SDK_PATH)/Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32s.lib;libnoise.lib;LzmaLib.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)resources"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\x64\Debug\*.dll" "$(TargetDir)"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Debug\x64\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\x64\Debug\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)"
 </Command>
     </PostBuildEvent>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.1\include</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -126,26 +130,28 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Debug\*.dll"
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>3rd;3rd\assimp-4.1.0\include;3rd\glew-2.0.0\include;3rd\glm-0.9.9-a2;3rd\libnoisesrc-1.0.0\noise\src;3rd\lzma1801\C;3rd\wxWidgets-3.1.0\include\msvc;3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>GLM_ENABLE_EXPERIMENTAL;WIN32;NDEBUG;_WINDOWS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>3rd;3rd/assimp-4.1.0/include;3rd/glew-2.1.0/include;3rd/glm;3rd/libnoisesrc-1.0.0/noise/src;3rd/lzma1805/C;3rd/wxWidgets-3.1.1/include/msvc;3rd/wxWidgets-3.1.1/include;$(VK_SDK_PATH)/Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";GLM_ENABLE_EXPERIMENTAL;WIN32;NDEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Release;3rd\glew-2.0.0\lib\Release\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Release;3rd\lzma1801\C\Util\LzmaLib\Release;3rd\wxWidgets-3.1.0\lib\vc_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\Release;3rd\glew-2.1.0\lib\Release\Win32;3rd\libnoisesrc-1.0.0\noise\win32\Release;3rd\lzma1805\C\Util\LzmaLib\Release;3rd\wxWidgets-3.1.1\lib\vc_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib32</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32s.lib;libnoise.lib;LzmaLib.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)$(ProjectName)\img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)$(ProjectName)\resources"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\Release\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\Release\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_dll\*.dll" "$(TargetDir)"
 </Command>
     </PostBuildEvent>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.1\include</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -155,30 +161,31 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\Release\*.dll" "
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>3rd;3rd\assimp-4.1.0\include;3rd\glew-2.0.0\include;3rd\glm-0.9.9-a2;3rd\libnoisesrc-1.0.0\noise\src;3rd\lzma1801\C;3rd\wxWidgets-3.1.0\include\msvc;3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>GLM_ENABLE_EXPERIMENTAL;WIN64;NDEBUG;_WINDOWS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>3rd;3rd/assimp-4.1.0/include;3rd/glew-2.1.0/include;3rd/glm;3rd/libnoisesrc-1.0.0/noise/src;3rd/lzma1805/C;3rd/wxWidgets-3.1.1/include/msvc;3rd/wxWidgets-3.1.1/include;$(VK_SDK_PATH)/Include</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>VULKAN_SDK_PATH="C:/VulkanSDK/1.1.77.0";GLM_ENABLE_EXPERIMENTAL;WIN64;NDEBUG;_WINDOWS</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Release;3rd\glew-2.0.0\lib\Release\x64;3rd\libnoisesrc-1.0.0\noise\x64\Release;3rd\lzma1801\C\Util\LzmaLib\x64\Release;3rd\wxWidgets-3.1.0\lib\vc_x64_lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\assimp-4.1.0\lib\x64\Release;3rd\glew-2.1.0\lib\Release\x64;3rd\libnoisesrc-1.0.0\noise\x64\Release;3rd\lzma1805\C\Util\LzmaLib\x64\Release;3rd\wxWidgets-3.1.1\lib\vc_x64_dll;%(AdditionalLibraryDirectories);$(VK_SDK_PATH)/Lib</AdditionalLibraryDirectories>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32s.lib;libnoise.lib;LzmaLib.lib</AdditionalDependencies>
+      <AdditionalDependencies>assimp-vc140-mt.lib;d3d11.lib;d3d12.lib;DXGI.lib;dxguid.lib;D3DCompiler.lib;glew32d.lib;libnoise.lib;LzmaLib.lib;Opengl32.lib;vulkan-1.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>COPY /Y "$(TargetDir)*.exe" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)img" "$(TargetDir)$(ProjectName)\img"
 START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)$(ProjectName)\resources"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\bin\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-</Command>
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\x64\*.dll" "$(TargetDir)"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)$(ProjectName)\"</Command>
     </PostBuildEvent>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.0\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.1\include</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="3rd\json11-master\json11.cpp" />
+    <ClCompile Include="3rd\json11-1.0.0\json11.cpp" />
     <ClCompile Include="src\input\InputManager.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\physics\PhysicsEngine.cpp" />
@@ -187,6 +194,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
     <ClCompile Include="src\render\RenderEngine.cpp" />
     <ClCompile Include="src\render\ShaderManager.cpp" />
     <ClCompile Include="src\render\ShaderProgram.cpp" />
+    <ClCompile Include="src\render\VKContext.cpp" />
     <ClCompile Include="src\scene\BoundingVolume.cpp" />
     <ClCompile Include="src\scene\Buffer.cpp" />
     <ClCompile Include="src\scene\Camera.cpp" />
@@ -208,7 +216,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
     <ClCompile Include="src\ui\WindowFrame.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="3rd\json11-master\json11.hpp" />
+    <ClInclude Include="3rd\json11-1.0.0\json11.hpp" />
     <ClInclude Include="src\globals.h" />
     <ClInclude Include="src\input\InputManager.h" />
     <ClInclude Include="src\physics\PhysicsEngine.h" />
@@ -217,6 +225,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
     <ClInclude Include="src\render\RenderEngine.h" />
     <ClInclude Include="src\render\ShaderManager.h" />
     <ClInclude Include="src\render\ShaderProgram.h" />
+    <ClInclude Include="src\render\VKContext.h" />
     <ClInclude Include="src\scene\BoundingVolume.h" />
     <ClInclude Include="src\scene\Buffer.h" />
     <ClInclude Include="src\scene\Camera.h" />
@@ -274,13 +283,13 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="resources\shaders\solid.fs.glsl">
+    <None Include="resources\shaders\wireframe.fs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="resources\shaders\solid.vs.glsl">
+    <None Include="resources\shaders\wireframe.vs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -297,6 +306,14 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="resources\shaders\test.fs.glsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </None>
+    <None Include="resources\shaders\test.vs.glsl">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="resources\shaders\water.fs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -333,7 +350,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1801\C\Util\LzmaLib\x64\Release\*.dl
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="resources\shaders\solid.hlsl">
+    <FxCompile Include="resources\shaders\wireframe.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

@@ -1,12 +1,13 @@
 #include "SceneManager.h"
 
-glm::vec3 SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
-glm::vec4 SceneManager::SelectColor           = glm::vec4(1.0f,  0.5f,  0.0f, 1.0f);
-Light     SceneManager::SunLight              = {};
-
+glm::vec3               SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
 std::vector<Component*> SceneManager::Components;
-Mesh*                   SceneManager::SelectedChild     = nullptr;
-Component*              SceneManager::SelectedComponent = nullptr;
+Texture*                SceneManager::EmptyCubemap          = nullptr;
+Texture*                SceneManager::EmptyTexture          = nullptr;
+Mesh*                   SceneManager::SelectedChild         = nullptr;
+Component*              SceneManager::SelectedComponent     = nullptr;
+glm::vec4               SceneManager::SelectColor           = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
+Light                   SceneManager::SunLight              = {};
 
 int SceneManager::AddComponent(Component* component)
 {
@@ -50,19 +51,25 @@ int SceneManager::AddComponent(Component* component)
 
 void SceneManager::Clear()
 {
-    RenderEngine::HUDs.clear();
-    RenderEngine::Skybox = nullptr;
+	RenderEngine::Skybox = nullptr;
+
+	RenderEngine::HUDs.clear();
     RenderEngine::Terrains.clear();
     RenderEngine::Waters.clear();
     RenderEngine::Renderables.clear();
 
-	if (!SceneManager::Components.empty())
-		SceneManager::Components.erase(SceneManager::Components.begin() + 1, SceneManager::Components.end());
+	if (SceneManager::Components.size() > 1) {
+		for (auto it = SceneManager::Components.begin() + 1; it != SceneManager::Components.end(); it++)
+			_DELETEP(*it);
+	}
 
 	SceneManager::SelectedComponent = nullptr;
 	SceneManager::SelectedChild     = nullptr;
+
 	SceneManager::Components.clear();
-	RenderEngine::Canvas.Window->ClearScene();
+
+	if (RenderEngine::Canvas.Window != nullptr)
+		RenderEngine::Canvas.Window->ClearScene();
 }
 
 int SceneManager::GetComponentIndex(Component* component)
@@ -188,8 +195,20 @@ int SceneManager::LoadScene(const wxString &file)
 
 			child->Name = childJSON["name"].string_value();
 
-			child->MoveTo(Utils::ToVec3(childJSON["position"].array_items()));
-			child->ScaleTo(Utils::ToVec3(childJSON["scale"].array_items()));
+			glm::vec3 position = Utils::ToVec3(childJSON["position"].array_items());
+			glm::vec3 scale    = Utils::ToVec3(childJSON["scale"].array_items());
+
+			if (child->Type() == COMPONENT_HUD)
+			{
+				// Invert Y-axis for both mesh and vertex positions on Vulkan
+				if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+					position.y *= -1;
+					scale.y    *= -1;
+				}
+			}
+
+			child->MoveTo(position);
+			child->ScaleTo(scale);
 			child->RotateTo(Utils::ToVec3(childJSON["rotation"].array_items()));
 
 			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
@@ -223,8 +242,13 @@ int SceneManager::LoadScene(const wxString &file)
 					if ((type == COMPONENT_HUD) && (j > 0))
 						continue;
 
+					wxString imageFile = textureJSON["image_file"].string_value();
+
+					if (imageFile.IsEmpty())
+						continue;
+
 					texture = new Texture(
-						textureJSON["image_file"].string_value(),
+						imageFile,
 						textureJSON["repeat"].bool_value(),
 						textureJSON["flip"].bool_value(),
 						textureJSON["transparent"].bool_value(),
@@ -256,8 +280,13 @@ Skybox* SceneManager::LoadSkybox()
     if ((skybox == nullptr) || !skybox->IsValid())
 		return nullptr;
 
-    if (RenderEngine::Skybox != nullptr)
-		SceneManager::Components.erase(SceneManager::Components.begin() + SceneManager::GetComponentIndex(RenderEngine::Skybox));
+	if (RenderEngine::Skybox != nullptr)
+	{
+		int index = SceneManager::GetComponentIndex(RenderEngine::Skybox);
+
+		SceneManager::Components.erase(SceneManager::Components.begin() + index);
+		RenderEngine::Canvas.Window->RemoveComponent(index);
+	}
 
 	SceneManager::AddComponent(skybox);
 
@@ -286,12 +315,8 @@ Terrain* SceneManager::LoadTerrain(int size, float octaves, float redistribution
 
 Water* SceneManager::LoadWater()
 {
-	std::vector<wxString> imageFiles;
-
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["duDvMap"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["normalMap"]);
-
-	Water* water = new Water(Utils::RESOURCE_MODELS[ID_ICON_PLANE], imageFiles);
+	std::vector<wxString> imageFiles = { Utils::RESOURCE_IMAGES["duDvMap"], Utils::RESOURCE_IMAGES["normalMap"] };
+	Water*                water      = new Water(Utils::RESOURCE_MODELS[ID_ICON_PLANE], imageFiles);
 
 	if ((water == nullptr) || !water->IsValid())
 		return nullptr;
@@ -361,8 +386,7 @@ int SceneManager::SaveScene(const wxString &file)
 				for (int i = 0; i < MAX_TEXTURES; i++)
 				{
 					json11::Json textureJSON;
-
-					Texture* texture;
+					Texture*     texture;
 
 					if (component->Type() == COMPONENT_WATER)
 						texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
@@ -381,11 +405,22 @@ int SceneManager::SaveScene(const wxString &file)
 				}
 
 				BoundingVolume* boundingVolume = child->GetBoundingVolume();
+				glm::vec3       position       = child->Position();
+				glm::vec3       scale          = child->Scale();
+
+				if (child->Type() == COMPONENT_HUD)
+				{
+					// Invert Y-axis for both mesh and vertex positions on Vulkan
+					if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+						position.y *= -1;
+						scale.y    *= -1;
+					}
+				}
 
 				childJSON = json11::Json::object {
 					{ "name",            static_cast<std::string>(child->Name) },
-					{ "position",        Utils::ToJsonArray(child->Position()) },
-					{ "scale",           Utils::ToJsonArray(child->Scale()) },
+					{ "position",        Utils::ToJsonArray(position) },
+					{ "scale",           Utils::ToJsonArray(scale) },
 					{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
 					{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
 					{ "auto_rotate",     child->AutoRotate },

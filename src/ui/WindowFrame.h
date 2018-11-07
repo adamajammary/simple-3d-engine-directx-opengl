@@ -12,7 +12,7 @@ public:
 
 public:
 	Window*     Parent;
-	char        Title[BUFFER_SIZE];
+	wchar_t     Title[BUFFER_SIZE];
 	wxCheckBox* VSyncEnable;
 
 private:
@@ -28,7 +28,9 @@ public:
 	void     AddListComponent(Component* component);
 	void     AddListChildren(std::vector<Mesh*> children);
 	void     ClearScene();
+	void     DeactivateDetails();
 	void     InitDetails();
+	bool     IsDetailsActive();
 	void     OnAbout(wxCommandEvent &event);
 	void     OnExit(wxCommandEvent &event);
 	void     RemoveComponent(int index);
@@ -38,8 +40,8 @@ public:
 	wxString SelectedDrawMode();
 	void     SetCanvas(wxGLCanvas* canvas);
 	void     SetGraphicsAPI(int index);
-	void     UpdateComponents(wxPGProperty* property);
-	void     UpdateDetails();
+	int      UpdateComponents(wxPGProperty* property);
+	int      UpdateDetails();
 
 private:
 	void      addPropertyCheckbox(const wxString &label, const wxString &id, bool value);

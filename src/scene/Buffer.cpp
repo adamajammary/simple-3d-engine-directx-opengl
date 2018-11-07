@@ -1,37 +1,16 @@
 #include "Buffer.h"
 
-Buffer::Buffer(std::vector<unsigned int> &indices)
+Buffer::Buffer(std::vector<uint32_t> &indices)
 {
-	this->bufferStride = 0;
-	this->id           = 0;
+	this->init();
 
-	#ifdef _WINDOWS
-		this->bufferDX11           = nullptr;
-		this->bufferDX12           = nullptr;
-		this->indexBufferViewDX12 = {};
-
-		this->ConstantBuffersDX11[NR_OF_SHADERS]     = {};
-		this->ConstantBuffersDX12[NR_OF_SHADERS]     = {};
-		this->ConstantBufferHeapsDX12[NR_OF_SHADERS] = {};
-		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
-
-		this->MatrixBufferValues  = {};
-		this->LightBufferValues   = {};
-		this->DefaultBufferValues = {};
-		this->HUDBufferValues     = {};
-		this->SkyboxBufferValues  = {};
-		this->SolidBufferValues   = {};
-		this->TerrainBufferValues = {};
-		this->WaterBufferValues   = {};
-	#endif
-
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->CreateIndexBuffer11(indices, &this->bufferDX11);
+		RenderEngine::Canvas.DX->CreateIndexBuffer11(indices, this);
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->CreateIndexBuffer12(indices, &this->bufferDX12, this->indexBufferViewDX12);
+		RenderEngine::Canvas.DX->CreateIndexBuffer12(indices, this);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
@@ -39,12 +18,13 @@ Buffer::Buffer(std::vector<unsigned int> &indices)
 
 		if (id > 0) {
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, id);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, (indices.size() * sizeof(unsigned int)), &indices[0], GL_STATIC_DRAW);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, (indices.size() * sizeof(uint32_t)), &indices[0], GL_STATIC_DRAW);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		}
 
 		break;
 	case GRAPHICS_API_VULKAN:
+		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, this);
 		break;
 	default:
 		break;
@@ -53,7 +33,8 @@ Buffer::Buffer(std::vector<unsigned int> &indices)
 
 Buffer::Buffer(std::vector<float> &data)
 {
-	this->id = 0;
+	this->init();
+
 	glCreateBuffers(1, &this->id);
 
 	if (id > 0) {
@@ -65,80 +46,113 @@ Buffer::Buffer(std::vector<float> &data)
 
 Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords)
 {
-	this->bufferDX11           = nullptr;
-	this->bufferDX12           = nullptr;
-	this->bufferStride         = 0;
-	this->vertexBufferViewDX12 = {};
+	this->init();
 
-	switch (Utils::SelectedGraphicsAPI) {
+	this->normals   = normals;
+	this->texCoords = texCoords;
+	this->vertices  = vertices;
+
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->CreateVertexBuffer11(
-			vertices, normals, texCoords, &this->bufferDX11, this->bufferStride,
-			this->InputLayoutsDX11, this->RasterizerStatesDX11, this->DepthStencilStatesDX11, this->BlendStatesDX11
-		);
-
+		RenderEngine::Canvas.DX->CreateVertexBuffer11(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.DX->CreateConstantBuffers11(this);
-
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->CreateVertexBuffer12(
-			vertices, normals, texCoords, &this->bufferDX12, this->bufferStride,
-			this->vertexBufferViewDX12, this->PipelineStatesDX12, this->RootSignaturesDX12
-		);
-
+		RenderEngine::Canvas.DX->CreateVertexBuffer12(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.DX->CreateConstantBuffers12(this);
-
+		break;
+	case GRAPHICS_API_VULKAN:
+		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this);
+		RenderEngine::Canvas.VK->InitPipelines(this);
 		break;
 	}
 }
 
 Buffer::Buffer()
 {
-	this->bufferDX11           = nullptr;
-	this->bufferDX12           = nullptr;
-	this->bufferStride         = 0;
-	this->indexBufferViewDX12  = {};
-	this->vertexBufferViewDX12 = {};
-	this->id                   = 0;
+	this->init();
 }
 
 Buffer::~Buffer()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		_RELEASEP(this->bufferDX11);
-		_RELEASEP(this->bufferDX12);
+	#if defined _WINDOWS
+		for (uint32_t i = 0; i < NR_OF_SHADERS; i++)
+		{
+			_RELEASEP(this->ConstantBuffersDX11[i]);
+			_RELEASEP(this->ConstantBuffersDX12[i]);
+			_RELEASEP(this->SamplerHeapsDX12[i]);
+			_RELEASEP(this->ConstantBufferHeapsDX12[i]);
 
-		for (int i = 0; i < NR_OF_SHADERS; i++) {
-			_RELEASEP(this->InputLayoutsDX11[i]);
+			_RELEASEP(this->DepthStencilStatesDX11[i]);
+			_RELEASEP(this->BlendStatesDX11[i]);
 			_RELEASEP(this->RasterizerStatesDX11[i]);
+			_RELEASEP(this->InputLayoutsDX11[i]);
+
+			_RELEASEP(this->PipelineStatesDX12[i]);
+			_RELEASEP(this->PipelineStatesFBODX12[i]);
 			_RELEASEP(this->RootSignaturesDX12[i]);
 		}
 
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		break;
+		_RELEASEP(this->VertexBufferDX11);
+		_RELEASEP(this->VertexBufferDX12);
 	#endif
-	case GRAPHICS_API_OPENGL:
+
+	if (this->id > 0) {
 		glDeleteBuffers(1, &this->id);
 		this->id = 0;
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
 	}
+
+	for (uint32_t i = 0; i < NR_OF_UBOS_VK; i++)
+		RenderEngine::Canvas.VK->DestroyBuffer(&this->Uniform.Buffers[i], &this->Uniform.BufferMemories[i]);
+
+	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.Pipelines[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.PipelinesFBO[i]);
+	}
+
+	RenderEngine::Canvas.VK->DestroyPipelineLayout(&this->Pipeline.Layout);
+	RenderEngine::Canvas.VK->DestroyUniformSet(&this->Uniform.Pool, &this->Uniform.Layout);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->IndexBuffer,  &this->IndexBufferMemory);
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);
 }
 
-ID3D11Buffer* Buffer::BufferDX11()
+void Buffer::init()
 {
-	return this->bufferDX11;
-}
+	this->BufferStride       = 0;
+	this->id                 = 0;
+	this->IndexBuffer        = nullptr;
+	this->IndexBufferMemory  = nullptr;
+	this->Pipeline           = {};
+	this->Uniform            = {};
+	this->VertexBuffer       = nullptr;
+	this->VertexBufferMemory = nullptr;
 
-UINT Buffer::BufferStride()
-{
-	return this->bufferStride;
+	#if defined _WINDOWS
+		this->VertexBufferDX11     = nullptr;
+		this->VertexBufferDX12     = nullptr;
+		this->IndexBufferViewDX12  = {};
+		this->VertexBufferViewDX12 = {};
+
+		this->BlendStatesDX11[NR_OF_SHADERS]         = {};
+		this->ConstantBuffersDX11[NR_OF_SHADERS]     = {};
+		this->ConstantBuffersDX12[NR_OF_SHADERS]     = {};
+		this->ConstantBufferHeapsDX12[NR_OF_SHADERS] = {};
+		this->DepthStencilStatesDX11[NR_OF_SHADERS]  = {};
+		this->InputLayoutsDX11[NR_OF_SHADERS]        = {};
+		this->RasterizerStatesDX11[NR_OF_SHADERS]    = {};
+		this->PipelineStatesDX12[NR_OF_SHADERS]      = {};
+		this->PipelineStatesFBODX12[NR_OF_SHADERS]   = {};
+		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
+		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
+
+		this->MatrixBufferValues    = {};
+		this->LightBufferValues     = {};
+		this->DefaultBufferValues   = {};
+		this->HUDBufferValues       = {};
+		this->SkyboxBufferValues    = {};
+		this->WireframeBufferValues = {};
+		this->WaterBufferValues     = {};
+	#endif
 }
 
 GLuint Buffer::ID()
@@ -146,12 +160,28 @@ GLuint Buffer::ID()
 	return this->id;
 }
 
-D3D12_INDEX_BUFFER_VIEW Buffer::IndexBufferViewDX12()
+size_t Buffer::Normals()
 {
-	return this->indexBufferViewDX12;
+	return this->normals.size();
 }
 
-D3D12_VERTEX_BUFFER_VIEW Buffer::VertexBufferViewDX12()
+void Buffer::ResetPipelines()
 {
-	return this->vertexBufferViewDX12;
+	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
+		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.Pipelines[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.PipelinesFBO[i]);
+	}
+
+	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);
+	RenderEngine::Canvas.VK->CreateVertexBuffer(this->vertices, this->normals, this->texCoords, this);
+}
+
+size_t Buffer::TexCoords()
+{
+	return this->texCoords.size();
+}
+
+size_t Buffer::Vertices()
+{
+	return this->vertices.size();
 }

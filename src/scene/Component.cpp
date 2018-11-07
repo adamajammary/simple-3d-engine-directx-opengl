@@ -50,7 +50,7 @@ Component::~Component()
 	this->Children.clear();
 
 	for (int i = 0; i < MAX_TEXTURES; i++) {
-		if ((this->Textures[i] == Utils::EmptyTexture) || (this->Textures[i] == Utils::EmptyCubemap))
+		if ((this->Textures[i] == SceneManager::EmptyTexture) || (this->Textures[i] == SceneManager::EmptyCubemap))
 			continue;
 
 		_DELETEP(this->Textures[i]);
@@ -69,17 +69,17 @@ int Component::GetChildIndex(Mesh* child)
 
 bool Component::IsTextured()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11() != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11 != nullptr) && !this->Textures[0]->ImageFile().empty());
 	case GRAPHICS_API_DIRECTX12:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12() != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12 != nullptr) && !this->Textures[0]->ImageFile().empty());
 	#endif
 	case GRAPHICS_API_OPENGL:
 		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ID() > 0) && !this->Textures[0]->ImageFile().empty());
 	case GRAPHICS_API_VULKAN:
-		break;
+		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ImageView != nullptr) && (this->Textures[0]->Sampler != nullptr) && !this->Textures[0]->ImageFile().empty());
 	}
 
 	return false;
@@ -169,7 +169,7 @@ ComponentType Component::Type()
 
 void Component::updateMatrix()
 {
-	this->matrix = (this->translationMatrix * this->rotationMatrix  * this->scaleMatrix);
+	this->matrix = (this->translationMatrix * this->rotationMatrix * this->scaleMatrix);
 }
 
 void Component::updateRotation()

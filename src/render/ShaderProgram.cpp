@@ -2,40 +2,47 @@
 
 ShaderProgram::ShaderProgram(const wxString &name)
 {
-	this->name    = name;
-	this->program = 0;
+	this->name          = name;
+	this->program       = 0;
+	this->vulkanFS      = nullptr;
+	this->vulkanVS      = nullptr;
 
-	#ifdef _WINDOWS
+	#if defined _WINDOWS
 		this->shaderVS = nullptr;
 		this->shaderFS = nullptr;
 		this->vs       = nullptr;
 		this->fs       = nullptr;
 	#endif
 
-	if (Utils::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		this->program = glCreateProgram();
 }
 
 ShaderProgram::~ShaderProgram()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	#ifdef _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
+	#if defined _WINDOWS
 		_RELEASEP(this->shaderVS);
 		_RELEASEP(this->shaderFS);
 		_RELEASEP(this->vs);
 		_RELEASEP(this->fs);
-		break;
 	#endif
-	case GRAPHICS_API_OPENGL:
+
+	if (this->program > 0)
 		glDeleteProgram(this->program);
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
-	}
+
+	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanFS);
+	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanVS);
+}
+
+#if defined _WINDOWS
+ID3D11PixelShader* ShaderProgram::FragmentShader()
+{
+	return this->shaderFS;
+}
+
+ID3DBlob* ShaderProgram::FS()
+{
+	return this->fs;
 }
 
 DXLightBuffer ShaderProgram::getBufferLight()
@@ -63,7 +70,7 @@ DXMatrixBuffer ShaderProgram::getBufferMatrices(Mesh* mesh, bool removeTranslati
 	return matrices;
 }
 
-const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, const DrawProperties &properties)
 {
 	const void* bufferValues = nullptr;
 	Buffer*     vertexBuffer = mesh->VertexBuffer();
@@ -73,12 +80,13 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 
 	switch (this->ID()) {
 	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
 		vertexBuffer->DefaultBufferValues.Matrices       = matrices;
 		vertexBuffer->DefaultBufferValues.SunLight       = sunLight;
 		vertexBuffer->DefaultBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->DefaultBufferValues.EnableClipping = enableClipping;
-		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(clipMin);
+		vertexBuffer->DefaultBufferValues.EnableClipping = properties.EnableClipping;
+		vertexBuffer->DefaultBufferValues.ClipMax        = Utils::ToXMFLOAT3(properties.ClipMax);
+		vertexBuffer->DefaultBufferValues.ClipMin        = Utils::ToXMFLOAT3(properties.ClipMin);
 		vertexBuffer->DefaultBufferValues.IsTextured     = mesh->IsTextured();
 		vertexBuffer->DefaultBufferValues.MaterialColor  = Utils::ToXMFLOAT4(mesh->Color);
 
@@ -89,8 +97,8 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 
 		break;
 	case SHADER_ID_HUD:
-		vertexBuffer->HUDBufferValues.Matrices       = matrices;
-		vertexBuffer->HUDBufferValues.MaterialColor  = Utils::ToXMFLOAT4(mesh->Color);
+		vertexBuffer->HUDBufferValues.Matrices      = matrices;
+		vertexBuffer->HUDBufferValues.MaterialColor = Utils::ToXMFLOAT4(mesh->Color);
 		vertexBuffer->HUDBufferValues.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
 
 		bufferValues = &vertexBuffer->HUDBufferValues;
@@ -99,31 +107,7 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 	case SHADER_ID_SKYBOX:
 		vertexBuffer->SkyboxBufferValues.Matrices = matrices;
 
-		for (int i = 0; i < MAX_TEXTURES; i++)
-			vertexBuffer->SkyboxBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
-
 		bufferValues = &vertexBuffer->SkyboxBufferValues;
-
-		break;
-	case SHADER_ID_SOLID:
-		vertexBuffer->SolidBufferValues.Matrices   = matrices;
-		vertexBuffer->SolidBufferValues.SolidColor = Utils::ToXMFLOAT4(SceneManager::SelectColor);
-
-		bufferValues = &vertexBuffer->SolidBufferValues;
-
-		break;
-	case SHADER_ID_TERRAIN:
-		vertexBuffer->TerrainBufferValues.Matrices       = matrices;
-		vertexBuffer->TerrainBufferValues.SunLight       = sunLight;
-		vertexBuffer->TerrainBufferValues.Ambient        = Utils::ToXMFLOAT3(SceneManager::AmbientLightIntensity);
-		vertexBuffer->TerrainBufferValues.EnableClipping = enableClipping;
-		vertexBuffer->TerrainBufferValues.ClipMax        = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->TerrainBufferValues.ClipMin        = Utils::ToXMFLOAT3(clipMin);
-
-		for (int i = 0; i < MAX_TEXTURES; i++)
-			vertexBuffer->TerrainBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
-
-		bufferValues = &vertexBuffer->TerrainBufferValues;
 
 		break;
 	case SHADER_ID_WATER:
@@ -132,9 +116,9 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 		vertexBuffer->WaterBufferValues.CameraMain.Far      = RenderEngine::Camera->Far();
 		vertexBuffer->WaterBufferValues.Matrices            = matrices;
 		vertexBuffer->WaterBufferValues.SunLight            = sunLight;
-		vertexBuffer->WaterBufferValues.EnableClipping      = enableClipping;
-		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(clipMax);
-		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(clipMin);
+		vertexBuffer->WaterBufferValues.EnableClipping      = properties.EnableClipping;
+		vertexBuffer->WaterBufferValues.ClipMax             = Utils::ToXMFLOAT3(properties.ClipMax);
+		vertexBuffer->WaterBufferValues.ClipMin             = Utils::ToXMFLOAT3(properties.ClipMin);
 		vertexBuffer->WaterBufferValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
 		vertexBuffer->WaterBufferValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
 
@@ -142,6 +126,14 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 			vertexBuffer->WaterBufferValues.TextureScales[i] = Utils::ToXMFLOAT2(mesh->Textures[i]->Scale);
 
 		bufferValues = &vertexBuffer->WaterBufferValues;
+
+		break;
+	case SHADER_ID_WIREFRAME:
+		vertexBuffer->WireframeBufferValues.Matrices = matrices;
+		//vertexBuffer->WireframeBufferValues.Color    = Utils::ToXMFLOAT4(SceneManager::SelectColor);
+		vertexBuffer->WireframeBufferValues.Color    = Utils::ToXMFLOAT4(mesh->Color);
+
+		bufferValues = &vertexBuffer->WireframeBufferValues;
 
 		break;
 	}
@@ -157,20 +149,21 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_HUD;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
 		return SHADER_ID_SKYBOX;
-	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SOLID].Name)
-		return SHADER_ID_SOLID;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_TERRAIN].Name)
 		return SHADER_ID_TERRAIN;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WATER].Name)
 		return SHADER_ID_WATER;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WIREFRAME].Name)
+		return SHADER_ID_WIREFRAME;
 
 	return SHADER_ID_UNKNOWN;
 }
+#endif
 
 bool ShaderProgram::IsOK()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-		#ifdef _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
+		#if defined _WINDOWS
 		case GRAPHICS_API_DIRECTX11:
 			return ((this->shaderVS != nullptr) && (this->shaderFS != nullptr));
 		case GRAPHICS_API_DIRECTX12:
@@ -179,7 +172,7 @@ bool ShaderProgram::IsOK()
 		case GRAPHICS_API_OPENGL:
 			return (this->program > 0);
 		case GRAPHICS_API_VULKAN:
-			return false;
+			return ((this->vulkanVS != nullptr) && (this->vulkanFS != nullptr));
 		default:
 			return false;
 	}
@@ -193,7 +186,7 @@ int ShaderProgram::Link()
 		GLint resultValid;
 	#endif
 
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
 		glLinkProgram(this->program);
 		glGetProgramiv(this->program, GL_LINK_STATUS, &resultLink);
@@ -211,7 +204,7 @@ int ShaderProgram::Link()
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		return -1;
+		break;
 	default:
 		return -1;
 	}
@@ -223,8 +216,8 @@ int ShaderProgram::Load(const wxString &shaderFile)
 {
 	int result = -1;
 
-	#ifdef _WINDOWS
-	switch (Utils::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
 		result = RenderEngine::Canvas.DX->CreateShader11(shaderFile, &this->vs, &this->fs, &this->shaderVS, &this->shaderFS);
 		break;
@@ -235,7 +228,7 @@ int ShaderProgram::Load(const wxString &shaderFile)
 		return -1;
 	}
 
-	if (result != 0)
+	if (result < 0)
 		return -1;
 	#endif
 
@@ -244,86 +237,99 @@ int ShaderProgram::Load(const wxString &shaderFile)
 
 int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 {
-	int result = -1;
-
-	switch (Utils::SelectedGraphicsAPI) {
+	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
-		if (this->LoadShader(GL_VERTEX_SHADER, vs) != 0)
+		if (this->loadShaderGL(GL_VERTEX_SHADER, vs) < 0)
 			return -1;
 
-		if (this->LoadShader(GL_FRAGMENT_SHADER, fs) != 0)
-			return -1;
+		if (this->loadShaderGL(GL_FRAGMENT_SHADER, fs) < 0)
+			return -2;
 
-		if (this->Link() != 0)
-			return -1;
+		if (this->Link() < 0)
+			return -3;
 
-		this->setAttribs();
-		this->setUniforms();
+		this->setAttribsGL();
+		this->setUniformsGL();
 
 		break;
 	case GRAPHICS_API_VULKAN:
-		return -1;
+		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, "vert", &this->vulkanVS) < 0)
+			return -4;
+
+		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, "frag", &this->vulkanFS) < 0)
+			return -5;
+
+		break;
 	default:
-		return -1;
+		return -6;
 	}
 
 	return 0;
 }
 
-int ShaderProgram::LoadShader(GLuint type, const wxString &sourceText)
+int ShaderProgram::loadShaderGL(GLuint type, const wxString &sourceText)
 {
-	if ((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER))
+	if (((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER)) || (RenderEngine::SelectedGraphicsAPI != GRAPHICS_API_OPENGL))
 		return -1;
 
-	GLint         result;
-	GLuint        shader;
-	const GLchar* sourceTextGLchar;
-	GLint         sourceTextGlint;
+	GLuint shader = glCreateShader(type);
 
-	#if defined _DEBUG
-		GLint               errorLength = 0;
-		std::vector<GLchar> error;
-	#endif
+	if (shader < 1)
+		return -1;
 
-	switch (Utils::SelectedGraphicsAPI) {
-	case GRAPHICS_API_OPENGL:
-		shader = glCreateShader(type);
-
-		if (shader < 1)
-			return -1;
-
-		sourceTextGLchar = (const GLchar*)sourceText.c_str();
-		sourceTextGlint  = (const GLint)sourceText.size();
+	const GLchar* sourceTextGLchar = (const GLchar*)sourceText.c_str();
+	GLint         sourceTextGlint  = (const GLint)sourceText.size();
 	
-		glShaderSource(shader, 1, &sourceTextGLchar, &sourceTextGlint);
-		glCompileShader(shader);
+	glShaderSource(shader, 1, &sourceTextGLchar, &sourceTextGlint);
+	glCompileShader(shader);
 
-		glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
+	GLint result;
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &result);
 
-		if (result != GL_TRUE)
-		{
-			#if defined _DEBUG
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLength);
-
-				error.resize(errorLength);
-				glGetShaderInfoLog(shader, errorLength, &errorLength, &error[0]);
-
-				wxMessageBox((char*)&error[0]);
-			#endif
-
-			return -1;
-		}
-
-		glAttachShader(this->program, shader);
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		return -1;
-	default:
+	if (result != GL_TRUE) {
+		this->Log(shader);
 		return -1;
 	}
 
+	glAttachShader(this->program, shader);
+
 	return 0;
+}
+
+void ShaderProgram::Log()
+{
+	#if defined _DEBUG
+		std::vector<GLchar> error;
+		GLint               errorLength = 0;
+
+		glGetProgramiv(this->program, GL_INFO_LOG_LENGTH, &errorLength);
+
+		if (errorLength > 0)
+		{
+			error.resize(errorLength);
+			glGetProgramInfoLog(this->program, errorLength, &errorLength, &error[0]);
+
+			wxLogDebug("%s\n", (char*)&error[0]);
+		}
+	#endif
+}
+
+void ShaderProgram::Log(GLuint shader)
+{
+	#if defined _DEBUG
+		std::vector<GLchar> error;
+		GLint               errorLength = 0;
+
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &errorLength);
+
+		if (errorLength > 0)
+		{
+			error.resize(errorLength);
+			glGetShaderInfoLog(shader, errorLength, &errorLength, &error[0]);
+
+			wxLogDebug("%s\n", (char*)&error[0]);
+		}
+	#endif
 }
 
 wxString ShaderProgram::Name()
@@ -336,85 +342,47 @@ GLuint ShaderProgram::Program()
     return this->program;
 }
 
-void ShaderProgram::setAttribs()
+void ShaderProgram::setAttribsGL()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	case GRAPHICS_API_OPENGL:
-		glUseProgram(this->program);
+	glUseProgram(this->program);
 
-		// ATTRIBS (BUFFERS)
-		this->Attribs[VERTEX_NORMAL]    = glGetAttribLocation(this->program, "VertexNormal");
-		this->Attribs[VERTEX_POSITION]  = glGetAttribLocation(this->program, "VertexPosition");
-		this->Attribs[VERTEX_TEXCOORDS] = glGetAttribLocation(this->program, "VertexTextureCoords");
+	// ATTRIBS (BUFFERS)
+	this->Attribs[ATTRIB_NORMAL]    = glGetAttribLocation(this->program, "VertexNormal");
+	this->Attribs[ATTRIB_POSITION]  = glGetAttribLocation(this->program, "VertexPosition");
+	this->Attribs[ATTRIB_TEXCOORDS] = glGetAttribLocation(this->program, "VertexTextureCoords");
 
-		glUseProgram(0);
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
-	}
+	glUseProgram(0);
 }
 
-void ShaderProgram::setUniforms()
+void ShaderProgram::setUniformsGL()
 {
-	switch (Utils::SelectedGraphicsAPI) {
-	case GRAPHICS_API_OPENGL:
-		glUseProgram(this->program);
+	glUseProgram(this->program);
 
-		// MATRICES
-		this->Uniforms[MATRIX_MODEL]      = glGetUniformLocation(this->program, "MatrixModel");
-		this->Uniforms[MATRIX_VIEW]       = glGetUniformLocation(this->program, "MatrixView");
-		this->Uniforms[MATRIX_PROJECTION] = glGetUniformLocation(this->program, "MatrixProjection");
-		this->Uniforms[MATRIX_MVP]        = glGetUniformLocation(this->program, "MatrixMVP");
+	// MATRIX BUFFER
+	this->Uniforms[UBO_GL_MATRIX] = glGetUniformBlockIndex(this->program, "MatrixBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_MATRIX]);
 
-		// CAMERA
-		this->Uniforms[CAMERA_POSITION] = glGetUniformLocation(this->program, "CameraMain.Position");
-		this->Uniforms[CAMERA_NEAR]     = glGetUniformLocation(this->program, "CameraMain.Near");
-		this->Uniforms[CAMERA_FAR]      = glGetUniformLocation(this->program, "CameraMain.Far");
+	// DEFAULT BUFFER
+	this->Uniforms[UBO_GL_DEFAULT] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_DEFAULT]);
 
-		// CLIPPING
-		this->Uniforms[ENABLE_CLIPPING] = glGetUniformLocation(this->program, "EnableClipping");
-		this->Uniforms[CLIP_MAX]        = glGetUniformLocation(this->program, "ClipMax");
-		this->Uniforms[CLIP_MIN]        = glGetUniformLocation(this->program, "ClipMin");
+	// HUD BUFFER
+	this->Uniforms[UBO_GL_HUD] = glGetUniformBlockIndex(this->program, "HUDBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_HUD]);
 
-		// AMBIENT LIGHT
-		this->Uniforms[AMBIENT_LIGHT_INTENSITY] = glGetUniformLocation(this->program, "AmbientLightIntensity");
+	// WATER BUFFER
+	this->Uniforms[UBO_GL_WATER] = glGetUniformBlockIndex(this->program, "WaterBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WATER]);
 
-		// DIRECIONAL LIGHT
-		this->Uniforms[SUNLIGHT_COLOR]      = glGetUniformLocation(this->program, "SunLight.Color");
-		this->Uniforms[SUNLIGHT_DIRECTION]  = glGetUniformLocation(this->program, "SunLight.Direction");
-		this->Uniforms[SUNLIGHT_POSITION]   = glGetUniformLocation(this->program, "SunLight.Position");
-		this->Uniforms[SUNLIGHT_REFLECTION] = glGetUniformLocation(this->program, "SunLight.Reflection");
-		this->Uniforms[SUNLIGHT_SHINE]      = glGetUniformLocation(this->program, "SunLight.Shine");
-        
-		// MATERIAL COLOR
-		this->Uniforms[MATERIAL_COLOR] = glGetUniformLocation(this->program, "MaterialColor");
-		this->Uniforms[SOLID_COLOR]    = glGetUniformLocation(this->program, "SolidColor");
-		this->Uniforms[IS_TEXTURED]    = glGetUniformLocation(this->program, "IsTextured");
+	// WIREFRAME BUFFER
+	this->Uniforms[UBO_GL_WIREFRAME] = glGetUniformBlockIndex(this->program, "WireframeBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WIREFRAME]);
 
-		// WATER
-		this->Uniforms[MOVE_FACTOR]   = glGetUniformLocation(this->program, "MoveFactor");
-		this->Uniforms[WAVE_STRENGTH] = glGetUniformLocation(this->program, "WaveStrength");
+	// BIND TEXTURES
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
 
-		// HUD
-		this->Uniforms[IS_TRANSPARENT] = glGetUniformLocation(this->program, "IsTransparent");
-
-		// BIND TEXTURES
-		for (int i = 0; i < MAX_TEXTURES; i++) {
-			this->Uniforms[TEXTURES0       + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
-			this->Uniforms[TEXTURE_SCALES0 + i] = glGetUniformLocation(this->program, wxString("TextureScales[" + std::to_string(i) + "]").c_str());
-		}
-
-		glUseProgram(0);
-
-		break;
-	case GRAPHICS_API_VULKAN:
-		break;
-	default:
-		break;
-	}
+	glUseProgram(0);
 }
 
 int ShaderProgram::UpdateAttribsGL(Mesh* mesh)
@@ -424,173 +392,106 @@ int ShaderProgram::UpdateAttribsGL(Mesh* mesh)
 
 	GLint id;
 
-	if (mesh->NBO() > 0) {
-		if ((id = this->Attribs[VERTEX_NORMAL]) >= 0)
-			mesh->BindBuffer(mesh->NBO(), id, 3, GL_FLOAT, GL_FALSE);
-	}
+	if ((mesh->NBO() > 0) && ((id = this->Attribs[ATTRIB_NORMAL]) >= 0))
+		mesh->BindBuffer(mesh->NBO(), id, 3, GL_FLOAT, GL_FALSE);
 
-	if (mesh->VBO() > 0) {
-		if ((id = this->Attribs[VERTEX_POSITION]) >= 0)
-			mesh->BindBuffer(mesh->VBO(), id, 3, GL_FLOAT, GL_FALSE);
-	}
+	if ((mesh->VBO() > 0) && ((id = this->Attribs[ATTRIB_POSITION]) >= 0))
+		mesh->BindBuffer(mesh->VBO(), id, 3, GL_FLOAT, GL_FALSE);
 
-	if (mesh->TBO() > 0) {
-		if ((id = this->Attribs[VERTEX_TEXCOORDS]) >= 0)
-			mesh->BindBuffer(mesh->TBO(), id, 2, GL_FLOAT, GL_FALSE);
-	}
+	if ((mesh->TBO() > 0) && ((id = this->Attribs[ATTRIB_TEXCOORDS]) >= 0))
+		mesh->BindBuffer(mesh->TBO(), id, 2, GL_FLOAT, GL_FALSE);
 
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
-{
-	if (mesh == nullptr)
-		return -1;
-
-	Buffer* vertexBuffer = mesh->VertexBuffer();
-
-	if (vertexBuffer == nullptr)
-		return -1;
-
-	DXMatrixBuffer matrices = {};
-	DXLightBuffer  sunLight = {};
-
-	if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name) {
-		matrices = ShaderProgram::getBufferMatrices(mesh, true);
-	} else {
-		matrices = ShaderProgram::getBufferMatrices(mesh, false);
-		sunLight = ShaderProgram::getBufferLight();
-	}
-
-	*constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, enableClipping, clipMax, clipMin);
-
-	switch (this->ID()) {
-		case SHADER_ID_DEFAULT: *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_DEFAULT]; break;
-		case SHADER_ID_HUD:     *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_HUD];     break;
-		case SHADER_ID_SKYBOX:  *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_SKYBOX];  break;
-		case SHADER_ID_SOLID:   *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_SOLID];   break;
-		case SHADER_ID_TERRAIN: *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_TERRAIN]; break;
-		case SHADER_ID_WATER:   *constBuffer = vertexBuffer->ConstantBuffersDX11[SHADER_ID_WATER];   break;
-	}
-	
-	if ((*constBuffer == nullptr) || (*constBufferValues == nullptr))
-		return -1;
-
-	return 0;
-}
-
-int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
-{
-	if (mesh == nullptr)
-		return -1;
-
-	Buffer* vertexBuffer = mesh->VertexBuffer();
-
-	if (vertexBuffer == nullptr)
-		return -1;
-
-	DXMatrixBuffer matrices = {};
-	DXLightBuffer  sunLight = {};
-
-	if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name) {
-		matrices = ShaderProgram::getBufferMatrices(mesh, true);
-	} else {
-		matrices = ShaderProgram::getBufferMatrices(mesh, false);
-		sunLight = ShaderProgram::getBufferLight();
-	}
-
-	uint8_t*        bufferData        = nullptr;
-	ID3D12Resource* constBuffer       = nullptr;
-	size_t          constBufferSize   = 0;
-	const void*     constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, enableClipping, clipMax, clipMin);
-	CD3DX12_RANGE   readRange(0, 0);
-
-	switch (this->ID()) {
-	case SHADER_ID_DEFAULT:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_DEFAULT];
-		constBufferSize = sizeof(vertexBuffer->DefaultBufferValues);
-		break;
-	case SHADER_ID_HUD:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_HUD];
-		constBufferSize = sizeof(vertexBuffer->HUDBufferValues);
-		break;
-	case SHADER_ID_SKYBOX:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_SKYBOX];
-		constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);
-		break;
-	case SHADER_ID_SOLID:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_SOLID];
-		constBufferSize = sizeof(vertexBuffer->SolidBufferValues);
-		break;
-	case SHADER_ID_TERRAIN:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_TERRAIN];
-		constBufferSize = sizeof(vertexBuffer->TerrainBufferValues);
-		break;
-	case SHADER_ID_WATER:
-		constBuffer     = vertexBuffer->ConstantBuffersDX12[SHADER_ID_WATER];
-		constBufferSize = sizeof(vertexBuffer->WaterBufferValues);
-		break;
-	}
-
-	if ((constBuffer == nullptr) || (constBufferValues == nullptr))
-		return -1;
-
-	HRESULT result = constBuffer->Map(0, &readRange, reinterpret_cast<void**>(&bufferData));
-
-	if (FAILED(result))
-		return -1;
-
-	std::memcpy(bufferData, constBufferValues, constBufferSize);
-	constBuffer->Unmap(0, nullptr);
-
-	return 0;
-}
-
-int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::vec3 &clipMax, const glm::vec3 &clipMin)
+int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
 
 	GLint id;
-	bool  isSkybox = (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name);
-	
-	// MATRICES
-	if ((id = this->Uniforms[MATRIX_MODEL])      >= 0) { glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(mesh->Matrix())); }
-	if ((id = this->Uniforms[MATRIX_PROJECTION]) >= 0) { glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(RenderEngine::Camera->Projection())); }
-	if ((id = this->Uniforms[MATRIX_VIEW])       >= 0) { glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(RenderEngine::Camera->View(isSkybox))); }
-	if ((id = this->Uniforms[MATRIX_MVP])        >= 0) { glUniformMatrix4fv(id, 1, GL_FALSE, glm::value_ptr(RenderEngine::Camera->MVP(mesh->Matrix(), isSkybox))); }
+	bool  removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
 
-    // CAMERA
-    if ((id = this->Uniforms[CAMERA_POSITION]) >= 0) { glUniform3fv(id, 1, glm::value_ptr(RenderEngine::Camera->Position())); }
-    if ((id = this->Uniforms[CAMERA_NEAR])     >= 0) { glUniform1f(id, RenderEngine::Camera->Near()); }
-    if ((id = this->Uniforms[CAMERA_FAR])      >= 0) { glUniform1f(id, RenderEngine::Camera->Far()); }
+	// MATRIX BUFFER
+	id = this->Uniforms[UBO_GL_MATRIX];
 
-    // CLIPPING
-    if ((id = this->Uniforms[ENABLE_CLIPPING]) >= 0) { glUniform1i(id, enableClipping); }
-    if ((id = this->Uniforms[CLIP_MAX])        >= 0) { glUniform3fv(id, 1, glm::value_ptr(clipMax)); }
-    if ((id = this->Uniforms[CLIP_MIN])        >= 0) { glUniform3fv(id, 1, glm::value_ptr(clipMin)); }
+	if (id >= 0)
+	{
+		GLMatrixBuffer mb;
 
-    // AMBIENT LIGHT
-    if ((id = this->Uniforms[AMBIENT_LIGHT_INTENSITY]) >= 0) { glUniform3fv(id, 1, glm::value_ptr(SceneManager::AmbientLightIntensity)); }
+		mb.Model      = mesh->Matrix();
+		mb.MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
+		mb.Projection = RenderEngine::Camera->Projection();
+		mb.View       = RenderEngine::Camera->View(removeTranslation);
 
-    // DIRECIONAL LIGHT
-    if ((id = this->Uniforms[SUNLIGHT_COLOR])      >= 0) { glUniform4fv(id, 1, glm::value_ptr(SceneManager::SunLight.Color)); }
-    if ((id = this->Uniforms[SUNLIGHT_DIRECTION])  >= 0) { glUniform3fv(id, 1, glm::value_ptr(SceneManager::SunLight.Direction)); }
-    if ((id = this->Uniforms[SUNLIGHT_POSITION])   >= 0) { glUniform3fv(id, 1, glm::value_ptr(SceneManager::SunLight.Position)); }
-    if ((id = this->Uniforms[SUNLIGHT_REFLECTION]) >= 0) { glUniform1f(id, SceneManager::SunLight.Reflection); }
-    if ((id = this->Uniforms[SUNLIGHT_SHINE])      >= 0) { glUniform1f(id, SceneManager::SunLight.Shine); }
-        
-    // MATERIAL COLOR
-    if ((id = this->Uniforms[MATERIAL_COLOR]) >= 0) { glUniform4fv(id, 1, glm::value_ptr(mesh->Color)); }
-    if ((id = this->Uniforms[SOLID_COLOR])    >= 0) { glUniform4fv(id, 1, glm::value_ptr(SceneManager::SelectColor)); }
-    if ((id = this->Uniforms[IS_TEXTURED])    >= 0) { glUniform1i(id, mesh->IsTextured()); }
+		this->updateUniformGL(id, UBO_GL_MATRIX, &mb, sizeof(mb));
+	}
 
-    // WATER
-	if (((id = this->Uniforms[MOVE_FACTOR])   >= 0) && (mesh->Parent != nullptr)) { glUniform1f(id, dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor()); }
-	if (((id = this->Uniforms[WAVE_STRENGTH]) >= 0) && (mesh->Parent != nullptr)) { glUniform1f(id, dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength); }
+	// DEFAULT BUFFER
+	id = this->Uniforms[UBO_GL_DEFAULT];
 
-    // HUD
-    if (((id = this->Uniforms[IS_TRANSPARENT]) >= 0) && (mesh->Parent != nullptr)) { glUniform1i(id, dynamic_cast<HUD*>(mesh->Parent)->Transparent); }
+	if (id >= 0)
+	{
+		GLDefaultBuffer db;
+
+		db.Ambient        = SceneManager::AmbientLightIntensity;
+		db.ClipMax        = properties.ClipMax;
+		db.ClipMin        = properties.ClipMin;
+		db.EnableClipping = properties.EnableClipping;
+		db.IsTextured     = mesh->IsTextured();
+		db.MaterialColor  = mesh->Color;
+		db.SunLight       = SceneManager::SunLight;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			db.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		this->updateUniformGL(id, UBO_GL_DEFAULT, &db, sizeof(db));
+	}
+
+	// HUD BUFFER
+	id = this->Uniforms[UBO_GL_HUD];
+
+	if (id >= 0)
+	{
+		GLHUDBuffer hb;
+
+		hb.MaterialColor = mesh->Color;
+		hb.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
+
+		this->updateUniformGL(id, UBO_GL_HUD, &hb, sizeof(hb));
+	}
+
+	// WATER BUFFER
+	id = this->Uniforms[UBO_GL_WATER];
+
+	if (id >= 0)
+	{
+		GLWaterBuffer wb;
+
+		wb.CameraMain.Position = RenderEngine::Camera->Position();
+		wb.CameraMain.Near     = RenderEngine::Camera->Near();
+		wb.CameraMain.Far      = RenderEngine::Camera->Far();
+		wb.SunLight            = SceneManager::SunLight;
+		wb.EnableClipping      = properties.EnableClipping;
+		wb.ClipMax             = properties.ClipMax;
+		wb.ClipMin             = properties.ClipMin;
+		wb.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
+		wb.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			wb.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		this->updateUniformGL(id, UBO_GL_WATER, &wb, sizeof(wb));
+	}
+
+	// WIREFRAME BUFFER
+	id = this->Uniforms[UBO_GL_WIREFRAME];
+
+	if (id >= 0)
+	{
+		GLWireframeBuffer wb = { mesh->Color };
+		this->updateUniformGL(id, UBO_GL_WIREFRAME, &wb, sizeof(wb));
+	}
 
     // BIND TEXTURES
     for (int i = 0; i < MAX_TEXTURES; i++)
@@ -598,8 +499,7 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
         if (mesh->Textures[i] == nullptr)
 			continue;
 
-        glUniform1i(this->Uniforms[TEXTURES0 + i], i);
-        glUniform2fv(this->Uniforms[TEXTURE_SCALES0 + i], 1, glm::value_ptr(mesh->Textures[i]->Scale));
+        glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
     }
@@ -607,22 +507,310 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, bool enableClipping, const glm::
 	return 0;
 }
 
-ID3DBlob* ShaderProgram::FS()
+void ShaderProgram::updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* values, size_t valuesSize)
 {
-	return this->fs;
+	glBindBufferBase(GL_UNIFORM_BUFFER, id, this->UniformBuffers[buffer]);
+	glBufferData(GL_UNIFORM_BUFFER, valuesSize, values, GL_STATIC_DRAW);
+	glUniformBlockBinding(this->program, id, id);
+}
+
+int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VKUniform &uniform, const DrawProperties &properties)
+{
+	GLDefaultBuffer   defaultValues     = {};
+	GLHUDBuffer       hudValues         = {};
+	GLMatrixBuffer    matrices          = {};
+	GLWaterBuffer     waterValues       = {};
+	GLWireframeBuffer wireframeValues   = {};
+	bool              removeTranslation = (this->ID() == SHADER_ID_SKYBOX);
+
+	matrices.Model      = mesh->Matrix();
+	matrices.View       = RenderEngine::Camera->View(removeTranslation);
+	matrices.Projection = RenderEngine::Camera->Projection();
+	matrices.MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
+
+	int result = ShaderProgram::updateUniformsVK(
+		UBO_VK_MATRIX, UBO_BINDING_MATRIX, uniform, &matrices, sizeof(matrices), deviceContext, mesh
+	);
+
+	if (result < 0)
+		return -1;
+
+	switch (this->ID()) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
+		defaultValues.Ambient        = SceneManager::AmbientLightIntensity;
+		defaultValues.ClipMax        = properties.ClipMax;
+		defaultValues.ClipMin        = properties.ClipMin;
+		defaultValues.EnableClipping = properties.EnableClipping;
+		defaultValues.IsTextured     = mesh->IsTextured();
+		defaultValues.MaterialColor  = mesh->Color;
+		defaultValues.SunLight       = SceneManager::SunLight;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			defaultValues.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_DEFAULT, UBO_BINDING_DEFAULT, uniform, &defaultValues, sizeof(defaultValues), deviceContext, mesh
+		);
+
+		break;
+	case SHADER_ID_HUD:
+		hudValues.MaterialColor = mesh->Color;
+		hudValues.IsTransparent = dynamic_cast<HUD*>(mesh->Parent)->Transparent;
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_HUD, UBO_BINDING_DEFAULT, uniform, &hudValues, sizeof(hudValues), deviceContext, mesh
+		);
+
+		break;
+	case SHADER_ID_WATER:
+		waterValues.CameraMain.Position = RenderEngine::Camera->Position();
+		waterValues.CameraMain.Near     = RenderEngine::Camera->Near();
+		waterValues.CameraMain.Far      = RenderEngine::Camera->Far();
+		waterValues.SunLight            = SceneManager::SunLight;
+		waterValues.EnableClipping      = properties.EnableClipping;
+		waterValues.ClipMax             = properties.ClipMax;
+		waterValues.ClipMin             = properties.ClipMin;
+		waterValues.MoveFactor          = dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor();
+		waterValues.WaveStrength        = dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength;
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+			waterValues.TextureScales[i] = mesh->Textures[i]->Scale;
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_WATER, UBO_BINDING_DEFAULT, uniform, &waterValues, sizeof(waterValues), deviceContext, mesh
+		);
+
+		break;
+	case SHADER_ID_WIREFRAME:
+		wireframeValues.Color = mesh->Color;
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_WIREFRAME, UBO_BINDING_DEFAULT, uniform, &wireframeValues, sizeof(wireframeValues), deviceContext, mesh
+		);
+
+		break;
+	}
+
+	if (result < 0)
+		return -2;
+
+	result = ShaderProgram::updateUniformSamplersVK(uniform.Set, deviceContext, mesh);
+
+	if (result < 0)
+		return -3;
+
+	return 0;
+}
+
+int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh)
+{
+	if ((deviceContext == nullptr) || (mesh == nullptr))
+		return -1;
+
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -2;
+
+	void*                  bufferMemData       = nullptr;
+	VkBuffer               uniformBuffer       = uniform.Buffers[type];
+	VkDescriptorBufferInfo uniformBufferInfo   = {};
+	VkDeviceMemory         uniformBufferMemory = uniform.BufferMemories[type];
+	VkWriteDescriptorSet   uniformWriteSet     = {};
+
+	if ((uniformBuffer == nullptr) || (uniformBufferMemory == nullptr) || (uniform.Set == nullptr))
+		return -3;
+
+	// Initialize uniform buffer descriptor set
+	uniformBufferInfo.range = VK_WHOLE_SIZE;
+
+	uniformWriteSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	uniformWriteSet.dstSet          = uniform.Set;
+	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformWriteSet.descriptorCount = 1;
+	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
+	//uniformWriteSet.dstArrayElement = 0;
+
+	// Copy values to device local buffer
+	VkResult result = vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
+
+	if (result != VK_SUCCESS)
+		return -4;
+
+	memcpy(bufferMemData, values, valuesSize);
+	vkUnmapMemory(deviceContext, uniformBufferMemory);
+
+	// Update the descriptor set for binding 1 (default buffer)
+	uniformBufferInfo.buffer   = uniformBuffer;
+	uniformWriteSet.dstBinding = binding;
+
+	vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
+
+	return 0;
+}
+
+int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Mesh* mesh)
+{
+	if ((deviceContext == nullptr) || (mesh == nullptr))
+		return -1;
+
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -2;
+
+	VkDescriptorBufferInfo uniformBufferInfo              = {};
+	VkDescriptorImageInfo  uniformImageInfo[MAX_TEXTURES] = {};
+	VkWriteDescriptorSet   uniformWriteSet                = {};
+
+	if (uniformSet == nullptr)
+		return -3;
+
+	// Initialize uniform buffer descriptor set
+	uniformBufferInfo.range = VK_WHOLE_SIZE;
+
+	uniformWriteSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	uniformWriteSet.dstSet          = uniformSet;
+	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformWriteSet.descriptorCount = 1;
+	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
+	//uniformWriteSet.dstArrayElement = 0;
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+	{
+		if ((mesh->Textures[i]->ImageView == nullptr) || (mesh->Textures[i]->Sampler == nullptr))
+			return -4;
+
+		uniformImageInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		uniformImageInfo[i].imageView   = mesh->Textures[i]->ImageView;
+		uniformImageInfo[i].sampler     = mesh->Textures[i]->Sampler;
+	}
+
+	// Update the descriptor set for binding 2 (texture sampler)
+	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformWriteSet.descriptorCount = MAX_TEXTURES;
+	uniformWriteSet.dstBinding      = UBO_BINDING_TEXTURES;
+	uniformWriteSet.pBufferInfo     = nullptr;
+	uniformWriteSet.pImageInfo      = uniformImageInfo;
+	//uniformWriteSet.pTexelBufferView = nullptr;
+
+	vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
+
+	return 0;
+}
+
+#if defined _WINDOWS
+int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, const DrawProperties &properties)
+{
+	if (mesh == nullptr)
+		return -1;
+
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -2;
+
+	DXMatrixBuffer matrices = {};
+	DXLightBuffer  sunLight = {};
+	bool           isSkybox = (this->ID() == SHADER_ID_SKYBOX);
+
+	if (isSkybox) {
+		matrices = ShaderProgram::getBufferMatrices(mesh, true);
+	} else {
+		matrices = ShaderProgram::getBufferMatrices(mesh, false);
+		sunLight = ShaderProgram::getBufferLight();
+	}
+
+	*constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, properties);
+	*constBuffer       = vertexBuffer->ConstantBuffersDX11[this->ID()];
+	
+	if ((*constBuffer == nullptr) || (*constBufferValues == nullptr))
+		return -3;
+
+	return 0;
+}
+
+int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properties)
+{
+	if (mesh == nullptr)
+		return -1;
+
+	Buffer* vertexBuffer = mesh->VertexBuffer();
+
+	if (vertexBuffer == nullptr)
+		return -2;
+
+	DXMatrixBuffer matrices = {};
+	DXLightBuffer  sunLight = {};
+	bool           isSkybox = (this->ID() == SHADER_ID_SKYBOX);
+
+	if (isSkybox) {
+		matrices = ShaderProgram::getBufferMatrices(mesh, true);
+	} else {
+		matrices = ShaderProgram::getBufferMatrices(mesh, false);
+		sunLight = ShaderProgram::getBufferLight();
+	}
+
+	uint8_t*        bufferData        = nullptr;
+	ID3D12Resource* constBuffer       = vertexBuffer->ConstantBuffersDX12[this->ID()];
+	const void*     constBufferValues = ShaderProgram::getBufferValues(matrices, sunLight, mesh, properties);
+	size_t          constBufferSize;
+
+	switch (this->ID()) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_TERRAIN:
+		constBufferSize = sizeof(vertexBuffer->DefaultBufferValues);
+		break;
+	case SHADER_ID_HUD:
+		constBufferSize = sizeof(vertexBuffer->HUDBufferValues);
+		break;
+	case SHADER_ID_SKYBOX:
+		constBufferSize = sizeof(vertexBuffer->SkyboxBufferValues);
+		break;
+	case SHADER_ID_WATER:
+		constBufferSize = sizeof(vertexBuffer->WaterBufferValues);
+		break;
+	case SHADER_ID_WIREFRAME:
+		constBufferSize = sizeof(vertexBuffer->WireframeBufferValues);
+		break;
+	default:
+		constBufferSize = 0;
+		break;
+	}
+
+	if ((constBuffer == nullptr) || (constBufferValues == nullptr))
+		return -3;
+
+	CD3DX12_RANGE readRange(0, 0);
+	HRESULT       result = constBuffer->Map(0, &readRange, reinterpret_cast<void**>(&bufferData));
+
+	if (FAILED(result))
+		return -4;
+
+	std::memcpy(bufferData, constBufferValues, constBufferSize);
+	constBuffer->Unmap(0, nullptr);
+
+	return 0;
+}
+
+ID3D11VertexShader* ShaderProgram::VertexShader()
+{
+	return this->shaderVS;
 }
 
 ID3DBlob* ShaderProgram::VS()
 {
 	return this->vs;
 }
+#endif
 
-ID3D11PixelShader* ShaderProgram::FragmentShader()
+VkShaderModule ShaderProgram::VulkanFS()
 {
-	return this->shaderFS;
+	return this->vulkanFS;
 }
 
-ID3D11VertexShader* ShaderProgram::VertexShader()
+VkShaderModule ShaderProgram::VulkanVS()
 {
-	return this->shaderVS;
+	return this->vulkanVS;
 }

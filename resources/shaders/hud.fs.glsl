@@ -1,3 +1,6 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 	precision highp float;
 #else
@@ -6,22 +9,24 @@
 
 const int MAX_TEXTURES = 6;
 
-//varying vec3 FragmentNormal;
-//varying vec4 FragmentPosition;
-varying vec2 FragmentTextureCoords;
+layout(location = 0) in  vec2 FragmentTextureCoords;
+layout(location = 0) out vec4 GL_FragColor;
 
-uniform vec4      MaterialColor;
-//uniform bool      IsTextured;
-uniform bool      IsTransparent;
-uniform sampler2D Textures[MAX_TEXTURES];
-//uniform vec2      TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+layout(binding = 1) uniform HUDBuffer
+{
+	vec4 MaterialColor;
+	vec3 Padding1;
+	bool IsTransparent;
+} hb;
+
+layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
 void main()
 {
-	vec4 sampledColor = texture2D(Textures[5], FragmentTextureCoords);
+	vec4 sampledColor = texture(Textures[5], FragmentTextureCoords);
 
-	if (IsTransparent)
-		gl_FragColor = sampledColor;
+	if (hb.IsTransparent)
+		GL_FragColor = sampledColor;
 	else
-		gl_FragColor = vec4(sampledColor.rgb, MaterialColor.a);
+		GL_FragColor = vec4(sampledColor.rgb, hb.MaterialColor.a);
 }

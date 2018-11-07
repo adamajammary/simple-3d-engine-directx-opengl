@@ -11,7 +11,6 @@ struct MatrixBuffer
 cbuffer DefaultBuffer : register(b0)
 {
 	MatrixBuffer Matrices;
-	float2       TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
 TextureCube  Textures[MAX_TEXTURES]        : register(t0);

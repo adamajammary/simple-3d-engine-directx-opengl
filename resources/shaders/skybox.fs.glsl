@@ -1,3 +1,6 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 	precision highp float;
 #else
@@ -6,14 +9,11 @@
 
 const int MAX_TEXTURES = 6;
 
-//varying vec3 FragmentNormal;
-//varying vec4 FragmentPosition;
-varying vec3 FragmentTextureCoords;
-
-uniform samplerCube Textures[MAX_TEXTURES];
-uniform vec2        TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+layout(location = 0) in      vec3        FragmentTextureCoords;
+layout(location = 0) out     vec4        GL_FragColor;
+layout(binding  = 2) uniform samplerCube Textures[MAX_TEXTURES];
 
 void main()
 {
-	gl_FragColor = textureCube(Textures[0], FragmentTextureCoords);
+	GL_FragColor = texture(Textures[0], FragmentTextureCoords);
 }

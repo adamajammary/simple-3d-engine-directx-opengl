@@ -16,20 +16,22 @@ void TimeManager::Start()
 
 void TimeManager::UpdateFPS()
 {
-	TimeManager::FPS++;
-
 	if (TimeManager::deltaTimer.Time() >= 1000)
 	{
 		TimeManager::DeltaTime = (1.0 / (double)TimeManager::FPS);
 		Time              time = Time(totalTimer.Time());
 
-		std::snprintf(
+		std::swprintf(
 			RenderEngine::Canvas.Window->Title,
 			BUFFER_SIZE,
-			"%s v.%s - %s %s - %s - %d FPS (%f dT) - %02ld:%02ld:%02ld",
-			Utils::APP_NAME, Utils::APP_VERSION,
-			RenderEngine::GPU.Vendor.c_str().AsChar(), RenderEngine::GPU.Renderer.c_str().AsChar(), RenderEngine::GPU.Version.c_str().AsChar(),
-			TimeManager::FPS, TimeManager::DeltaTime,
+			L"%ls v.%ls - %ls %ls - %ls - %d FPS (%f dT) - %02ld:%02ld:%02ld",
+			Utils::APP_NAME.c_str().AsWChar(),
+			Utils::APP_VERSION.c_str().AsWChar(),
+			RenderEngine::GPU.Vendor.c_str().AsWChar(),
+			RenderEngine::GPU.Renderer.c_str().AsWChar(),
+			RenderEngine::GPU.Version.c_str().AsWChar(),
+			TimeManager::FPS,
+			TimeManager::DeltaTime,
 			time.Hours, time.Minutes, time.Seconds
 		);
 
@@ -38,4 +40,6 @@ void TimeManager::UpdateFPS()
 		TimeManager::FPS = 0;
 		TimeManager::deltaTimer.Start();
 	}
+
+	TimeManager::FPS++;
 }

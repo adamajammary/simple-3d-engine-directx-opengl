@@ -32,10 +32,10 @@ WaterFBO::WaterFBO(const std::vector<wxString> &textureImageFiles)
 		this->Textures[3] = new Texture(textureImageFiles[1], "normalMap.png", true);
 
 		for (int i = 4; i < MAX_TEXTURES; i++)
-			this->Textures[i] = Utils::EmptyTexture;
+			this->Textures[i] = SceneManager::EmptyTexture;
 	} else {
 		for (int i = 0; i < MAX_TEXTURES; i++)
-			this->Textures[i] = Utils::EmptyTexture;
+			this->Textures[i] = SceneManager::EmptyTexture;
 	}
 }
 

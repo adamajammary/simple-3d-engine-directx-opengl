@@ -123,7 +123,10 @@
     <ClCompile Include="src\render\DXContext.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="3rd\json11-master\json11.cpp">
+    <ClCompile Include="src\render\VKContext.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="3rd\json11-1.0.0\json11.cpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClCompile>
   </ItemGroup>
@@ -209,7 +212,10 @@
     <ClInclude Include="src\render\DXContext.h">
       <Filter>Render</Filter>
     </ClInclude>
-    <ClInclude Include="3rd\json11-master\json11.hpp">
+    <ClInclude Include="src\render\VKContext.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="3rd\json11-1.0.0\json11.hpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClInclude>
   </ItemGroup>
@@ -235,12 +241,6 @@
     <None Include="resources\shaders\skybox.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\solid.fs.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="resources\shaders\solid.vs.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
     <None Include="resources\shaders\terrain.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
@@ -248,6 +248,18 @@
       <Filter>Resource Files\Shaders</Filter>
     </None>
     <None Include="resources\shaders\water.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\test.vs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\test.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\wireframe.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\wireframe.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>
@@ -267,7 +279,7 @@
     <FxCompile Include="resources\shaders\hud.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\solid.hlsl">
+    <FxCompile Include="resources\shaders\wireframe.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -4,8 +4,8 @@ struct CameraBuffer
 {
 	float3 Position;
 	float  Near;
-	float  Far;
 	float3 Padding1;
+	float  Far;
 };
 
 struct LightBuffer
@@ -30,12 +30,12 @@ cbuffer DefaultBuffer : register(b0)
 	CameraBuffer CameraMain;
 	MatrixBuffer Matrices;
 	LightBuffer  SunLight;
-	int          EnableClipping;
 	float3       ClipMax;
+	int          EnableClipping;
 	float3       ClipMin;
 	float        MoveFactor;
-	float        WaveStrength;
 	float3       Padding1;
+	float        WaveStrength;
 	float2       TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
 };
 
@@ -111,6 +111,8 @@ float4 PS(FS_INPUT input) : SV_Target
 	float  specular            = pow(max(0.0, dot(reflectedLight, viewVector)), SunLight.Shine);
 	float3 specularHighlights  = (SunLight.Color.rgb * specular * SunLight.Reflection);
 	float4 GL_FragColor        = (lerp(reflectionColor, refractionColor, refractionFactor) + float4(specularHighlights, 0.0));
+	//float4 GL_FragColor = float4(1.0, 0.0, 0.0, 1.0);
+	//float4 GL_FragColor = Textures[0].Sample(TextureSamplers[0], input.TextureCoords);
 
-	return reflectionColor;
+	return GL_FragColor;
 }

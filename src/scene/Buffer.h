@@ -8,19 +8,28 @@
 class Buffer
 {
 public:
-	Buffer(std::vector<unsigned int> &indices);
+	Buffer(std::vector<uint32_t> &indices);
 	Buffer(std::vector<float> &data);
 	Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::vector<float> &texCoords);
 	Buffer();
 	~Buffer();
 
 public:
-	#ifdef _WINDOWS
+	UINT            BufferStride;
+	VkBuffer        IndexBuffer;
+	VkDeviceMemory  IndexBufferMemory;
+	VKPipeline      Pipeline;
+	VKUniform       Uniform;
+	VkBuffer        VertexBuffer;
+	VkDeviceMemory  VertexBufferMemory;
+
+	#if defined _WINDOWS
 		ID3D11BlendState*        BlendStatesDX11[NR_OF_SHADERS];
 		ID3D11DepthStencilState* DepthStencilStatesDX11[NR_OF_SHADERS];
 		ID3D11InputLayout*       InputLayoutsDX11[NR_OF_SHADERS];
 		ID3D11RasterizerState*   RasterizerStatesDX11[NR_OF_SHADERS];
 		ID3D12PipelineState*     PipelineStatesDX12[NR_OF_SHADERS];
+		ID3D12PipelineState*     PipelineStatesFBODX12[NR_OF_SHADERS];
 		ID3D12RootSignature*     RootSignaturesDX12[NR_OF_SHADERS];
 
 		ID3D11Buffer*         ConstantBuffersDX11[NR_OF_SHADERS];
@@ -28,37 +37,35 @@ public:
 		ID3D12DescriptorHeap* ConstantBufferHeapsDX12[NR_OF_SHADERS];
 		ID3D12DescriptorHeap* SamplerHeapsDX12[NR_OF_SHADERS];
 
-		DXMatrixBuffer  MatrixBufferValues;
-		DXLightBuffer   LightBufferValues;
-		DXDefaultBuffer DefaultBufferValues;
-		DXHUDBuffer     HUDBufferValues;
-		DXSkyboxBuffer  SkyboxBufferValues;
-		DXSolidBuffer   SolidBufferValues;
-		DXTerrainBuffer TerrainBufferValues;
-		DXWaterBuffer   WaterBufferValues;
+		DXMatrixBuffer    MatrixBufferValues;
+		DXLightBuffer     LightBufferValues;
+		DXDefaultBuffer   DefaultBufferValues;
+		DXHUDBuffer       HUDBufferValues;
+		DXSkyboxBuffer    SkyboxBufferValues;
+		DXWireframeBuffer WireframeBufferValues;
+		DXWaterBuffer     WaterBufferValues;
 
+		ID3D11Buffer*            VertexBufferDX11;
+		ID3D12Resource*          VertexBufferDX12;
+		D3D12_INDEX_BUFFER_VIEW  IndexBufferViewDX12;
+		D3D12_VERTEX_BUFFER_VIEW VertexBufferViewDX12;
 #endif
 
 private:
-	UINT   bufferStride;
-	GLuint id;
-
-	#ifdef _WINDOWS
-		ID3D11Buffer*            bufferDX11;
-		ID3D12Resource*          bufferDX12;
-		D3D12_INDEX_BUFFER_VIEW  indexBufferViewDX12;
-		D3D12_VERTEX_BUFFER_VIEW vertexBufferViewDX12;
-	#endif
+	GLuint             id;
+	std::vector<float> normals;
+	std::vector<float> texCoords;
+	std::vector<float> vertices;
 
 public:
-	UINT   BufferStride();
 	GLuint ID();
+	size_t Normals();
+	void   ResetPipelines();
+	size_t TexCoords();
+	size_t Vertices();
 
-	#ifdef _WINDOWS
-		ID3D11Buffer*            BufferDX11();
-		D3D12_INDEX_BUFFER_VIEW  IndexBufferViewDX12();
-		D3D12_VERTEX_BUFFER_VIEW VertexBufferViewDX12();
-	#endif
+private:
+	void init();
 
 };
 
