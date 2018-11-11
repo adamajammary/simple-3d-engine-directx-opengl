@@ -40,9 +40,9 @@ public:
 	bool            IsSelected();
 	bool            LoadArrays(std::vector<unsigned int> &indices, std::vector<float> &normals, std::vector<float> &textureCoords, std::vector<float> &vertices);
 	bool            LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix);
-	void            LoadTexture(Texture* texture, int index);
+	//void            LoadTexture(Texture* texture, int index);
 	int             LoadTextureImage(const wxString &imageFile, int index);
-	void            MoveBy(const glm::vec3 &amount) override;
+	void            MoveBy(const glm::vec3 &amount)     override;
 	void            MoveTo(const glm::vec3 &newPosition) override;
 	size_t          NrOfIndices();
 	size_t          NrOfVertices();

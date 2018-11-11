@@ -43,7 +43,8 @@ int ShaderManager::Init()
 			vs.Result = Utils::LoadTextFile(vs.File);
 			fs.Result = Utils::LoadTextFile(fs.File);
 
-			ShaderManager::Programs[i] = new ShaderProgram(vs.Name.substr(0, vs.Name.rfind("_")));
+			wxString shaderName        = vs.Name.substr(0, vs.Name.rfind("_"));
+			ShaderManager::Programs[i] = new ShaderProgram(shaderName);
 
 			int result;
 			

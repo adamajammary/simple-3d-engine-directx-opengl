@@ -8,21 +8,21 @@
 class Component
 {
 public:
-	Component(const wxString &name, const glm::vec3 &position = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &rotation = glm::vec3(0.0f, 0.0f, 0.0f), const glm::vec3 &scale = glm::vec3(1.0f, 1.0f, 1.0f), const glm::vec4 &color = glm::vec4(0.8f, 0.8f, 0.8f, 1.0f));
+	Component(const wxString &name, const glm::vec3 &position = {}, const glm::vec3 &rotation = {}, const glm::vec3 &scale = { 1.0f, 1.0f, 1.0f }, const glm::vec4 &color = { 0.8f, 0.8f, 0.8f, 1.0f });
 	Component();
 	~Component();
 
 public:
-	bool               AutoRotate;
-	glm::vec3          AutoRotation;
-	std::vector<Mesh*> Children;
-	glm::vec4          Color;
-	bool               LockToParentPosition;
-	bool               LockToParentRotation;
-	bool               LockToParentScale;
-	wxString           Name;
-	Component*         Parent;
-	Texture*           Textures[MAX_TEXTURES];
+	bool                    AutoRotate;
+	glm::vec3               AutoRotation;
+	std::vector<Component*> Children;
+	glm::vec4               Color;
+	bool                    LockToParentPosition;
+	bool                    LockToParentRotation;
+	bool                    LockToParentScale;
+	wxString                Name;
+	Component*              Parent;
+	Texture*                Textures[MAX_TEXTURES];
 
 protected:
 	bool          isValid;
@@ -37,9 +37,10 @@ protected:
 	ComponentType type;
 
 public:
-	virtual int           GetChildIndex(Mesh* child);
+	virtual int           GetChildIndex(Component* child);
 	virtual bool          IsTextured();
 	virtual bool          IsValid();
+	virtual void          LoadTexture(Texture* texture, int index);
 	virtual glm::mat4     Matrix();
 	virtual wxString      ModelFile();
 	virtual void          MoveBy(const glm::vec3 &amount);

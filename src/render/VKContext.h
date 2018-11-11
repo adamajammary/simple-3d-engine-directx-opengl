@@ -119,7 +119,7 @@ public:
 	void            DestroyShaderModule(VkShaderModule* shaderModule);
 	void            DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
 	void            DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int             Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	int             Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
 	int             InitPipelines(Buffer* buffer);
 	bool            IsOK();
 	void            Present(VkCommandBuffer cmdBuffer = nullptr);

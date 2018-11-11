@@ -4,7 +4,7 @@ glm::vec3               SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0
 std::vector<Component*> SceneManager::Components;
 Texture*                SceneManager::EmptyCubemap          = nullptr;
 Texture*                SceneManager::EmptyTexture          = nullptr;
-Mesh*                   SceneManager::SelectedChild         = nullptr;
+Component*              SceneManager::SelectedChild         = nullptr;
 Component*              SceneManager::SelectedComponent     = nullptr;
 glm::vec4               SceneManager::SelectColor           = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
 Light                   SceneManager::SunLight              = {};
@@ -24,7 +24,7 @@ int SceneManager::AddComponent(Component* component)
 		break;
 	case COMPONENT_SKYBOX:
 		if (!component->Children.empty())
-			RenderEngine::Skybox = component->Children[0];
+			RenderEngine::Skybox = dynamic_cast<Mesh*>(component->Children[0]);
 		break;
 	case COMPONENT_TERRAIN:
 		for (auto child : component->Children)
@@ -188,7 +188,7 @@ int SceneManager::LoadScene(const wxString &file)
 		for (int i = 0; i < (int)childrenJSON.size(); i++)
 		{
 			auto  childJSON = childrenJSON[i];
-			Mesh* child     = component->Children[i];
+			Mesh* child     = dynamic_cast<Mesh*>(component->Children[i]);
 			
 			if ((childJSON == nullptr) || (child == nullptr))
 				continue;
@@ -331,42 +331,46 @@ Water* SceneManager::LoadWater()
 	return water;
 }
 
-void SceneManager::RemoveSelectedComponent()
+int SceneManager::RemoveSelectedComponent()
 {
-	if ((SceneManager::SelectedComponent != nullptr) && (SceneManager::SelectedComponent->Type() != COMPONENT_CAMERA))
-	{
-		for (auto child : SceneManager::SelectedComponent->Children)
-			RenderEngine::RemoveMesh(child);
+	if ((SceneManager::SelectedComponent == nullptr) || (SceneManager::SelectedComponent->Type() == COMPONENT_CAMERA))
+		return -1;
 
-		int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
+	for (auto child : SceneManager::SelectedComponent->Children)
+		RenderEngine::RemoveMesh(child);
 
-		SceneManager::SelectComponent(index - 1);
-		SceneManager::Components.erase(SceneManager::Components.begin() + index);
-		RenderEngine::Canvas.Window->RemoveComponent(index);
-	}
+	int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
+
+	SceneManager::SelectComponent(index - 1);
+	SceneManager::Components.erase(SceneManager::Components.begin() + index);
+	RenderEngine::Canvas.Window->RemoveComponent(index);
+
+	return 0;
 }
 
-void SceneManager::RemoveSelectedChild()
+int SceneManager::RemoveSelectedChild()
 {
-	if (SceneManager::SelectedChild != nullptr)
+	if (SceneManager::SelectedChild == nullptr)
+		return -1;
+
+	RenderEngine::RemoveMesh(SceneManager::SelectedChild);
+
+	int index = SceneManager::SelectedComponent->GetChildIndex(SceneManager::SelectedChild);
+
+	SceneManager::SelectedComponent->Children.erase(SceneManager::SelectedComponent->Children.begin() + index);
+	RenderEngine::Canvas.Window->RemoveChild(index);
+
+	if (!SceneManager::SelectedComponent->Children.empty())
 	{
-		RenderEngine::RemoveMesh(SceneManager::SelectedChild);
-
-		int index = SceneManager::SelectedComponent->GetChildIndex(SceneManager::SelectedChild);
-
-		SceneManager::SelectedComponent->Children.erase(SceneManager::SelectedComponent->Children.begin() + index);
-		RenderEngine::Canvas.Window->RemoveChild(index);
-
-		if (!SceneManager::SelectedComponent->Children.empty())
-		{
-			if (index == (int)SceneManager::SelectedComponent->Children.size())
-				SceneManager::SelectChild(index - 1);
-			else
-				SceneManager::SelectChild(index);
-		} else {
-			SceneManager::RemoveSelectedComponent();
-		}
+		if (index == (int)SceneManager::SelectedComponent->Children.size())
+			SceneManager::SelectChild(index - 1);
+		else
+			SceneManager::SelectChild(index);
+	} else {
+		SceneManager::RemoveSelectedComponent();
 	}
+
+	return 0;
 }
 
 int SceneManager::SaveScene(const wxString &file)
@@ -382,62 +386,62 @@ int SceneManager::SaveScene(const wxString &file)
 	{
 		json11::Json::array childrenJSON;
 
-		if (component->Type() != COMPONENT_CAMERA)
+		// CHILDREN
+		for (auto child : component->Children)
 		{
-			// CHILDREN
-			for (auto child : component->Children)
+			if (child->Type() == COMPONENT_CAMERA)
+				continue;
+
+			json11::Json        childJSON;
+			json11::Json::array texturesJSON;
+
+			for (int i = 0; i < MAX_TEXTURES; i++)
 			{
-				json11::Json        childJSON;
-				json11::Json::array texturesJSON;
+				json11::Json textureJSON;
+				Texture*     texture;
 
-				for (int i = 0; i < MAX_TEXTURES; i++)
-				{
-					json11::Json textureJSON;
-					Texture*     texture;
+				if (component->Type() == COMPONENT_WATER)
+					texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
+				else
+					texture = child->Textures[i];
 
-					if (component->Type() == COMPONENT_WATER)
-						texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
-					else
-						texture = child->Textures[i];
-
-					textureJSON = json11::Json::object {
-						{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
-						{ "repeat",      texture->Repeat() },
-						{ "flip",        texture->FlipY() },
-						{ "transparent", texture->Transparent() },
-						{ "scale",       Utils::ToJsonArray(texture->Scale) }
-					};
-
-					texturesJSON.push_back(textureJSON);
-				}
-
-				BoundingVolume* boundingVolume = child->GetBoundingVolume();
-				glm::vec3       position       = child->Position();
-				glm::vec3       scale          = child->Scale();
-
-				if (child->Type() == COMPONENT_HUD)
-				{
-					// Invert Y-axis for both mesh and vertex positions on Vulkan
-					if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
-						position.y *= -1;
-						scale.y    *= -1;
-					}
-				}
-
-				childJSON = json11::Json::object {
-					{ "name",            static_cast<std::string>(child->Name) },
-					{ "position",        Utils::ToJsonArray(position) },
-					{ "scale",           Utils::ToJsonArray(scale) },
-					{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
-					{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
-					{ "auto_rotate",     child->AutoRotate },
-					{ "color",           Utils::ToJsonArray(child->Color) },
-					{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
-					{ "textures",        texturesJSON }
+				textureJSON = json11::Json::object {
+					{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
+					{ "repeat",      texture->Repeat() },
+					{ "flip",        texture->FlipY() },
+					{ "transparent", texture->Transparent() },
+					{ "scale",       Utils::ToJsonArray(texture->Scale) }
 				};
-                
-				childrenJSON.push_back(childJSON);
+
+				texturesJSON.push_back(textureJSON);
 			}
+
+			BoundingVolume* boundingVolume = dynamic_cast<Mesh*>(child)->GetBoundingVolume();
+			glm::vec3       position       = child->Position();
+			glm::vec3       scale          = child->Scale();
+
+			if (child->Type() == COMPONENT_HUD)
+			{
+				// Invert Y-axis for both mesh and vertex positions on Vulkan
+				if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+					position.y *= -1;
+					scale.y    *= -1;
+				}
+			}
+
+			childJSON = json11::Json::object {
+				{ "name",            static_cast<std::string>(child->Name) },
+				{ "position",        Utils::ToJsonArray(position) },
+				{ "scale",           Utils::ToJsonArray(scale) },
+				{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
+				{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
+				{ "auto_rotate",     child->AutoRotate },
+				{ "color",           Utils::ToJsonArray(child->Color) },
+				{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
+				{ "textures",        texturesJSON }
+			};
+                
+			childrenJSON.push_back(childJSON);
 		}
 
 		json11::Json componentJSON;
@@ -520,24 +524,30 @@ int SceneManager::SaveScene(const wxString &file)
 	return result;
 }
 
-void SceneManager::SelectComponent(int index)
+int SceneManager::SelectComponent(int index)
 {
-	if ((index >= 0) && (index < (int)SceneManager::Components.size()))
-	{
-		SceneManager::SelectedChild     = nullptr;
-		SceneManager::SelectedComponent = SceneManager::Components[index];
-		RenderEngine::Canvas.Window->SelectComponent(index);
-		RenderEngine::Canvas.Window->InitDetails();
-	}
+	if ((index < 0) || (index >= (int)SceneManager::Components.size()))
+		return -1;
+
+	SceneManager::SelectedChild     = nullptr;
+	SceneManager::SelectedComponent = SceneManager::Components[index];
+	RenderEngine::Canvas.Window->SelectComponent(index);
+	RenderEngine::Canvas.Window->InitDetails();
+
+	return 0;
 }
 
-void SceneManager::SelectChild(int index)
+int SceneManager::SelectChild(int index)
 {
-	if ((SceneManager::SelectedComponent != nullptr) && 
-		(index >= 0) && (index < (int)SceneManager::SelectedComponent->Children.size()))
+	if ((SceneManager::SelectedComponent == nullptr) ||
+		(index < 0) || (index >= (int)SceneManager::SelectedComponent->Children.size()))
 	{
-		SceneManager::SelectedChild = SceneManager::SelectedComponent->Children[index];
-		RenderEngine::Canvas.Window->SelectChild(index);
-		RenderEngine::Canvas.Window->InitDetails();
+		return -1;
 	}
+
+	SceneManager::SelectedChild = SceneManager::SelectedComponent->Children[index];
+	RenderEngine::Canvas.Window->SelectChild(index);
+	RenderEngine::Canvas.Window->InitDetails();
+
+	return 0;
 }

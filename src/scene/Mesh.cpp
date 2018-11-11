@@ -12,8 +12,8 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 	this->type                = parent->Type();
 	this->vertexBuffer        = nullptr;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
+	//for (int i = 0; i < MAX_TEXTURES; i++)
+	//	this->Textures[i] = nullptr;
 }
 
 Mesh::Mesh() : Component("")
@@ -27,8 +27,8 @@ Mesh::Mesh() : Component("")
 	this->type                = COMPONENT_MESH;
 	this->vertexBuffer        = nullptr;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
+	//for (int i = 0; i < MAX_TEXTURES; i++)
+	//	this->Textures[i] = nullptr;
 }
 
 Mesh::~Mesh()
@@ -181,7 +181,7 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	if (mesh == nullptr)
 		return false;
 
-    this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
+    //this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
 
 	if (!this->loadModelData(mesh))
 		return false;
@@ -203,11 +203,11 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
 	return this->isValid;
 }
-
-void Mesh::LoadTexture(Texture* texture, int index)
-{
-    this->Textures[index] = texture;
-}
+//
+//void Mesh::LoadTexture(Texture* texture, int index)
+//{
+//    this->Textures[index] = texture;
+//}
 
 int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 {

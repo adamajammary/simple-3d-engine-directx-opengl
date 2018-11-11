@@ -15,7 +15,7 @@ public:
 	static std::vector<Component*> Components;
 	static Texture*                EmptyCubemap;
 	static Texture*                EmptyTexture;
-	static Mesh*                   SelectedChild;
+	static Component*              SelectedChild;
 	static Component*              SelectedComponent;
 
 private:
@@ -32,11 +32,11 @@ public:
 	static Skybox*  LoadSkybox();
 	static Terrain* LoadTerrain(int size, float octaves, float redistribution);
 	static Water*   LoadWater();
-	static void     RemoveSelectedComponent();
-	static void     RemoveSelectedChild();
+	static int      RemoveSelectedComponent();
+	static int      RemoveSelectedChild();
 	static int      SaveScene(const wxString &file);
-	static void     SelectComponent(int index);
-	static void     SelectChild(int index);
+	static int      SelectComponent(int index);
+	static int      SelectChild(int index);
 
 };
 

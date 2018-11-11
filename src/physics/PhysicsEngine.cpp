@@ -10,17 +10,17 @@ void PhysicsEngine::CheckRayCasts(wxMouseEvent &event)
 		if (mesh == nullptr)
 			continue;
 
-		volume = mesh->GetBoundingVolume();
+		volume = dynamic_cast<Mesh*>(mesh)->GetBoundingVolume();
 
 		if (volume == nullptr)
 			continue;
 
 		switch (volume->VolumeType()) {
 		case BOUNDING_VOLUME_BOX:
-			mesh->Select(ray->RayIntersectAABB(volume->MinBoundaries(), volume->MaxBoundaries()));
+			dynamic_cast<Mesh*>(mesh)->Select(ray->RayIntersectAABB(volume->MinBoundaries(), volume->MaxBoundaries()));
 			break;
 		case BOUNDING_VOLUME_SPHERE:
-			mesh->Select(ray->RayIntersectSphere(volume->MinBoundaries(), volume->MaxBoundaries()));
+			dynamic_cast<Mesh*>(mesh)->Select(ray->RayIntersectSphere(volume->MinBoundaries(), volume->MaxBoundaries()));
 			break;
 		}
 	}

@@ -977,13 +977,13 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 	return 0;
 }
 
-int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*             indexBuffer    = mesh->IndexBuffer();
-	Buffer*             vertexBuffer   = mesh->VertexBuffer();
+	Buffer*             indexBuffer    = dynamic_cast<Mesh*>(mesh)->IndexBuffer();
+	Buffer*             vertexBuffer   = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 	ID3D11PixelShader*  fragmentShader = shaderProgram->FragmentShader();
 	ID3D11VertexShader* vertexShader   = shaderProgram->VertexShader();
 	ShaderID            shaderID       = shaderProgram->ID();
@@ -1039,9 +1039,9 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	this->deviceContext->OMSetDepthStencilState(vertexBuffer->DepthStencilStatesDX11[shaderID], 1);
 
 	if (indexBuffer != nullptr)
-		this->deviceContext->DrawIndexed(mesh->NrOfIndices(), 0, 0);
+		this->deviceContext->DrawIndexed(dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 0, 0);
 	else
-		this->deviceContext->Draw(mesh->NrOfVertices(), 0);
+		this->deviceContext->Draw(dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 0);
 
 	ID3D11ShaderResourceView* nullSRV     = nullptr;
 	ID3D11SamplerState*       nullSampler = nullptr;
@@ -1054,13 +1054,13 @@ int DXContext::Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 	return 0;
 }
 
-int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*   indexBuffer    = mesh->IndexBuffer();
-	Buffer*   vertexBuffer   = mesh->VertexBuffer();
+	Buffer*   indexBuffer    = dynamic_cast<Mesh*>(mesh)->IndexBuffer();
+	Buffer*   vertexBuffer   = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 	ID3DBlob* fragmentShader = shaderProgram->FS();
 	ID3DBlob* vertexShader   = shaderProgram->VS();
 	ShaderID  shaderID       = shaderProgram->ID();
@@ -1119,9 +1119,9 @@ int DXContext::Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProper
 		this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);
 
 	if (indexBuffer != nullptr)
-		this->commandList->DrawIndexedInstanced((UINT)mesh->NrOfIndices(), 1, 0, 0, 0);
+		this->commandList->DrawIndexedInstanced((UINT)dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 1, 0, 0, 0);
 	else
-		this->commandList->DrawInstanced((UINT)mesh->NrOfVertices(), 1, 0, 0);
+		this->commandList->DrawInstanced((UINT)dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 1, 0, 0);
 
 	return 0;
 }

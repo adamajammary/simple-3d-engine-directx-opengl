@@ -16,7 +16,7 @@ public:
 	~Camera() {}
 
 private:
-	glm::vec3 center;
+	//glm::vec3 center;
 	float     far;
 	glm::vec3 forward;
 	float     fovRadians;
@@ -33,14 +33,14 @@ public:
 	void       InputMouseMove(const   wxMouseEvent &event, const MouseState &mouseState);
 	void       InputMouseScroll(const wxMouseEvent &event);
 	void       InvertPitch();
-	bool       IsRenderable();
-	void       MoveBy(const glm::vec3 &amount);
-	void       MoveTo(const glm::vec3 &newPosition);
+	//bool       IsRenderable();
+	void       MoveBy(const glm::vec3 &amount)      override;
+	void       MoveTo(const glm::vec3 &newPosition) override;
 	glm::mat4  MVP(const glm::mat4 &model, bool removeTranslation = false);
 	float      Near();
 	Component* Parent();
-	void       RotateBy(const glm::vec3 &amountRadians);
-	void       RotateTo(const glm::vec3 &newRotationRadions);
+	void       RotateBy(const glm::vec3 &amountRadians)      override;
+	void       RotateTo(const glm::vec3 &newRotationRadions) override;
 	glm::mat4  Projection();
 	void       SetFOV(const wxString &fov);
 	void       UpdateProjection();

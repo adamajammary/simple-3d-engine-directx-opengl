@@ -343,6 +343,10 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 			mesh->Scene          = scene;
 			mesh->Transformation = node->mTransformation;
 
+			mesh->Name = mesh->Mesh->mName.C_Str();
+			mesh->Name = (!mesh->Name.IsEmpty() ? mesh->Name : scene->mRootNode->mChildren[i]->mName.C_Str());
+			mesh->Name = (!mesh->Name.IsEmpty() ? mesh->Name : "Mesh");
+
 			if (mesh->Mesh != nullptr)
 				meshes.push_back(mesh);
 		}
@@ -351,15 +355,15 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 	return meshes;
 }
 
-std::vector<Mesh*> Utils::LoadModelFile(const wxString &file, Component* parent)
+std::vector<Component*> Utils::LoadModelFile(const wxString &file, Component* parent)
 {
-	std::vector<Mesh*>       children;
+	std::vector<Component*>  children;
 	Mesh*                    mesh;
 	std::vector<AssImpMesh*> aiMeshes = Utils::LoadModelFile(file);
 
 	for (auto aiMesh : aiMeshes)
 	{
-		mesh = new Mesh(parent, aiMesh->Mesh->mName.C_Str());
+		mesh = new Mesh(parent, aiMesh->Name);
 
 		if (mesh == nullptr)
 			continue;

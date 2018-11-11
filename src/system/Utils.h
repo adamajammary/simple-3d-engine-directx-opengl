@@ -47,7 +47,7 @@ public:
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
 	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_ANY);
 	static std::vector<AssImpMesh*> LoadModelFile(const wxString &file);
-	static std::vector<Mesh*>       LoadModelFile(const wxString &file, Component* parent);
+	static std::vector<Component*>  LoadModelFile(const wxString &file, Component* parent);
 	static wxString                 LoadTextFile(const  wxString &file);
 	static wxString                 OpenFileDialog(const wxString &fileFormats, bool save);
 	static wxString                 OpenFile(const wxString &fileFormats);

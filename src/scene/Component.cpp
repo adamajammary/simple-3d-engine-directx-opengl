@@ -24,8 +24,8 @@ Component::Component(const wxString &name, const glm::vec3 &position, const glm:
 Component::Component()
 {
 	this->AutoRotate           = false;
-	this->AutoRotation         = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->Color                = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+	this->AutoRotation         = {};
+	this->Color                = {};
 	this->isValid              = false;
 	this->modelFile            = "";
 	this->LockToParentPosition = false;
@@ -33,9 +33,9 @@ Component::Component()
 	this->LockToParentScale    = false;
 	this->Name                 = "";
 	this->Parent               = nullptr;
-	this->position             = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->rotation             = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->scale                = glm::vec3(0.0f, 0.0f, 0.0f);
+	this->position             = {};
+	this->rotation             = {};
+	this->scale                = {};
 	this->type                 = COMPONENT_UNKNOWN;
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
@@ -44,8 +44,10 @@ Component::Component()
 
 Component::~Component()
 {
-	for (auto child : this->Children)
-		_DELETEP(child);
+	if (this->type != COMPONENT_CAMERA) {
+		for (auto child : this->Children)
+			_DELETEP(child);
+	}
 
 	this->Children.clear();
 
@@ -57,7 +59,7 @@ Component::~Component()
 	}
 }
 
-int Component::GetChildIndex(Mesh* child)
+int Component::GetChildIndex(Component* child)
 {
 	for (int i = 0; i < (int)this->Children.size(); i++) {
 		if (this->Children[i] == child)
@@ -87,6 +89,11 @@ bool Component::IsTextured()
 bool Component::IsValid()
 {
 	return this->isValid;
+}
+
+void Component::LoadTexture(Texture* texture, int index)
+{
+    this->Textures[index] = texture;
 }
 
 glm::mat4 Component::Matrix()
@@ -139,9 +146,9 @@ void Component::RotateBy(const glm::vec3 &amountRadians)
 	this->updateRotation();
 }
 
-void Component::RotateTo(const glm::vec3 &newRotationRadions)
+void Component::RotateTo(const glm::vec3 &newRotationRadians)
 {
-	this->rotation = newRotationRadions;
+	this->rotation = newRotationRadians;
 	this->updateRotation();
 }
 
@@ -175,12 +182,14 @@ void Component::updateMatrix()
 void Component::updateRotation()
 {
 	// RESET ROTATION AFTER 360 DEGREES (2PI)
+	float fullRotation = (2.0f * glm::pi<float>());
+
 	for (int i = 0; i < 3; i++)
 	{
-		if (this->rotation[i] > 2.0f * glm::pi<float>())
-			this->rotation[i] -= (2.0f * glm::pi<float>());
-		else if (this->rotation[i] < -2.0f * glm::pi<float>())
-			this->rotation[i] += (2.0f * glm::pi<float>());
+		if (this->rotation[i] > fullRotation)
+			this->rotation[i] -= fullRotation;
+		else if (this->rotation[i] < -fullRotation)
+			this->rotation[i] += fullRotation;
 	}
 
 	if (this->LockToParentRotation && (this->Parent != nullptr)) {

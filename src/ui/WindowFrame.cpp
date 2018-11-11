@@ -31,17 +31,17 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 	this->SetSizer(sizer);
 
 	// ADS
-	#ifndef _DEBUG
-		wxStaticBoxSizer* sizerAds = new wxStaticBoxSizer(wxHORIZONTAL, this->Parent->GetTopWindow(), "Google Ads");
-		wxWebView*        webView  = nullptr;
+	//#ifdef _DEBUG
+	wxStaticBoxSizer* sizerAds = new wxStaticBoxSizer(wxHORIZONTAL, this->Parent->GetTopWindow(), "Google Ads");
+	wxWebView*        webView  = nullptr;
 
-		for (int i = 0; i < 2; i++) {
-			webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, wxSize(730, 90), wxWebViewBackendDefault, wxBORDER_NONE);
-			sizerAds->Add(webView, 0, wxALL, 10);
-		}
+	//for (int i = 0; i < 2; i++) {
+	webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, wxSize(730, 90), wxWebViewBackendDefault, wxBORDER_NONE);
+	sizerAds->Add(webView, 0, wxALL, 10);
+	//}
 
-		sizer->Add(sizerAds, 0, wxALL, 10);
-	#endif
+	sizer->Add(sizerAds, 0, (wxALIGN_CENTER_HORIZONTAL | wxALL), 10);
+	//#endif
 
 	// TOP - ICONS
 	wxBoxSizer* sizerIcons = new wxBoxSizer(wxHORIZONTAL);
@@ -55,11 +55,14 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 		wxImage image = wxImage(Utils::ICONS[i].File, wxBITMAP_TYPE_PNG);
 		image.Rescale(30, 30, wxIMAGE_QUALITY_BICUBIC);
 
-		button = new wxButton(this, Utils::ICONS[i].ID, Utils::ICONS[i].Title);
-		button->SetBitmapLabel(image);
+		//button = new wxButton(this, Utils::ICONS[i].ID, Utils::ICONS[i].Title, wxDefaultPosition, wxDefaultSize, (wxBORDER_NONE | wxBU_EXACTFIT));
+		button = new wxButton(this, Utils::ICONS[i].ID, Utils::ICONS[i].Title, wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+
+		wxFont font = button->GetFont(); font.SetWeight(wxFONTWEIGHT_BOLD); button->SetFont(font);
 
 		button->SetForegroundColour(wxColour(0xFF, 0xFF, 0xFF, 0xFF));
 		button->SetBackgroundColour(wxColour(0x20, 0x20, 0x20, 0xFF));
+		button->SetBitmap(image);
 		button->SetBitmapMargins(wxSize(5, 5));
 
 		button->Bind(wxEVT_BUTTON, &InputManager::OnIcon, Utils::ICONS[i].ID, Utils::ICONS[i].ID);
@@ -172,9 +175,9 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 	sizerMiddleRight->Add(sizerSceneMenu);
 
 	// LINE SEPARATOR
-	line = new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxSize(1, 1), wxLI_HORIZONTAL);
+	line = new wxStaticLine(this, wxID_ANY, wxDefaultPosition, wxSize(750, 1), wxLI_HORIZONTAL);
 	line->SetForegroundColour(wxColour(0xFF, 0xFF, 0xFF, 0xFF));
-	sizerMiddleRight->Add(line, 0, (wxEXPAND | wxLEFT | wxTOP | wxBOTTOM), 10);
+	sizerMiddleRight->Add(line, 0, (wxLEFT | wxTOP | wxBOTTOM), 10);
 
 	wxBoxSizer* sizerSceneComponents = new wxBoxSizer(wxHORIZONTAL);
 
@@ -193,11 +196,11 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 	// DETAILS
 	this->sizerSceneDetails = new wxBoxSizer(wxVERTICAL);
 
-	sizerMiddleRight->Add(this->sizerSceneDetails, 1, (wxEXPAND | wxLEFT | wxTOP), 10);
+	sizerMiddleRight->Add(this->sizerSceneDetails, 1, (wxLEFT | wxTOP), 10);
 
 	this->sizerMiddle->Add(sizerMiddleRight, 1, wxEXPAND);
 
-	sizer->Add(this->sizerMiddle, 1, (wxEXPAND | wxLEFT | wxTOP), 10);
+	sizer->Add(this->sizerMiddle, 1, (wxLEFT | wxTOP), 10);
 
 	// STATUS BAR
 	this->CreateStatusBar();
@@ -209,7 +212,7 @@ void WindowFrame::AddListComponent(Component* component)
 	this->SelectComponent(this->listBoxComponents->GetCount() - 1);
 }
 
-void WindowFrame::AddListChildren(std::vector<Mesh*> children)
+void WindowFrame::AddListChildren(std::vector<Component*> children)
 {
 	this->listBoxChildren->Clear();
 
@@ -271,11 +274,12 @@ void WindowFrame::InitDetails()
 {
 	this->sizerSceneDetails->Clear(true);
 
-	wxButton*   button;
-	wxBoxSizer* sizerButtons = new wxBoxSizer(wxHORIZONTAL);
+	wxButton*     button;
+	wxBoxSizer*   sizerButtons = new wxBoxSizer(wxHORIZONTAL);
+	ComponentType type         = SceneManager::SelectedComponent->Type();
 
 	// REMOVE COMPONENT
-	if ((SceneManager::SelectedComponent != nullptr) && (SceneManager::SelectedComponent->Type() != COMPONENT_CAMERA))
+	if ((SceneManager::SelectedComponent != nullptr) && (type != COMPONENT_CAMERA))
 	{
 		button = new wxButton(this, ID_REMOVE_COMPONENT, wxString("REMOVE " + SceneManager::SelectedComponent->Name));
 		button->Bind(wxEVT_BUTTON, &InputManager::OnList, ID_REMOVE_COMPONENT, ID_REMOVE_COMPONENT);
@@ -283,7 +287,7 @@ void WindowFrame::InitDetails()
 	}
 
 	// REMOVE CHILD
-	if (SceneManager::SelectedChild != nullptr)
+	if ((SceneManager::SelectedChild != nullptr) && (type != COMPONENT_CAMERA))
 	{
 		button = new wxButton(this, ID_REMOVE_CHILD, wxString("REMOVE " + SceneManager::SelectedChild->Name));
 		button->Bind(wxEVT_BUTTON, &InputManager::OnList, ID_REMOVE_CHILD, ID_REMOVE_CHILD);
@@ -292,7 +296,7 @@ void WindowFrame::InitDetails()
 
 	this->sizerSceneDetails->Add(sizerButtons);
 
-	this->propertyGrid = new wxPropertyGrid(this, ID_SCENE_DETAILS, wxDefaultPosition, wxDefaultSize, wxPG_SPLITTER_AUTO_CENTER);
+	this->propertyGrid = new wxPropertyGrid(this, ID_SCENE_DETAILS, wxDefaultPosition, wxSize(750, 280), wxPG_SPLITTER_AUTO_CENTER);
 	this->propertyGrid->SetEmptySpaceColour(wxColour(0x40, 0x40, 0x40, 0xFF));
 	this->sizerSceneDetails->Add(this->propertyGrid, 1, (wxEXPAND | wxRIGHT | wxBOTTOM), 10);
 	this->propertyGrid->Bind(wxEVT_PG_CHANGED, &InputManager::OnPropertyChanged, ID_SCENE_DETAILS, ID_SCENE_DETAILS);
@@ -455,11 +459,11 @@ void WindowFrame::InitDetails()
 			}
 		}
 
-		this->propertyGrid->ExpandAll(false);
+		this->propertyGrid->ExpandAll();
 
-		if (selected->Type() != COMPONENT_SKYBOX) {
-			this->propertyGrid->Expand("Location");
-		}
+		//if (selected->Type() != COMPONENT_SKYBOX) {
+		//	this->propertyGrid->Expand("Location");
+		//}
 	}
 
 	this->sizerSceneDetails->Layout();

@@ -62,8 +62,8 @@ public:
 	int  CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture);
 	int  CreateVertexBuffer11(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	int  CreateVertexBuffer12(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
-	int  Draw11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	int  Draw12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	int  Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
+	int  Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
 	bool IsOK();
 	void Present11();
 	void Present12();

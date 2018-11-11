@@ -26,7 +26,7 @@ private:
 
 public:
 	void     AddListComponent(Component* component);
-	void     AddListChildren(std::vector<Mesh*> children);
+	void     AddListChildren(std::vector<Component*> children);
 	void     ClearScene();
 	void     DeactivateDetails();
 	void     InitDetails();

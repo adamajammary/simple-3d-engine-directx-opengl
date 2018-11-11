@@ -242,6 +242,7 @@ enum UniformBufferTypeVK
 struct AssImpMesh
 {
 	aiMesh*        Mesh  = nullptr;
+	wxString       Name  = "";
 	const aiScene* Scene = nullptr;
 	aiMatrix4x4    Transformation;
 };

@@ -1,17 +1,17 @@
 #include "RenderEngine.h"
 
-GLCanvas           RenderEngine::Canvas              = {};
-DrawModeType       RenderEngine::DrawMode            = DRAW_MODE_FILLED;
-Camera*            RenderEngine::Camera              = nullptr;
-GPUDescription     RenderEngine::GPU                 = {};
-bool               RenderEngine::DrawBoundingVolume  = false;
-Mesh*              RenderEngine::Skybox              = nullptr;
-std::vector<Mesh*> RenderEngine::HUDs;
-bool               RenderEngine::Ready               = false;
-std::vector<Mesh*> RenderEngine::Renderables;
-GraphicsAPI        RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-std::vector<Mesh*> RenderEngine::Terrains;
-std::vector<Mesh*> RenderEngine::Waters;
+GLCanvas                RenderEngine::Canvas              = {};
+DrawModeType            RenderEngine::DrawMode            = DRAW_MODE_FILLED;
+Camera*                 RenderEngine::Camera              = nullptr;
+GPUDescription          RenderEngine::GPU                 = {};
+bool                    RenderEngine::DrawBoundingVolume  = false;
+Mesh*                   RenderEngine::Skybox              = nullptr;
+std::vector<Component*> RenderEngine::HUDs;
+bool                    RenderEngine::Ready               = false;
+std::vector<Component*> RenderEngine::Renderables;
+GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
+std::vector<Component*> RenderEngine::Terrains;
+std::vector<Component*> RenderEngine::Waters;
 
 void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
 {
@@ -182,11 +182,8 @@ int RenderEngine::drawHUDs(const DrawProperties &properties)
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
 		glDisable(GL_DEPTH_TEST);
-
 		glDisable(GL_CULL_FACE);
-
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	RenderEngine::drawMeshes(RenderEngine::HUDs, SHADER_ID_HUD, properties);
@@ -201,13 +198,8 @@ int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuf
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
 		glDisable(GL_BLEND);
 	}
 
@@ -227,6 +219,13 @@ int RenderEngine::drawSelected()
 	DrawProperties properties = {};
 	properties.DrawSelected   = true;
 
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+		glDisable(GL_BLEND);
+	}
+
 	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
 
 	RenderEngine::DrawMode = oldDrawMode;
@@ -241,11 +240,8 @@ int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer c
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
-
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL);
 		glDisable(GL_CULL_FACE);
-
 		glDisable(GL_BLEND);
 	}
 
@@ -261,13 +257,8 @@ int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
 		glDisable(GL_BLEND);
 	}
 
@@ -283,13 +274,8 @@ int RenderEngine::drawWaters(const DrawProperties &properties)
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
 		glDisable(GL_BLEND);
 	}
 
@@ -298,7 +284,7 @@ int RenderEngine::drawWaters(const DrawProperties &properties)
 	return 0;
 }
 
-void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+void RenderEngine::drawMesh(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
@@ -320,27 +306,32 @@ void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const Draw
 	}
 }
 
-int RenderEngine::drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshDX11(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	return RenderEngine::Canvas.DX->Draw11(mesh, shaderProgram, properties);
 }
 
-int RenderEngine::drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	return RenderEngine::Canvas.DX->Draw12(mesh, shaderProgram, properties);
 }
 
-int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
-    if ((RenderEngine::Camera == nullptr) || (shaderProgram == nullptr) || (shaderProgram->Program() < 1) || (mesh == nullptr) || (mesh->IBO() < 1))
+	if ((RenderEngine::Camera == nullptr) ||
+		(shaderProgram == nullptr) || (shaderProgram->Program() < 1) ||
+		(mesh == nullptr) || (dynamic_cast<Mesh*>(mesh)->IBO() < 1))
+	{
 		return -1;
+	}
 
+	// SHADER ATTRIBUTES AND UNIFORMS
 	shaderProgram->UpdateAttribsGL(mesh);
 	shaderProgram->UpdateUniformsGL(mesh, properties);
 
     // DRAW
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO());
-		glDrawElements(RenderEngine::GetDrawMode(), (GLsizei)mesh->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dynamic_cast<Mesh*>(mesh)->IBO());
+	glDrawElements(RenderEngine::GetDrawMode(), (GLsizei)dynamic_cast<Mesh*>(mesh)->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	//glDrawArrays(RenderEngine::DrawMode, 0, (GLsizei)mesh->NrOfVertices());
 
@@ -356,19 +347,20 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, const Dra
     return 0;
 }
 
-int RenderEngine::drawMeshVK(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int RenderEngine::drawMeshVK(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, properties, cmdBuffer);
 }
 
-void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+void RenderEngine::drawMeshes(const std::vector<Component*> meshes, ShaderID shaderID, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, shaderID);
 
 	for (auto mesh : meshes)
 	{
 		if (!properties.DrawBoundingVolume &&
-			((properties.DrawSelected && !mesh->IsSelected()) || (!properties.DrawSelected && mesh->IsSelected())))
+			((properties.DrawSelected && !dynamic_cast<Mesh*>(mesh)->IsSelected()) ||
+			(!properties.DrawSelected && dynamic_cast<Mesh*>(mesh)->IsSelected())))
 		{
 			continue;
 		}
@@ -379,7 +371,7 @@ void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID
 			mesh->Color = SceneManager::SelectColor;
 
 		RenderEngine::drawMesh(
-			(properties.DrawBoundingVolume ? mesh->GetBoundingVolume() : mesh),
+			(properties.DrawBoundingVolume ? dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() : mesh),
 			shaderProgram, properties, cmdBuffer
 		);
 
@@ -464,8 +456,11 @@ int RenderEngine::initResources()
 	return 0;
 }
 
-void RenderEngine::RemoveMesh(Mesh* mesh)
+int RenderEngine::RemoveMesh(Component* mesh)
 {
+	if (mesh->Parent == nullptr)
+		return -1;
+
     if (mesh->Parent->Type() == COMPONENT_HUD) {
 		auto index = std::find(RenderEngine::HUDs.begin(), RenderEngine::HUDs.end(), mesh);
 
@@ -489,6 +484,8 @@ void RenderEngine::RemoveMesh(Mesh* mesh)
 		if (index != RenderEngine::Renderables.end())
 			RenderEngine::Renderables.erase(index);
     }
+
+	return 0;
 }
 
 void RenderEngine::SetAspectRatio(const wxString &ratio)

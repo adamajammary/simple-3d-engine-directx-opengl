@@ -3,6 +3,7 @@
 Camera::Camera(const glm::vec3 &position, const glm::vec3 &lookAt, float fovRadians, float near, float far)
 	: Component("Camera", position)
 {
+	this->Children   = { this };
 	this->far        = far;
 	this->fovRadians = fovRadians;
 	this->near       = near;
@@ -25,11 +26,6 @@ Camera::Camera()
 	this->type       = COMPONENT_CAMERA;
 }
 
-float Camera::Far()
-{
-	return far;
-}
-
 void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
 {
 	this->forward = glm::normalize(lookAt - position);
@@ -38,6 +34,11 @@ void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
 	this->UpdateProjection();
 	this->updatePosition();
 	this->updateRotation();
+}
+
+float Camera::Far()
+{
+	return far;
 }
 
 bool Camera::InputKeyboard(char key)
@@ -129,10 +130,10 @@ void Camera::InvertPitch()
 	this->RotateTo(glm::vec3(this->pitch, this->yaw, 0.0f));
 }
 
-bool Camera::IsRenderable()
-{
-	return false;
-}
+//bool Camera::IsRenderable()
+//{
+//	return false;
+//}
 
 void Camera::MoveBy(const glm::vec3 &amount)
 {
@@ -165,13 +166,15 @@ void Camera::RotateBy(const glm::vec3 &amountRadians)
 {
 	this->pitch += amountRadians.x;
 	this->yaw   += amountRadians.y;
+
 	this->updateRotation();
 }
 
-void Camera::RotateTo(const glm::vec3 &newRotationRadions)
+void Camera::RotateTo(const glm::vec3 &newRotationRadians)
 {
-	this->pitch = newRotationRadions.x;
-	this->yaw   = newRotationRadions.y;
+	this->pitch = newRotationRadians.x;
+	this->yaw   = newRotationRadians.y;
+
 	this->updateRotation();
 }
 
@@ -198,8 +201,8 @@ void Camera::UpdateProjection()
 
 void Camera::updatePosition()
 {
-	this->center = (this->position + this->forward);
-	this->view   = glm::lookAt(this->position, this->center, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::vec3 center = (this->position + this->forward);
+	this->view       = glm::lookAt(this->position, center, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void Camera::updateRotation()
@@ -208,14 +211,16 @@ void Camera::updateRotation()
 	this->pitch    = std::max(std::min(this->pitch, (glm::pi<float>() / 2.0f)), -(glm::pi<float>() / 2.0f));
 	this->rotation = glm::vec3(this->pitch, this->yaw, 0.0f);
 
-	this->center.x = (std::cos(this->pitch) * std::cos(this->yaw));
-	this->center.y = std::sin(this->pitch);
-	this->center.z = (std::cos(this->pitch) * std::sin(this->yaw));
+	glm::vec3 center = {
+		(std::cos(this->pitch) * std::cos(this->yaw)),	// X
+		std::sin(this->pitch),							// Y
+		(std::cos(this->pitch) * std::sin(this->yaw))	// Z
+	};
 
-	this->forward  = glm::normalize(this->center);
+	this->forward = glm::normalize(center);
 
-	this->center = (this->position + this->forward);
-	this->view   = glm::lookAt(this->position, this->center, glm::vec3(0.0f, 1.0f, 0.0f));
+	center     = (this->position + this->forward);
+	this->view = glm::lookAt(this->position, center, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 glm::mat4 Camera::View(bool removeTranslation)

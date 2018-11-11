@@ -97,7 +97,7 @@ void Terrain::create(int size, int octaves, float redistribution)
 
 	if (this->isValid && (this->Children[0] != nullptr))
 	{
-		this->Children[0]->LoadArrays(indices, normals, textureCoords, vertices);
+		dynamic_cast<Mesh*>(this->Children[0])->LoadArrays(indices, normals, textureCoords, vertices);
 
 		Texture* texture;
 

@@ -1072,13 +1072,13 @@ bool VKContext::deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysical
 	return supported;
 }
 
-int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int VKContext::Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
 	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
-	Buffer*  indexBuffer     = mesh->IndexBuffer();
-	Buffer*  vertexBuffer    = mesh->VertexBuffer();
+	Buffer*  indexBuffer     = dynamic_cast<Mesh*>(mesh)->IndexBuffer();
+	Buffer*  vertexBuffer    = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 	ShaderID shaderID        = shaderProgram->ID();
 	VkBuffer vertexBuffers[] = { vertexBuffer->VertexBuffer };
 
@@ -1110,9 +1110,9 @@ int VKContext::Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperti
 
 	// DRAW
 	if (indexBuffer != nullptr)
-		vkCmdDrawIndexed(commandBuffer, mesh->NrOfIndices(), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffer, dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 1, 0, 0, 0);
 	else
-		vkCmdDraw(commandBuffer, mesh->NrOfVertices(), 1, 0, 0);
+		vkCmdDraw(commandBuffer, dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 1, 0, 0);
 
 	return 0;
 }
@@ -2261,9 +2261,9 @@ void VKContext::ResetPipelines()
 {
 	RenderEngine::Ready = false;
 
-	for (auto renderable : RenderEngine::Renderables)
+	for (auto mesh : RenderEngine::Renderables)
 	{
-		Buffer* vertexBuffer = renderable->VertexBuffer();
+		Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 		if (vertexBuffer != nullptr)
 			vertexBuffer->ResetPipelines();

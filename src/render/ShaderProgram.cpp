@@ -58,7 +58,7 @@ DXLightBuffer ShaderProgram::getBufferLight()
 	return light;
 }
 
-DXMatrixBuffer ShaderProgram::getBufferMatrices(Mesh* mesh, bool removeTranslation)
+DXMatrixBuffer ShaderProgram::getBufferMatrices(Component* mesh, bool removeTranslation)
 {
 	DXMatrixBuffer matrices = {};
 
@@ -70,10 +70,10 @@ DXMatrixBuffer ShaderProgram::getBufferMatrices(Mesh* mesh, bool removeTranslati
 	return matrices;
 }
 
-const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, const DrawProperties &properties)
+const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Component* mesh, const DrawProperties &properties)
 {
 	const void* bufferValues = nullptr;
-	Buffer*     vertexBuffer = mesh->VertexBuffer();
+	Buffer*     vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
 		return bufferValues;
@@ -140,6 +140,7 @@ const void* ShaderProgram::getBufferValues(const DXMatrixBuffer &matrices, const
 
 	return bufferValues;
 }
+#endif
 
 ShaderID ShaderProgram::ID()
 {
@@ -158,7 +159,6 @@ ShaderID ShaderProgram::ID()
 
 	return SHADER_ID_UNKNOWN;
 }
-#endif
 
 bool ShaderProgram::IsOK()
 {
@@ -385,26 +385,27 @@ void ShaderProgram::setUniformsGL()
 	glUseProgram(0);
 }
 
-int ShaderProgram::UpdateAttribsGL(Mesh* mesh)
+int ShaderProgram::UpdateAttribsGL(Component* mesh)
 {
 	if (mesh == nullptr)
 		return -1;
 
 	GLint id;
+	Mesh* mesh2 = dynamic_cast<Mesh*>(mesh);
 
-	if ((mesh->NBO() > 0) && ((id = this->Attribs[ATTRIB_NORMAL]) >= 0))
-		mesh->BindBuffer(mesh->NBO(), id, 3, GL_FLOAT, GL_FALSE);
+	if ((mesh2->NBO() > 0) && ((id = this->Attribs[ATTRIB_NORMAL]) >= 0))
+		mesh2->BindBuffer(mesh2->NBO(), id, 3, GL_FLOAT, GL_FALSE);
 
-	if ((mesh->VBO() > 0) && ((id = this->Attribs[ATTRIB_POSITION]) >= 0))
-		mesh->BindBuffer(mesh->VBO(), id, 3, GL_FLOAT, GL_FALSE);
+	if ((mesh2->VBO() > 0) && ((id = this->Attribs[ATTRIB_POSITION]) >= 0))
+		mesh2->BindBuffer(mesh2->VBO(), id, 3, GL_FLOAT, GL_FALSE);
 
-	if ((mesh->TBO() > 0) && ((id = this->Attribs[ATTRIB_TEXCOORDS]) >= 0))
-		mesh->BindBuffer(mesh->TBO(), id, 2, GL_FLOAT, GL_FALSE);
+	if ((mesh2->TBO() > 0) && ((id = this->Attribs[ATTRIB_TEXCOORDS]) >= 0))
+		mesh2->BindBuffer(mesh2->TBO(), id, 2, GL_FLOAT, GL_FALSE);
 
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties)
+int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
@@ -489,7 +490,7 @@ int ShaderProgram::UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties
 
 	if (id >= 0)
 	{
-		GLWireframeBuffer wb = { mesh->Color };
+		GLWireframeBuffer wb = { dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() != nullptr ? mesh->Color : mesh->Parent->Color };
 		this->updateUniformGL(id, UBO_GL_WIREFRAME, &wb, sizeof(wb));
 	}
 
@@ -514,7 +515,7 @@ void ShaderProgram::updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* 
 	glUniformBlockBinding(this->program, id, id);
 }
 
-int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VKUniform &uniform, const DrawProperties &properties)
+int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, const VKUniform &uniform, const DrawProperties &properties)
 {
 	GLDefaultBuffer   defaultValues     = {};
 	GLHUDBuffer       hudValues         = {};
@@ -603,12 +604,12 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VK
 	return 0;
 }
 
-int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh)
+int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Component* mesh)
 {
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
 
-	Buffer* vertexBuffer = mesh->VertexBuffer();
+	Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
 		return -2;
@@ -650,12 +651,12 @@ int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding bin
 	return 0;
 }
 
-int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Mesh* mesh)
+int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Component* mesh)
 {
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
 
-	Buffer* vertexBuffer = mesh->VertexBuffer();
+	Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
 		return -2;
@@ -701,12 +702,12 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 }
 
 #if defined _WINDOWS
-int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, const DrawProperties &properties)
+int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Component* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
 
-	Buffer* vertexBuffer = mesh->VertexBuffer();
+	Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
 		return -2;
@@ -731,12 +732,12 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	return 0;
 }
 
-int ShaderProgram::UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properties)
+int ShaderProgram::UpdateUniformsDX12(Component* mesh, const DrawProperties &properties)
 {
 	if (mesh == nullptr)
 		return -1;
 
-	Buffer* vertexBuffer = mesh->VertexBuffer();
+	Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
 
 	if (vertexBuffer == nullptr)
 		return -2;
