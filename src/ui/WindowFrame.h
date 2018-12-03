@@ -22,15 +22,15 @@ private:
 	wxListBox*      listBoxChildren;
 	wxPropertyGrid* propertyGrid;
 	wxBoxSizer*     sizerMiddle;
-	wxBoxSizer*     sizerSceneDetails;
+	wxBoxSizer*     sizerSceneProperties;
 
 public:
 	void     AddListComponent(Component* component);
 	void     AddListChildren(std::vector<Component*> children);
 	void     ClearScene();
-	void     DeactivateDetails();
-	void     InitDetails();
-	bool     IsDetailsActive();
+	void     DeactivateProperties();
+	void     InitProperties();
+	bool     IsPropertiesActive();
 	void     OnAbout(wxCommandEvent &event);
 	void     OnExit(wxCommandEvent &event);
 	void     RemoveComponent(int index);
@@ -41,15 +41,27 @@ public:
 	void     SetCanvas(wxGLCanvas* canvas);
 	void     SetGraphicsAPI(int index);
 	int      UpdateComponents(wxPGProperty* property);
-	int      UpdateDetails();
+	int      UpdateProperties();
 
 private:
-	void      addPropertyCheckbox(const wxString &label, const wxString &id, bool value);
-	void      addPropertyEnum(const wxString &label, const wxString &id, const wxChar** values, const wxChar* value);
-	void      addPropertyRange(const wxString &label, const wxString &id, float value, float min = 0.0f, float max = 1.0f, float step = 0.01f);
-	void      addPropertyXYZ(const wxString &category, const wxString &id, float x, float y, float z, float min = 0.0f, float max = 1.0f, float step = 0.01f);
-	void      setPropertyXYZ(const wxString &id, float x, float y, float z);
-	glm::vec3 updatePropertyXYZ(const wxString &id, float value, const glm::vec3 &values);
+	void          addAds(wxBoxSizer* sizer);
+	void          addButton(void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, wxDirection direction, const wxPoint &position = wxDefaultPosition, const wxSize &size = wxDefaultSize);
+	wxCheckBox*   addCheckBox(wxGridBagSizer* sizer, IconType id, wxGBPosition position, bool default = false);
+	wxChoice*     addDropDown(wxGridBagSizer* sizer, IconType id, wxGBPosition position, int nrOfChoices, const wxString* choices);
+	void          addIcon(wxBoxSizer* sizer, const Icon &icon);
+	void          addLine(wxBoxSizer* sizer, int flag, wxSize size = wxSize(1, 1));
+	wxListBox*    addListBox(wxBoxSizer* sizer, IconType id);
+	void          addMenu();
+	void          addPropertyCheckbox(const wxString &label, const wxString &id, bool value);
+	void          addPropertyEnum(const wxString &label, const wxString &id, const wxChar** values, const wxChar* value);
+	void          addPropertyRange(const wxString &label, const wxString &id, float value, float min = 0.0f, float max = 1.0f, float step = 0.01f);
+	void          addPropertyXYZ(const wxString &category, const wxString &id, float x, float y, float z, float min = 0.0f, float max = 1.0f, float step = 0.01f);
+	wxStaticText* addTextLabel(wxString text);
+	void          addTextLabel(wxGridBagSizer* sizer, wxString text, wxGBPosition position, int flag, int border = 0);
+	void          addTextLabel(wxBoxSizer* sizer, wxString text, int flag, int border = 0);
+	int           init();
+	void          setPropertyXYZ(const wxString &id, float x, float y, float z);
+	glm::vec3     updatePropertyXYZ(const wxString &id, float value, const glm::vec3 &values);
 
 	wxDECLARE_EVENT_TABLE();
 

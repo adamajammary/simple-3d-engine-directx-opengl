@@ -182,7 +182,12 @@ START "" /B XCOPY /E  /C /I  /R /Y "$(SolutionDir)resources" "$(TargetDir)$(Proj
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\assimp-4.1.0\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\glew-2.1.0\bin\Release\x64\*.dll" "$(TargetDir)$(ProjectName)\"
 START "" /B XCOPY /E  /C /I  /R /Y "3rd\lzma1805\C\Util\LzmaLib\x64\Release\*.dll" "$(TargetDir)$(ProjectName)\"
-START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)$(ProjectName)\"</Command>
+START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "D:\Software\Development\3D\Vulkan\*RT*.exe" "$(TargetDir)$(ProjectName)\redist\"
+START "" /B XCOPY /E  /C /I  /R /Y "$(FrameworkSdkDir)Redist\D3D\x64\*.dll" "$(TargetDir)$(ProjectName)\"
+START "" /B XCOPY /E  /C /I  /R /Y "$(VCInstallDir)Redist\MSVC\$(VCToolsRedistVersion)\vc_redist.x64.exe" "$(TargetDir)$(ProjectName)\redist\"
+START "" /B XCOPY /E  /C /I  /R /Y "$(VCInstallDir)Redist\MSVC\$(VCToolsRedistVersion)\x64\Microsoft.VC141.CRT\*.dll" "$(TargetDir)$(ProjectName)\"
+</Command>
     </PostBuildEvent>
     <ResourceCompile>
       <AdditionalIncludeDirectories>3rd\wxWidgets-3.1.1\include</AdditionalIncludeDirectories>
@@ -205,6 +210,8 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
     <ClCompile Include="src\scene\Component.cpp" />
     <ClCompile Include="src\scene\FrameBuffer.cpp" />
     <ClCompile Include="src\scene\HUD.cpp" />
+    <ClCompile Include="src\scene\Light.cpp" />
+    <ClCompile Include="src\scene\Material.cpp" />
     <ClCompile Include="src\scene\Mesh.cpp" />
     <ClCompile Include="src\scene\Model.cpp" />
     <ClCompile Include="src\scene\SceneManager.cpp" />
@@ -236,6 +243,8 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
     <ClInclude Include="src\scene\Component.h" />
     <ClInclude Include="src\scene\FrameBuffer.h" />
     <ClInclude Include="src\scene\HUD.h" />
+    <ClInclude Include="src\scene\Light.h" />
+    <ClInclude Include="src\scene\Material.h" />
     <ClInclude Include="src\scene\Mesh.h" />
     <ClInclude Include="src\scene\Model.h" />
     <ClInclude Include="src\scene\SceneManager.h" />
@@ -287,13 +296,13 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="resources\shaders\wireframe.fs.glsl">
+    <None Include="resources\shaders\color.fs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="resources\shaders\wireframe.vs.glsl">
+    <None Include="resources\shaders\color.vs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -310,14 +319,6 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="resources\shaders\test.fs.glsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-    </None>
-    <None Include="resources\shaders\test.vs.glsl">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="resources\shaders\water.fs.glsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -354,7 +355,7 @@ START "" /B XCOPY /E  /C /I  /R /Y "3rd\wxWidgets-3.1.1\lib\vc_x64_dll\*.dll" "$
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="resources\shaders\wireframe.hlsl">
+    <FxCompile Include="resources\shaders\color.hlsl">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>

@@ -5,6 +5,15 @@
 #ifndef GE3D_UTILS_H
 #define GE3D_UTILS_H
 
+struct AssImpMesh
+{
+	aiMesh*        Mesh         = nullptr;
+	Material       MeshMaterial = {};
+	wxString       Name         = "";
+	const aiScene* Scene        = nullptr;
+	aiMatrix4x4    Transformation;
+};
+
 class Utils
 {
 private:
@@ -30,6 +39,7 @@ public:
 	static const std::vector<Icon>      ICONS;
 	static const wxString               IMAGE_FILE_FORMATS;
 	static const wxString               MODEL_FILE_FORMATS;
+	static wxString                     PROPERTY_IDS[NR_OF_PROPERTY_IDS];
 	static const wxSize                 RENDER_SIZE;
 	static std::map<IconType, wxString> RESOURCE_MODELS;
 	static std::map<wxString, wxString> RESOURCE_IMAGES;
@@ -57,6 +67,7 @@ public:
 	static uint8_t                  ToByte(uint64_t number, int byteIndex);
 	static float                    ToRadians(float degrees);
 	static float                    ToDegrees(float radians);
+	static float                    ToFloat(bool boolean);
 	static wxFloatProperty*         ToFloatProperty(float value, const wxString &label, const wxString &id, float min = -1.0f, float max = -1.0f);
 	static json11::Json::array      ToJsonArray(const glm::vec2 &arr);
 	static json11::Json::array      ToJsonArray(const glm::vec3 &arr);
@@ -66,15 +77,19 @@ public:
 	static glm::vec2                ToVec2(const json11::Json::array &jsonArray);
 	static glm::vec3                ToVec3(const json11::Json::array &jsonArray);
 	static glm::vec4                ToVec4(const json11::Json::array &jsonArray);
+	static glm::vec3                ToVec3Color(const wxColour &color);
 	static glm::vec4                ToVec4Color(const wxColour &color);
+	static glm::vec4                ToVec4Float(bool boolean);
 	static std::vector<float>       ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords);
 	static wxColour                 ToWxColour(const wxVariant &color);
+	static wxColour                 ToWxColour(const glm::vec3 &color);
 	static wxColour                 ToWxColour(const glm::vec4 &color);
 
 	#if defined _WINDOWS
 		static DXGI_FORMAT       GetImageFormatDXGI(wxImage* image);
 		static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
 		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
+		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec4 &vector);
 		static DirectX::XMMATRIX ToXMMATRIX(const glm::mat4 &matrix);
 	#endif

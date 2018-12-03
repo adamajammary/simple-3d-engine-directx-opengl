@@ -1,5 +1,155 @@
 #include "Buffer.h"
 
+CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
+{
+	this->Model      = mesh->Matrix();
+	this->MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
+	this->Projection = RenderEngine::Camera->Projection();
+	this->View       = RenderEngine::Camera->View(removeTranslation);
+}
+
+CBColor::CBColor(const glm::vec4 &color)
+{
+	this->Color = color;
+}
+
+CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
+{
+	this->CameraPosition = RenderEngine::Camera->Position();
+
+	this->MeshSpecularIntensity = mesh->ComponentMaterial.specular.intensity;
+	this->MeshSpecularShininess = mesh->ComponentMaterial.specular.shininess;
+	//this->MeshAmbient           = mesh->ComponentMaterial.ambient;
+	this->MeshDiffuse           = mesh->ComponentMaterial.diffuse;
+
+	this->SunLightSpecularIntensity = SceneManager::SunLight.material.specular.intensity;
+	this->SunLightSpecularShininess = SceneManager::SunLight.material.specular.shininess;
+	this->SunLightAmbient           = SceneManager::SunLight.material.ambient;
+	this->SunLightDiffuse           = SceneManager::SunLight.material.diffuse;
+	this->SunLightPosition          = SceneManager::SunLight.position;
+	this->SunLightDirection         = SceneManager::SunLight.direction;
+
+	this->ClipMax        = properties.ClipMax;
+	this->ClipMin        = properties.ClipMin;
+	this->EnableClipping = Utils::ToFloat(properties.EnableClipping);
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0, 0);
+}
+
+CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
+{
+	this->MaterialColor = color;
+	this->IsTransparent = Utils::ToVec4Float(transparent);
+}
+
+CBWater::CBWater(const CBDefault &default, float moveFactor, float waveStrength)
+{
+	this->MoveFactor   = moveFactor;
+	this->WaveStrength = waveStrength;
+
+	this->DB = default;
+}
+
+#if defined _WINDOWS
+
+CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
+{
+	this->Model      = Utils::ToXMMATRIX(matrices.Model);
+	this->View       = Utils::ToXMMATRIX(matrices.View);
+	this->Projection = Utils::ToXMMATRIX(matrices.Projection);
+	this->MVP        = Utils::ToXMMATRIX(matrices.MVP);
+}
+
+CBColorDX::CBColorDX(const CBMatrix &matrices, const glm::vec4 &color)
+{
+	this->MB    = CBMatrixDX(matrices);
+	this->Color = Utils::ToXMFLOAT4(color);
+}
+
+CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::vec3 &clipMax, const glm::vec3 &clipMin, bool enableClipping)
+{
+	this->MB = CBMatrixDX(matrices);
+
+	this->CameraPosition = Utils::ToXMFLOAT3(RenderEngine::Camera->Position());
+
+	this->MeshSpecularIntensity = Utils::ToXMFLOAT3(mesh->ComponentMaterial.specular.intensity);
+	this->MeshSpecularShininess = mesh->ComponentMaterial.specular.shininess;
+	//this->MeshAmbient           = Utils::ToXMFLOAT3(mesh->ComponentMaterial.ambient);
+	this->MeshDiffuse           = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
+
+	this->SunLightSpecularIntensity = Utils::ToXMFLOAT3(SceneManager::SunLight.material.specular.intensity);
+	this->SunLightSpecularShininess = SceneManager::SunLight.material.specular.shininess;
+	this->SunLightAmbient           = Utils::ToXMFLOAT3(SceneManager::SunLight.material.ambient);
+	this->SunLightDiffuse           = Utils::ToXMFLOAT4(SceneManager::SunLight.material.diffuse);
+	this->SunLightPosition          = Utils::ToXMFLOAT3(SceneManager::SunLight.position);
+	this->SunLightDirection         = Utils::ToXMFLOAT3(SceneManager::SunLight.direction);
+
+	this->ClipMax        = Utils::ToXMFLOAT3(clipMax);
+	this->ClipMin        = Utils::ToXMFLOAT3(clipMin);
+	this->EnableClipping = Utils::ToFloat(enableClipping);
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0, 0);
+}
+
+CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
+{
+	this->MB = CBMatrixDX(matrices);
+
+	this->CameraPosition = Utils::ToXMFLOAT3(RenderEngine::Camera->Position());
+
+	this->MeshSpecularIntensity = Utils::ToXMFLOAT3(default.MeshSpecularIntensity);
+	this->MeshSpecularShininess = default.MeshSpecularShininess;
+	//this->MeshAmbient           = Utils::ToXMFLOAT3(default.MeshAmbient);
+	this->MeshDiffuse           = Utils::ToXMFLOAT4(default.MeshDiffuse);
+
+	this->SunLightSpecularIntensity = Utils::ToXMFLOAT3(default.SunLightSpecularIntensity);
+	this->SunLightSpecularShininess = default.SunLightSpecularShininess;
+	this->SunLightAmbient           = Utils::ToXMFLOAT3(default.SunLightAmbient);
+	this->SunLightDiffuse           = Utils::ToXMFLOAT4(default.SunLightDiffuse);
+	this->SunLightPosition          = Utils::ToXMFLOAT3(default.SunLightPosition);
+	this->SunLightDirection         = Utils::ToXMFLOAT3(default.SunLightDirection);
+
+	this->ClipMax        = Utils::ToXMFLOAT3(default.ClipMax);
+	this->ClipMin        = Utils::ToXMFLOAT3(default.ClipMin);
+	this->EnableClipping = default.EnableClipping;
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToXMFLOAT4(default.IsTextured[i]);
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = Utils::ToXMFLOAT4(default.TextureScales[i]);
+}
+
+CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transparent)
+{
+	this->MB            = CBMatrixDX(matrices);
+	this->MaterialColor = Utils::ToXMFLOAT4(color);
+	this->IsTransparent = Utils::ToXMFLOAT4(transparent);
+}
+
+CBSkyboxDX::CBSkyboxDX(const CBMatrix &matrices)
+{
+	this->MB = CBMatrixDX(matrices);
+}
+
+CBWaterDX::CBWaterDX(const CBMatrix &matrices, const CBDefault &default, float moveFactor, float waveStrength)
+{
+	this->MoveFactor   = moveFactor;
+	this->WaveStrength = waveStrength;
+
+	this->DB = CBDefaultDX(default, matrices);
+}
+
+#endif
+
 Buffer::Buffer(std::vector<uint32_t> &indices)
 {
 	this->init();
@@ -145,13 +295,11 @@ void Buffer::init()
 		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
 		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
 
-		this->MatrixBufferValues    = {};
-		this->LightBufferValues     = {};
-		this->DefaultBufferValues   = {};
-		this->HUDBufferValues       = {};
-		this->SkyboxBufferValues    = {};
-		this->WireframeBufferValues = {};
-		this->WaterBufferValues     = {};
+		this->ConstantBufferColor   = {};
+		this->ConstantBufferDefault = {};
+		this->ConstantBufferHUD     = {};
+		this->ConstantBufferSkybox  = {};
+		this->ConstantBufferWater   = {};
 	#endif
 }
 

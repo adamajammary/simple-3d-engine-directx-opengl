@@ -8,9 +8,8 @@
 class SceneManager
 {
 public:
-	static glm::vec3 AmbientLightIntensity;
-	static glm::vec4 SelectColor;
-	static Light     SunLight;
+	static glm::vec4        SelectColor;
+	static DirectionalLight SunLight;
 
 	static std::vector<Component*> Components;
 	static Texture*                EmptyCubemap;

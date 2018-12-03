@@ -338,7 +338,11 @@ void Mesh::updateModelData(const aiVector3D &position, const aiVector3D &scale, 
 	this->ScaleTo(glm::vec3(scale.x,     scale.y,    scale.z));
 	this->RotateTo(glm::vec3(rotation.x, rotation.y, rotation.z));
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
+	for (int i = 0; i < MAX_TEXTURES; i++)
+	{
+		if (!this->ComponentMaterial.textures[i].empty())
+			this->LoadTextureImage(this->ComponentMaterial.textures[i], i);
+
 		if (this->Textures[i] == nullptr)
 			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}

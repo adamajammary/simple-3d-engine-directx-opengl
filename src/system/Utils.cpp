@@ -16,8 +16,8 @@ const wxChar* Utils::ALIGNMENTS[] = {
 const wxString Utils::APP_NAME           = "Simple 3D Engine";
 const uint8_t  Utils::APP_VERSION_MAJOR  = 1;
 const uint8_t  Utils::APP_VERSION_MINOR  = 0;
-const uint8_t  Utils::APP_VERSION_PATCH  = 1;
-const wxString Utils::APP_VERSION        = "1.0.1";
+const uint8_t  Utils::APP_VERSION_PATCH  = 2;
+const wxString Utils::APP_VERSION        = "1.0.2";
 const wxString Utils::ASPECT_RATIOS[]    = { "16:9", "4:3" };
 const wxChar*  Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
 const wxString Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
@@ -109,6 +109,43 @@ const wxString Utils::MODEL_FILE_FORMATS =
 	"XGL (*.xgl;*.zgl)|*.xgl;*.zgl"
 ;
 
+wxString Utils::PROPERTY_IDS[NR_OF_PROPERTY_IDS] = {
+	"PROPERTY_ID_NAME",
+	"PROPERTY_ID_LOCATION",
+	"PROPERTY_ID_LOCATION_",
+	"PROPERTY_ID_ROTATION",
+	"PROPERTY_ID_ROTATION_",
+	"PROPERTY_ID_SCALE",
+	"PROPERTY_ID_SCALE_",
+	"PROPERTY_ID_AUTO_ROTATION",
+	"PROPERTY_ID_AUTO_ROTATION_",
+	"PROPERTY_ID_ENABLE_AUTO_ROTATION",
+	"PROPERTY_ID_COLOR",
+	"PROPERTY_ID_SPEC_INTENSITY",
+	"PROPERTY_ID_SPEC_SHININESS",
+	"PROPERTY_ID_OPACITY",
+	"PROPERTY_ID_TRANSPARENCY",
+	"PROPERTY_ID_TEXT",
+	"PROPERTY_ID_TEXT_ALIGNMENT",
+	"PROPERTY_ID_TEXT_FONT",
+	"PROPERTY_ID_TEXT_SIZE",
+	"PROPERTY_ID_TEXT_COLOR",
+	"PROPERTY_ID_HUD_TEXTURE",
+	"PROPERTY_ID_HUD_REMOVE_TEXTURE",
+	"PROPERTY_ID_TEXTURE_",
+	"PROPERTY_ID_REMOVE_TEXTURE_",
+	"PROPERTY_ID_FLIP_TEXTURE_",
+	"PROPERTY_ID_REPEAT_TEXTURE_",
+	"PROPERTY_ID_TILING_U_",
+	"PROPERTY_ID_TILING_V_",
+	"PROPERTY_ID_BOUNDING_VOLUME",
+	"PROPERTY_ID_TERRAIN_SIZE",
+	"PROPERTY_ID_TERRAIN_OCTAVES",
+	"PROPERTY_ID_TERRAIN_REDISTRIBUTION",
+	"PROPERTY_ID_WATER_SPEED",
+	"PROPERTY_ID_WATER_WAVE_STRENGTH"
+};
+
 std::map<wxString, wxString> Utils::RESOURCE_IMAGES = {
 	{ "emptyTexture",      "resources/textures/white_1x1.png" },
 	{ "backgroundTexture", "resources/textures/terrain/backgroundTexture.png" },
@@ -139,27 +176,27 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
-	{ "resources/shaders/default.hlsl",   "default",   "" },
-	{ "resources/shaders/hud.hlsl",       "hud",       "" },
-	{ "resources/shaders/skybox.hlsl",    "skybox",    "" },
-	{ "resources/shaders/terrain.hlsl",   "terrain",   "" },
-	{ "resources/shaders/water.hlsl",     "water",     "" },
-	{ "resources/shaders/wireframe.hlsl", "wireframe", "" }
+	{ "resources/shaders/color.hlsl",   "color",   "" },
+	{ "resources/shaders/default.hlsl", "default", "" },
+	{ "resources/shaders/hud.hlsl",     "hud",     "" },
+	{ "resources/shaders/skybox.hlsl",  "skybox",  "" },
+	{ "resources/shaders/terrain.hlsl", "terrain", "" },
+	{ "resources/shaders/water.hlsl",   "water",   "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
-	{ "resources/shaders/default.vs.glsl",   "default_vs",   "" },
-	{ "resources/shaders/default.fs.glsl",   "default_fs",   "" },
-	{ "resources/shaders/hud.vs.glsl",       "hud_vs",       "" },
-	{ "resources/shaders/hud.fs.glsl",       "hud_fs",       "" },
-	{ "resources/shaders/skybox.vs.glsl",    "skybox_vs",    "" },
-	{ "resources/shaders/skybox.fs.glsl",    "skybox_fs",    "" },
-	{ "resources/shaders/terrain.vs.glsl",   "terrain_vs",   "" },
-	{ "resources/shaders/terrain.fs.glsl",   "terrain_fs",   "" },
-	{ "resources/shaders/water.vs.glsl",     "water_vs",     "" },
-	{ "resources/shaders/water.fs.glsl",     "water_fs",     "" },
-	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
-	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" }
+	{ "resources/shaders/color.vs.glsl",   "color_vs",   "" },
+	{ "resources/shaders/color.fs.glsl",   "color_fs",   "" },
+	{ "resources/shaders/default.vs.glsl", "default_vs", "" },
+	{ "resources/shaders/default.fs.glsl", "default_fs", "" },
+	{ "resources/shaders/hud.vs.glsl",     "hud_vs",     "" },
+	{ "resources/shaders/hud.fs.glsl",     "hud_fs",     "" },
+	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",  "" },
+	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",  "" },
+	{ "resources/shaders/terrain.vs.glsl", "terrain_vs", "" },
+	{ "resources/shaders/terrain.fs.glsl", "terrain_fs", "" },
+	{ "resources/shaders/water.vs.glsl",   "water_vs",   "" },
+	{ "resources/shaders/water.fs.glsl",   "water_fs",   "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)
@@ -330,13 +367,15 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 
 	AssImpMesh*  mesh;
 	aiNode*      node;
-	unsigned int nrOfChildren = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mNumChildren : 1);
+	uint32_t     nrOfChildren = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mNumChildren : 1);
 
-	for (unsigned int i = 0; i < nrOfChildren; i++)
+	// SCENE CHILDREN
+	for (uint32_t i = 0; i < nrOfChildren; i++)
 	{
 		node = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mChildren[i] : scene->mRootNode);
 
-		for (unsigned int j = 0; j < node->mNumMeshes; j++)
+		// CHILD MESHES
+		for (uint32_t j = 0; j < node->mNumMeshes; j++)
 		{
 			mesh                 = new AssImpMesh();
 			mesh->Mesh           = scene->mMeshes[node->mMeshes[j]];
@@ -344,8 +383,40 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 			mesh->Transformation = node->mTransformation;
 
 			mesh->Name = mesh->Mesh->mName.C_Str();
-			mesh->Name = (!mesh->Name.IsEmpty() ? mesh->Name : scene->mRootNode->mChildren[i]->mName.C_Str());
-			mesh->Name = (!mesh->Name.IsEmpty() ? mesh->Name : "Mesh");
+			mesh->Name = (!mesh->Name.empty() ? mesh->Name : scene->mRootNode->mChildren[i]->mName.C_Str());
+			mesh->Name = (!mesh->Name.empty() ? mesh->Name : "Mesh");
+
+			// MESH MATERIALS: http://assimp.sourceforge.net/lib_html/materials.html
+			if (scene->mNumMaterials > 0)
+			{
+				aiString    textures[MAX_TEXTURES] = {};
+				aiMaterial* material      = scene->mMaterials[mesh->Mesh->mMaterialIndex];
+				aiColor4D   diffuse       = {};
+				aiColor3D   specIntensity = {};
+				float       specShininess = 0;
+				size_t      pathSeparator = file.rfind("/");
+
+				if (pathSeparator == wxString::npos)
+					pathSeparator = file.rfind("\\");
+
+				wxString path = file.substr(0, pathSeparator + 1);
+
+				material->Get(AI_MATKEY_COLOR_DIFFUSE,  diffuse);
+				material->Get(AI_MATKEY_COLOR_SPECULAR, specIntensity);
+				material->Get(AI_MATKEY_SHININESS,      specShininess);
+				material->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE,  0), textures[0]);
+				material->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), textures[1]);
+
+				mesh->MeshMaterial.diffuse            = { diffuse.r, diffuse.g, diffuse.b, diffuse.a };
+				mesh->MeshMaterial.specular.intensity = { specIntensity.r, specIntensity.g, specIntensity.b };
+				mesh->MeshMaterial.specular.shininess = specShininess;
+
+				if (textures[0].length > 0)
+					mesh->MeshMaterial.textures[0] = (path + textures[0].C_Str());
+
+				if (textures[1].length > 0)
+					mesh->MeshMaterial.textures[1] = (path + textures[1].C_Str());
+			}
 
 			if (mesh->Mesh != nullptr)
 				meshes.push_back(mesh);
@@ -367,6 +438,8 @@ std::vector<Component*> Utils::LoadModelFile(const wxString &file, Component* pa
 
 		if (mesh == nullptr)
 			continue;
+
+		mesh->ComponentMaterial = aiMesh->MeshMaterial;
 
 		mesh->LoadModelFile(aiMesh->Mesh, aiMesh->Transformation);
 
@@ -502,6 +575,11 @@ float Utils::ToDegrees(float radians)
 	return (radians * 180.0f / glm::pi<float>());
 }
 
+float Utils::ToFloat(bool boolean)
+{
+	return (boolean ? 1.0f : 0);
+}
+
 wxFloatProperty* Utils::ToFloatProperty(float value, const wxString &label, const wxString &id, float min, float max)
 {
 	wxFloatProperty* floatProperty = new wxFloatProperty(label, id, value);
@@ -589,12 +667,26 @@ glm::vec4 Utils::ToVec4(const json11::Json::array &jsonArray)
 	return result;
 }
 
+glm::vec3 Utils::ToVec3Color(const wxColour &color)
+{
+	glm::vec3 vec3Colour = glm::vec3(
+		(color.Red() / 255.0f), (color.Green() / 255.0f), (color.Blue() / 255.0f)
+	);
+	return vec3Colour;
+}
+
 glm::vec4 Utils::ToVec4Color(const wxColour &color)
 {
 	glm::vec4 vec4Colour = glm::vec4(
 		(color.Red() / 255.0f), (color.Green() / 255.0f), (color.Blue() / 255.0f), (color.Alpha() / 255.0f)
 	);
 	return vec4Colour;
+}
+
+glm::vec4 Utils::ToVec4Float(bool boolean)
+{
+	float value = (boolean ? 1.0f : 0);
+	return glm::vec4(value, value, value, value);
 }
 
 std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
@@ -631,6 +723,14 @@ wxColour Utils::ToWxColour(const wxVariant &color)
 	return colorWX;
 }
 
+wxColour Utils::ToWxColour(const glm::vec3 &color)
+{
+	wxColour colorWX(
+		(uint8_t)(color.r * 255.0f), (uint8_t)(color.g * 255.0f), (uint8_t)(color.b * 255.0f), 0xFF
+	);
+	return colorWX;
+}
+
 wxColour Utils::ToWxColour(const glm::vec4 &color)
 {
 	wxColour colorWX(
@@ -652,6 +752,12 @@ DirectX::XMFLOAT3 Utils::ToXMFLOAT3(const glm::vec3 &vector)
 DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec4 &vector)
 {
 	return DirectX::XMFLOAT4(reinterpret_cast<const float*>(&vector[0]));
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(bool boolean)
+{
+	float value = (boolean ? 1.0f : 0);
+	return DirectX::XMFLOAT4(value, value, value, value);
 }
 
 DirectX::XMMATRIX Utils::ToXMMATRIX(const glm::mat4 &matrix)

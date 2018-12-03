@@ -10,7 +10,7 @@ class Mesh : public Component
 public:
 	Mesh(Component* parent, const wxString &name);
 	Mesh();
-	~Mesh();
+	virtual ~Mesh();
 
 protected:
 	std::vector<unsigned int> indices;

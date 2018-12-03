@@ -22,11 +22,11 @@ void InputManager::OnKeyboard(wxKeyEvent &event)
 {
 	bool result = false;
 
-	if ((RenderEngine::Camera != nullptr) && !RenderEngine::Canvas.Window->IsDetailsActive())
+	if ((RenderEngine::Camera != nullptr) && !RenderEngine::Canvas.Window->IsPropertiesActive())
 		result = RenderEngine::Camera->InputKeyboard(event.GetKeyCode());
 
 	if (result)
-		RenderEngine::Canvas.Window->UpdateDetails();
+		RenderEngine::Canvas.Window->UpdateProperties();
 	else
 		event.Skip();
 }
@@ -59,7 +59,7 @@ void InputManager::OnMouseScroll(wxMouseEvent &event)
 {
 	if (RenderEngine::Camera != nullptr) {
 		RenderEngine::Camera->InputMouseScroll(event);
-		RenderEngine::Canvas.Window->UpdateDetails();
+		RenderEngine::Canvas.Window->UpdateProperties();
 	} else {
 		event.Skip();
 	}
@@ -75,7 +75,7 @@ void InputManager::OnMouseUp(wxMouseEvent &event)
 	if (event.GetButton() == wxMOUSE_BTN_LEFT)
 		PhysicsEngine::CheckRayCasts(event);
 
-	RenderEngine::Canvas.Window->DeactivateDetails();
+	RenderEngine::Canvas.Window->DeactivateProperties();
 }
 
 void InputManager::OnGraphicsMenu(wxCommandEvent &event)

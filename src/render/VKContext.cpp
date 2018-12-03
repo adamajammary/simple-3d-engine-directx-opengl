@@ -585,7 +585,7 @@ int VKContext::createPipeline(
 	pipelineInfo.stageCount          = 2;
 	pipelineInfo.pStages             = shaderStages;
 	pipelineInfo.pDynamicState       = &dynamicState;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
+	//pipelineInfo.pInputAssemblyState = &inputAssembly;
 	pipelineInfo.pMultisampleState   = &multisampleInfo;
 	pipelineInfo.pVertexInputState   = &vertexInput;
 	pipelineInfo.pViewportState      = &viewportInfo;
@@ -613,13 +613,14 @@ int VKContext::createPipeline(
 		break;
 	}
 
-	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+	if (shaderProgram->ID() == SHADER_ID_COLOR) {
 		inputAssembly.topology        = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 	}
 
 	pipelineInfo.pColorBlendState    = &colorBlendInfo;
 	pipelineInfo.pDepthStencilState  = &depthStencilInfo;
+	pipelineInfo.pInputAssemblyState = &inputAssembly;
 	pipelineInfo.pRasterizationState = &rasterizationInfo;
 
 	if (vkCreateGraphicsPipelines(this->deviceContext, nullptr, 1, &pipelineInfo, nullptr, pipeline) != VK_SUCCESS)
@@ -806,20 +807,23 @@ int VKContext::createUniformBuffers(Buffer* buffer)
 	VkBufferUsageFlags    bufferUseFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 	VkMemoryPropertyFlags bufferMemFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	if (this->createBuffer(sizeof(GLMatrixBuffer), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_MATRIX], &buffer->Uniform.BufferMemories[UBO_VK_MATRIX]) < 0)
+	if (this->createBuffer(sizeof(CBMatrix), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_MATRIX], &buffer->Uniform.BufferMemories[UBO_VK_MATRIX]) < 0)
 		return -1;
 
-	if (this->createBuffer(sizeof(GLDefaultBuffer), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_DEFAULT], &buffer->Uniform.BufferMemories[UBO_VK_DEFAULT]) < 0)
+	if (this->createBuffer(sizeof(CBColor), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_COLOR], &buffer->Uniform.BufferMemories[UBO_VK_COLOR]) < 0)
 		return -2;
 
-	if (this->createBuffer(sizeof(GLHUDBuffer), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
+	if (this->createBuffer(sizeof(CBDefault), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_DEFAULT], &buffer->Uniform.BufferMemories[UBO_VK_DEFAULT]) < 0)
 		return -3;
 
-	if (this->createBuffer(sizeof(GLWaterBuffer), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_WATER], &buffer->Uniform.BufferMemories[UBO_VK_WATER]) < 0)
+	if (this->createBuffer(sizeof(CBHUD), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
 		return -4;
 
-	if (this->createBuffer(sizeof(GLWireframeBuffer), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_WIREFRAME], &buffer->Uniform.BufferMemories[UBO_VK_WIREFRAME]) < 0)
+	if (this->createBuffer(sizeof(CBDefault), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_TERRAIN], &buffer->Uniform.BufferMemories[UBO_VK_TERRAIN]) < 0)
 		return -5;
+
+	if (this->createBuffer(sizeof(CBWater), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_WATER], &buffer->Uniform.BufferMemories[UBO_VK_WATER]) < 0)
+		return -6;
 
 	return 0;
 }

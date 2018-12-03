@@ -190,10 +190,14 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 		_RELEASEP(buffer->ConstantBuffersDX11[i]);
 	}
 
-	UINT bufferSizes[NR_OF_SHADERS] = {
-		sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer),   sizeof(DXSkyboxBuffer),
-		sizeof(DXDefaultBuffer), sizeof(DXWaterBuffer), sizeof(DXWireframeBuffer)
-	};
+	UINT bufferSizes[NR_OF_SHADERS];
+
+	bufferSizes[SHADER_ID_COLOR]   = sizeof(CBColorDX);
+	bufferSizes[SHADER_ID_DEFAULT] = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_HUD]     = sizeof(CBHUDDX);
+	bufferSizes[SHADER_ID_SKYBOX]  = sizeof(CBSkyboxDX);
+	bufferSizes[SHADER_ID_TERRAIN] = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_WATER]   = sizeof(CBWaterDX);
 
 	D3D11_BUFFER_DESC bufferDesc = {};
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -262,10 +266,14 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 		if (FAILED(result))
 			return -4;
 
-		UINT bufferSizes[NR_OF_SHADERS] = {
-			sizeof(DXDefaultBuffer), sizeof(DXHUDBuffer),   sizeof(DXSkyboxBuffer),
-			sizeof(DXDefaultBuffer), sizeof(DXWaterBuffer), sizeof(DXWireframeBuffer)
-		};
+		UINT bufferSizes[NR_OF_SHADERS];
+
+		bufferSizes[SHADER_ID_COLOR]   = sizeof(CBColorDX);
+		bufferSizes[SHADER_ID_DEFAULT] = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_HUD]     = sizeof(CBHUDDX);
+		bufferSizes[SHADER_ID_SKYBOX]  = sizeof(CBSkyboxDX);
+		bufferSizes[SHADER_ID_TERRAIN] = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_WATER]   = sizeof(CBWaterDX);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {};
 
@@ -404,7 +412,7 @@ int DXContext::createPipeline(
 	if (fbo)
 		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
 
-	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+	if (shaderProgram->ID() == SHADER_ID_COLOR) {
 		pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 		pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	}
@@ -844,7 +852,7 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 			break;
 		}
 
-		if ((ShaderID)i == SHADER_ID_WIREFRAME)
+		if ((ShaderID)i == SHADER_ID_COLOR)
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 
 		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &buffer->RasterizerStatesDX11[i])))
@@ -1092,7 +1100,9 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 	{
-		this->renderDevice12->CreateShaderResourceView(mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU);
+		this->renderDevice12->CreateShaderResourceView(
+			mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU
+		);
 		srvHandleCPU.Offset(1, cbvSrvDescSize);
 
 		this->renderDevice12->CreateSampler(&mesh->Textures[i]->SamplerDesc12, samplerHandleCPU);

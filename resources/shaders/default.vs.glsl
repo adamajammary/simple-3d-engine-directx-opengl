@@ -18,6 +18,8 @@ layout(binding = 0) uniform MatrixBuffer {
 
 void main()
 {
+	// TODO: Calculate the normal matrix on the CPU and send it to the shaders via a uniform before drawing
+	//FragmentNormal        = (transpose(inverse(mat3(mb.MatrixModel))) * VertexNormal).xyz;
     FragmentNormal        = (mb.MatrixModel * vec4(VertexNormal, 0.0)).xyz;
     FragmentTextureCoords = VertexTextureCoords;
     FragmentPosition      = (mb.MatrixModel * vec4(VertexPosition, 1.0));

@@ -167,7 +167,7 @@ int RenderEngine::drawBoundingVolumes()
 	DrawProperties properties = {};
 	properties.DrawBoundingVolume = true;
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_COLOR, properties);
 
 	RenderEngine::DrawMode = oldDrawMode;
 
@@ -186,7 +186,9 @@ int RenderEngine::drawHUDs(const DrawProperties &properties)
 		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::HUDs, SHADER_ID_HUD, properties);
+	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_HUD : SHADER_ID_COLOR);
+
+	RenderEngine::drawMeshes(RenderEngine::HUDs, shaderID, properties);
 
 	return 0;
 }
@@ -203,7 +205,7 @@ int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuf
 		glDisable(GL_BLEND);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_WIREFRAME);
+	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_COLOR);
 
 	RenderEngine::drawMeshes(RenderEngine::Renderables, shaderID, properties, cmdBuffer);
 
@@ -226,7 +228,7 @@ int RenderEngine::drawSelected()
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_COLOR, properties);
 
 	RenderEngine::DrawMode = oldDrawMode;
 
@@ -245,7 +247,9 @@ int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer c
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes({ RenderEngine::Skybox }, SHADER_ID_SKYBOX, properties, cmdBuffer);
+	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_SKYBOX : SHADER_ID_COLOR);
+
+	RenderEngine::drawMeshes({ RenderEngine::Skybox }, shaderID, properties, cmdBuffer);
 
 	return 0;
 }
@@ -262,7 +266,9 @@ int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::Terrains, SHADER_ID_TERRAIN, properties, cmdBuffer);
+	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_TERRAIN : SHADER_ID_COLOR);
+
+	RenderEngine::drawMeshes(RenderEngine::Terrains, shaderID, properties, cmdBuffer);
 
 	return 0;
 }
@@ -279,7 +285,9 @@ int RenderEngine::drawWaters(const DrawProperties &properties)
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::Waters, SHADER_ID_WATER, properties);
+	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_WATER : SHADER_ID_COLOR);
+
+	RenderEngine::drawMeshes(RenderEngine::Waters, shaderID, properties);
 
 	return 0;
 }
@@ -365,10 +373,10 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, ShaderID sha
 			continue;
 		}
 		
-		glm::vec4 oldColor = mesh->Color;
+		glm::vec4 oldColor = mesh->ComponentMaterial.diffuse;
 
 		if (properties.DrawSelected)
-			mesh->Color = SceneManager::SelectColor;
+			mesh->ComponentMaterial.diffuse = SceneManager::SelectColor;
 
 		RenderEngine::drawMesh(
 			(properties.DrawBoundingVolume ? dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() : mesh),
@@ -376,7 +384,7 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, ShaderID sha
 		);
 
 		if (properties.DrawSelected)
-			mesh->Color = oldColor;
+			mesh->ComponentMaterial.diffuse = oldColor;
 	}
 
 	RenderEngine::setShaderProgram(false);

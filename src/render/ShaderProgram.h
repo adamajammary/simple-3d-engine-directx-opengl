@@ -63,9 +63,7 @@ private:
 	int  updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Component* mesh);
 
 	#if defined _WINDOWS
-		DXLightBuffer  getBufferLight();
-		DXMatrixBuffer getBufferMatrices(Component* mesh, bool removeTranslation = false);
-		const void*    getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Component* mesh, const DrawProperties &properties = {});
+		const void* getBufferValues(const CBMatrix &matrices, Component* mesh, const DrawProperties &properties, size_t &bufferSize);
 	#endif
 };
 

@@ -1,22 +1,13 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-	precision highp float;
-#else
-	precision mediump float;
-#endif
+//#ifdef GL_FRAGMENT_PRECISION_HIGH
+//	precision highp float;
+//#else
+//	precision mediump float;
+//#endif
 
 const int MAX_TEXTURES = 6;
-
-struct Light
-{
-	vec4  Color;
-	vec3  Direction;
-	float Reflection;
-	vec3  Position;
-	float Shine;
-};
 
 layout(location = 0) in vec3 FragmentNormal;
 layout(location = 1) in vec4 FragmentPosition;
@@ -24,34 +15,50 @@ layout(location = 2) in vec2 FragmentTextureCoords;
 
 layout(location = 0) out vec4 GL_FragColor;
 
-layout(binding = 1) uniform DefaultBuffer {
-	vec3  Ambient;
-	bool  EnableClipping;
-	vec3  ClipMax;
-	bool  IsTextured;
-	vec3  ClipMin;
-	float Padding1;
-	vec4  MaterialColor;
-	Light SunLight;
-	vec2  TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-} db;
+layout(binding = 1) uniform TerrainBuffer
+{
+    vec4 IsTextured[MAX_TEXTURES];
+    vec4 TextureScales[MAX_TEXTURES];
+
+    vec3  MeshSpecularIntensity;
+	float MeshSpecularShininess;
+
+    vec4  MeshDiffuse;
+
+    vec3  SunLightSpecularIntensity;
+	float SunLightSpecularShininess;
+
+    vec3  SunLightAmbient;
+	float SunLightPadding1;
+    vec4  SunLightDiffuse;
+
+    vec3  SunLightPosition;
+	float SunLightPadding2;
+    vec3  SunLightDirection;
+	float SunLightPadding3;
+
+    vec3  ClipMax;
+	float EnableClipping;
+    vec3  ClipMin;
+    float ClipPadding1;
+} tb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
 void main()
 {
-	if (db.EnableClipping)
+	if (tb.EnableClipping.x > 0.1)
 	{
 		vec4 p = FragmentPosition;
 
-		if ((p.x > db.ClipMax.x) || (p.y > db.ClipMax.y) || (p.z > db.ClipMax.z) || (p.x < db.ClipMin.x) || (p.y < db.ClipMin.y) || (p.z < db.ClipMin.z))
+		if ((p.x > tb.ClipMax.x) || (p.y > tb.ClipMax.y) || (p.z > tb.ClipMax.z) || (p.x < tb.ClipMin.x) || (p.y < tb.ClipMin.y) || (p.z < tb.ClipMin.z))
 			discard;
 	}
 
 	vec4  blendMapColor           = texture(Textures[4], FragmentTextureCoords);
 	float backgroundTextureAmount = (1.0 - (blendMapColor.r + blendMapColor.g + blendMapColor.b));
-	//vec2  tiledCoordinates        = (FragmentTextureCoords * db.TextureScales[0]);
-	vec2  tiledCoordinates        = vec2(FragmentTextureCoords.x * db.TextureScales[0].x, FragmentTextureCoords.y * db.TextureScales[0].y);
+	//vec2  tiledCoordinates        = (FragmentTextureCoords * tb.TextureScales[0]);
+	vec2  tiledCoordinates        = vec2(FragmentTextureCoords.x * tb.TextureScales[0].x, FragmentTextureCoords.y * tb.TextureScales[0].y);
 	vec4  backgroundTextureColor  = (texture(Textures[0], tiledCoordinates) * backgroundTextureAmount);
 	vec4  rTextureColor           = (texture(Textures[1], tiledCoordinates) * blendMapColor.r);
 	vec4  gTextureColor           = (texture(Textures[2], tiledCoordinates) * blendMapColor.g);
@@ -59,8 +66,8 @@ void main()
 	vec4  totalColor              = (backgroundTextureColor + rTextureColor + gTextureColor + bTextureColor);
 
 	// LIGHT COLOR (PHONG REFLECTION)
-	//vec3 lightColor = max((db.Ambient + (db.SunLight.Color.rgb * dot(normalize(FragmentNormal), normalize(-db.SunLight.Direction)))), 0.0);
-	vec3 lightColor = (db.Ambient + (db.SunLight.Color.rgb * dot(normalize(FragmentNormal), normalize(-db.SunLight.Direction))));
+	//vec3 lightColor = max((tb.Ambient + (tb.SunLight.Color.rgb * dot(normalize(FragmentNormal), normalize(-tb.SunLight.Direction)))), 0.0);
+	vec3 lightColor = (tb.SunLightAmbient + (tb.SunLightDiffuse.rgb * dot(normalize(FragmentNormal), normalize(-tb.SunLightDirection))));
 	GL_FragColor    = vec4((totalColor.rgb * lightColor), totalColor.a);
 
 	/*

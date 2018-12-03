@@ -1,44 +1,23 @@
 #include "Component.h"
 
-Component::Component(const wxString &name, const glm::vec3 &position, const glm::vec3 &rotation, const glm::vec3 &scale, const glm::vec4 &color)
-{
-	this->AutoRotate           = false;
-	this->AutoRotation         = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->Color                = color;
-	this->isValid              = false;
-	this->modelFile            = "";
-	this->LockToParentPosition = false;
-	this->LockToParentRotation = false;
-	this->LockToParentScale    = false;
-	this->Name                 = name;
-	this->Parent               = nullptr;
-	this->position             = position;
-	this->rotation             = rotation;
-	this->scale                = scale;
-	this->type                 = COMPONENT_UNKNOWN;
-
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
-}
-
-Component::Component()
+Component::Component(const wxString &name, const glm::vec3 &position)
 {
 	this->AutoRotate           = false;
 	this->AutoRotation         = {};
-	this->Color                = {};
 	this->isValid              = false;
-	this->modelFile            = "";
 	this->LockToParentPosition = false;
 	this->LockToParentRotation = false;
 	this->LockToParentScale    = false;
-	this->Name                 = "";
+	this->ComponentMaterial    = {};
+	this->modelFile            = "";
+	this->Name                 = name;
 	this->Parent               = nullptr;
-	this->position             = {};
+	this->position             = position;
 	this->rotation             = {};
-	this->scale                = {};
+	this->scale                = { 1.0f, 1.0f, 1.0f };
 	this->type                 = COMPONENT_UNKNOWN;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
 }
 
@@ -51,11 +30,10 @@ Component::~Component()
 
 	this->Children.clear();
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
-		if ((this->Textures[i] == SceneManager::EmptyTexture) || (this->Textures[i] == SceneManager::EmptyCubemap))
-			continue;
-
-		_DELETEP(this->Textures[i]);
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		if ((this->type != COMPONENT_WATER) && (this->Textures[i] != SceneManager::EmptyTexture) && (this->Textures[i] != SceneManager::EmptyCubemap)) {
+			_DELETEP(this->Textures[i]);
+		}
 	}
 }
 
@@ -69,19 +47,27 @@ int Component::GetChildIndex(Component* child)
 	return -1;
 }
 
-bool Component::IsTextured()
+bool Component::IsTextured(int index)
 {
+	if ((index < 0) || (index > MAX_TEXTURES))
+		return false;
+
+	Texture* texture = this->Textures[index];
+
+	if (texture == nullptr)
+		return false;
+
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11 != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->SRV11 != nullptr) && !texture->ImageFile().empty());
 	case GRAPHICS_API_DIRECTX12:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12 != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->Resource12 != nullptr) && !texture->ImageFile().empty());
 	#endif
 	case GRAPHICS_API_OPENGL:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ID() > 0) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->ID() > 0) && !texture->ImageFile().empty());
 	case GRAPHICS_API_VULKAN:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ImageView != nullptr) && (this->Textures[0]->Sampler != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->ImageView != nullptr) && (texture->Sampler != nullptr) && !texture->ImageFile().empty());
 	}
 
 	return false;

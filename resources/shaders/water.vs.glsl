@@ -10,17 +10,17 @@ layout(location = 1) out vec4 FragmentPosition;
 layout(location = 2) out vec2 FragmentTextureCoords;
 
 layout(binding = 0) uniform MatrixBuffer {
-	mat4 MatrixModel;
-	mat4 MatrixView;
-	mat4 MatrixProjection;
-	mat4 MatrixMVP;
+	mat4 Model;
+	mat4 View;
+	mat4 Projection;
+	mat4 MVP;
 } mb;
 
 void main()
 {
     FragmentTextureCoords = VertexTextureCoords;
-    FragmentPosition      = (mb.MatrixModel * vec4(VertexPosition, 1.0));
-    ClipSpace             = (mb.MatrixMVP   * vec4(VertexPosition, 1.0));
+    FragmentPosition      = (mb.Model * vec4(VertexPosition, 1.0));
+    ClipSpace             = (mb.MVP   * vec4(VertexPosition, 1.0));
 
     gl_Position = ClipSpace;
 }

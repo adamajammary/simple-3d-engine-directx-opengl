@@ -9,21 +9,35 @@
 
 const int MAX_TEXTURES = 6;
 
-struct Camera
+struct CBDefault
 {
-	vec3  Position;
-	float Near;
-	vec3  Padding1;
-	float Far;
-};
+    vec4 IsTextured[MAX_TEXTURES];
+    vec4 TextureScales[MAX_TEXTURES];
 
-struct Light
-{
-	vec4  Color;
-	vec3  Direction;
-	float Reflection;
-	vec3  Position;
-	float Shine;
+	vec3  CameraPosition;
+	float CameraPadding1;
+
+    vec3  MeshSpecularIntensity;
+	float MeshSpecularShininess;
+
+    vec4  MeshDiffuse;
+
+    vec3  SunLightSpecularIntensity;
+	float SunLightSpecularShininess;
+
+    vec3  SunLightAmbient;
+	float SunLightPadding1;
+    vec4  SunLightDiffuse;
+
+    vec3  SunLightPosition;
+	float SunLightPadding2;
+    vec3  SunLightDirection;
+	float SunLightPadding3;
+
+    vec3  ClipMax;
+	float EnableClipping;
+    vec3  ClipMin;
+    float ClipPadding1;
 };
 
 layout(location = 0) in vec4 ClipSpace;
@@ -34,15 +48,11 @@ layout(location = 0) out vec4 GL_FragColor;
 
 layout(binding = 1) uniform WaterBuffer
 {
-	Camera CameraMain;
-	Light  SunLight;
-	vec3   ClipMax;
-	bool   EnableClipping;
-	vec3   ClipMin;
-	float  MoveFactor;
-	vec3   Padding1;
-	float  WaveStrength;
-	vec2   TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
+	float MoveFactor;
+	float WaveStrength;
+	vec2  Padding1;
+
+	CBDefault DB;
 } wb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
@@ -50,15 +60,15 @@ layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 void main()
 {
 	// CLIPPING PLANE
-	if (wb.EnableClipping)
+	if (wb.DB.EnableClipping.x > 0.1)
 	{
 		vec4 p = FragmentPosition;
 
-		if ((p.x > wb.ClipMax.x) || (p.y > wb.ClipMax.y) || (p.z > wb.ClipMax.z) || (p.x < wb.ClipMin.x) || (p.y < wb.ClipMin.y) || (p.z < wb.ClipMin.z))
+		if ((p.x > wb.DB.ClipMax.x) || (p.y > wb.DB.ClipMax.y) || (p.z > wb.DB.ClipMax.z) || (p.x < wb.DB.ClipMin.x) || (p.y < wb.DB.ClipMin.y) || (p.z < wb.DB.ClipMin.z))
 			discard;
 	}
 
-	vec2 tiledCoordinates = vec2(FragmentTextureCoords.x * wb.TextureScales[0].x, FragmentTextureCoords.y * wb.TextureScales[0].y);
+	vec2 tiledCoordinates = vec2(FragmentTextureCoords.x * wb.DB.TextureScales[0].x, FragmentTextureCoords.y * wb.DB.TextureScales[0].y);
 
 	// PROJECTIVE TEXTURE
 	vec2 normalizedDeviceSpace   = ((ClipSpace.xy / ClipSpace.w) * 0.5 + 0.5);				// [-1,1] => [0,1]
@@ -81,13 +91,13 @@ void main()
 	vec3 normal         = normalize(vec3((normalMapColor.r * 2.0 - 1.0), (normalMapColor.b * 7.0), (normalMapColor.g * 2.0 - 1.0)));
 
 	// FRESNEL EFFECT
-    vec3  fromSurfaceToCamera = (wb.CameraMain.Position - FragmentPosition.xyz);
-	vec3  fromLightToSurface  = (FragmentPosition.xyz - wb.SunLight.Position);
+    vec3  fromSurfaceToCamera = (wb.DB.CameraPosition - FragmentPosition.xyz);
+	vec3  fromLightToSurface  = (FragmentPosition.xyz - wb.DB.SunLightPosition);
 	vec3  viewVector         = normalize(fromSurfaceToCamera);
-	float refractionFactor   = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);					// higher power => less reflective (transparent)
+	float refractionFactor   = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);	// higher power => less reflective (transparent)
 	vec3  reflectedLight     = reflect(normalize(fromLightToSurface), normal);
-	float specular           = pow(max(0.0, dot(reflectedLight, viewVector)), wb.SunLight.Shine);
-	vec3  specularHighlights = (wb.SunLight.Color.rgb * specular * wb.SunLight.Reflection);
+	float specular           = pow(max(0.0, dot(reflectedLight, viewVector)), wb.DB.SunLightSpecularIntensity[0]);
+	vec3  specularHighlights = (wb.DB.SunLightDiffuse.rgb * specular * wb.DB.SunLightSpecularShininess);
 
 	GL_FragColor = (mix(reflectionColor, refractionColor, refractionFactor) + vec4(specularHighlights, 0.0));
 	//GL_FragColor = vec4(1.0, 0.0, 0.0, 1.0);

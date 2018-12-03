@@ -53,15 +53,20 @@ WaterFBO::WaterFBO()
 
 WaterFBO::~WaterFBO()
 {
-	_DELETEP(this->reflectionFBO);
-	_DELETEP(this->refractionFBO);
-
 	this->moveFactor   = 0.0f;
 	this->Speed        = 0.0f;
 	this->WaveStrength = 0.0f;
 
+	if ((this->reflectionFBO != nullptr) && (this->refractionFBO != nullptr))
+	{
+		_DELETEP(this->reflectionFBO);
+		_DELETEP(this->refractionFBO);
+		_DELETEP(this->Textures[2]);
+		_DELETEP(this->Textures[3]);
+	}
+
 	for (int i = 0; i < MAX_TEXTURES; i++)
-		_DELETEP(this->Textures[i]);
+		this->Textures[i] = nullptr;
 }
 
 void WaterFBO::BindReflection()

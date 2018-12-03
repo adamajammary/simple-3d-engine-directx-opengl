@@ -8,15 +8,14 @@
 class Component
 {
 public:
-	Component(const wxString &name, const glm::vec3 &position = {}, const glm::vec3 &rotation = {}, const glm::vec3 &scale = { 1.0f, 1.0f, 1.0f }, const glm::vec4 &color = { 0.8f, 0.8f, 0.8f, 1.0f });
-	Component();
-	~Component();
+	Component(const wxString &name = "", const glm::vec3 &position = {});
+	virtual ~Component();
 
 public:
 	bool                    AutoRotate;
 	glm::vec3               AutoRotation;
 	std::vector<Component*> Children;
-	glm::vec4               Color;
+	Material                ComponentMaterial;
 	bool                    LockToParentPosition;
 	bool                    LockToParentRotation;
 	bool                    LockToParentScale;
@@ -37,29 +36,29 @@ protected:
 	ComponentType type;
 
 public:
-	virtual int           GetChildIndex(Component* child);
-	virtual bool          IsTextured();
-	virtual bool          IsValid();
-	virtual void          LoadTexture(Texture* texture, int index);
-	virtual glm::mat4     Matrix();
-	virtual wxString      ModelFile();
-	virtual void          MoveBy(const glm::vec3 &amount);
-	virtual void          MoveTo(const glm::vec3 &newPosition);
-	virtual glm::vec3     Position();
-	virtual int           RemoveChild(Mesh* child);
-	virtual glm::vec3     Rotation();
-	virtual void          RotateBy(const glm::vec3 &amountRadians);
-	virtual void          RotateTo(const glm::vec3 &newRotationRadions);
-	virtual glm::vec3     Scale();
-	virtual void          ScaleBy(const glm::vec3 &amount);
-	virtual void          ScaleTo(const glm::vec3 &newScale);
-	virtual ComponentType Type();
+	int           GetChildIndex(Component* child);
+	bool          IsTextured(int index);
+	bool          IsValid();
+	void          LoadTexture(Texture* texture, int index);
+	glm::mat4     Matrix();
+	wxString      ModelFile();
+	virtual void  MoveBy(const glm::vec3 &amount);
+	virtual void  MoveTo(const glm::vec3 &newPosition);
+	glm::vec3     Position();
+	int           RemoveChild(Mesh* child);
+	glm::vec3     Rotation();
+	virtual void  RotateBy(const glm::vec3 &amountRadians);
+	virtual void  RotateTo(const glm::vec3 &newRotationRadions);
+	glm::vec3     Scale();
+	virtual void  ScaleBy(const glm::vec3 &amount);
+	virtual void  ScaleTo(const glm::vec3 &newScale);
+	ComponentType Type();
 
 protected:
-	virtual void updateMatrix();
+	void         updateMatrix();
 	virtual void updateRotation();
-	virtual void updateScale();
-	virtual void updateTranslation();
+	void         updateScale();
+	void         updateTranslation();
 
 };
 

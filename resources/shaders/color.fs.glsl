@@ -11,13 +11,13 @@ const int MAX_TEXTURES = 6;
 
 layout(location = 0) out vec4 GL_FragColor;
 
-layout(binding = 1) uniform WireframeBuffer {
+layout(binding = 1) uniform ColorBuffer {
 	vec4 Color;
-} sb;
+} cb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
 
 void main()
 {
-	GL_FragColor = sb.Color;
+	GL_FragColor = cb.Color;
 }

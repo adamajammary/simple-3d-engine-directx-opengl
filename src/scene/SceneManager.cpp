@@ -1,13 +1,26 @@
 #include "SceneManager.h"
 
-glm::vec3               SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
 std::vector<Component*> SceneManager::Components;
-Texture*                SceneManager::EmptyCubemap          = nullptr;
-Texture*                SceneManager::EmptyTexture          = nullptr;
-Component*              SceneManager::SelectedChild         = nullptr;
-Component*              SceneManager::SelectedComponent     = nullptr;
-glm::vec4               SceneManager::SelectColor           = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
-Light                   SceneManager::SunLight              = {};
+Texture*                SceneManager::EmptyCubemap      = nullptr;
+Texture*                SceneManager::EmptyTexture      = nullptr;
+Component*              SceneManager::SelectedChild     = nullptr;
+Component*              SceneManager::SelectedComponent = nullptr;
+glm::vec4               SceneManager::SelectColor       = { 1.0f, 0.5f, 0.0f, 1.0f };
+
+DirectionalLight SceneManager::SunLight = DirectionalLight(
+	{ -0.1f, -0.5f, -1.0f },				// DIRECTION
+	Light(
+		{ 10.0f, 50.0f, 100.0f },			// POSITION
+		Material(
+			{ 0.4f, 0.4f, 0.4f, 1.0f },		// DIFFUSE (COLOR)
+			{ 0.2f, 0.2f, 0.2f },			// AMBIENT
+			Specular(
+				{ 0.6f, 0.6f, 0.6f },		// INTENSITY
+				20.0f						// SHININESS
+			)
+		)
+	)
+);
 
 int SceneManager::AddComponent(Component* component)
 {
@@ -44,7 +57,7 @@ int SceneManager::AddComponent(Component* component)
 	SceneManager::Components.push_back(component);
 	RenderEngine::Canvas.Window->AddListComponent(component);
 	RenderEngine::Canvas.Window->AddListChildren(SceneManager::SelectedComponent->Children);
-	RenderEngine::Canvas.Window->InitDetails();
+	RenderEngine::Canvas.Window->InitProperties();
 
 	return 0;
 }
@@ -213,7 +226,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
 			child->AutoRotate   = childJSON["auto_rotate"].bool_value();
-			child->Color        = Utils::ToVec4(childJSON["color"].array_items());
+			child->ComponentMaterial.diffuse            = Utils::ToVec4(childJSON["color"].array_items());
+			child->ComponentMaterial.specular.intensity = Utils::ToVec3(childJSON["spec_intensity"].array_items());
+			child->ComponentMaterial.specular.shininess = childJSON["spec_shininess"].number_value();
 
 			if (child->Type() == COMPONENT_HUD)
 				dynamic_cast<HUD*>(child->Parent)->Update();
@@ -225,8 +240,8 @@ int SceneManager::LoadScene(const wxString &file)
 
 			for (int j = 0; j < (int)texturesJSON.size(); j++)
 			{
-				auto     textureJSON = texturesJSON[i];
-				Texture* texture     = ((type == COMPONENT_WATER) ? dynamic_cast<Water*>(component)->FBO()->Textures[i] : child->Textures[i]);
+				auto     textureJSON = texturesJSON[j];
+				Texture* texture     = ((type == COMPONENT_WATER) ? dynamic_cast<Water*>(component)->FBO()->Textures[j] : child->Textures[j]);
 
 				if ((textureJSON == nullptr) || (texture == nullptr))
 					continue;
@@ -247,7 +262,7 @@ int SceneManager::LoadScene(const wxString &file)
 
 					wxString imageFile = textureJSON["image_file"].string_value();
 
-					if (imageFile.IsEmpty())
+					if (imageFile.empty())
 						continue;
 
 					texture = new Texture(
@@ -264,6 +279,7 @@ int SceneManager::LoadScene(const wxString &file)
 		}
 	}
 
+	RenderEngine::Canvas.Window->UpdateProperties();
 	RenderEngine::Canvas.Window->SetStatusText("Finished loading the scene '" + file + "'");
 
 	return 0;
@@ -436,7 +452,9 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
 				{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
 				{ "auto_rotate",     child->AutoRotate },
-				{ "color",           Utils::ToJsonArray(child->Color) },
+				{ "color",           Utils::ToJsonArray(child->ComponentMaterial.diffuse) },
+				{ "spec_intensity",  Utils::ToJsonArray(child->ComponentMaterial.specular.intensity) },
+				{ "spec_shininess",  child->ComponentMaterial.specular.shininess },
 				{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
 				{ "textures",        texturesJSON }
 			};
@@ -502,8 +520,6 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "children",       childrenJSON }
 			};
 			break;
-		//case COMPONENT_MATERIAL:
-		//	break;
 		//case COMPONENT_LIGHT:
 		//	break;
 		}
@@ -532,7 +548,7 @@ int SceneManager::SelectComponent(int index)
 	SceneManager::SelectedChild     = nullptr;
 	SceneManager::SelectedComponent = SceneManager::Components[index];
 	RenderEngine::Canvas.Window->SelectComponent(index);
-	RenderEngine::Canvas.Window->InitDetails();
+	RenderEngine::Canvas.Window->InitProperties();
 
 	return 0;
 }
@@ -547,7 +563,7 @@ int SceneManager::SelectChild(int index)
 
 	SceneManager::SelectedChild = SceneManager::SelectedComponent->Children[index];
 	RenderEngine::Canvas.Window->SelectChild(index);
-	RenderEngine::Canvas.Window->InitDetails();
+	RenderEngine::Canvas.Window->InitProperties();
 
 	return 0;
 }

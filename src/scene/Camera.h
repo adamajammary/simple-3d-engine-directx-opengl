@@ -50,7 +50,7 @@ public:
 private:
 	void init(const glm::vec3 &position, const glm::vec3 &lookAt);
 	void updatePosition();
-	void updateRotation();
+	void updateRotation() override;
 
 };
 

@@ -6,13 +6,13 @@ layout(location = 1) in vec3 VertexPosition;
 layout(location = 2) in vec2 VertexTextureCoords;
 
 layout(binding = 0) uniform MatrixBuffer {
-	mat4 MatrixModel;
-	mat4 MatrixView;
-	mat4 MatrixProjection;
-	mat4 MatrixMVP;
+	mat4 Model;
+	mat4 View;
+	mat4 Projection;
+	mat4 MVP;
 } mb;
 
 void main()
 {
-	gl_Position = (mb.MatrixMVP * vec4(VertexPosition, 1.0));
+	gl_Position = (mb.MVP * vec4(VertexPosition, 1.0));
 }
