@@ -4,8 +4,14 @@ MouseState InputManager::mouseState;
 
 int InputManager::Init()
 {
+	// MENU
+	RenderEngine::Canvas.Window->Parent->Bind(wxEVT_MENU, &InputManager::OnIcon, ID_ICON_BROWSE, ID_ICON_LIGHT_SPOT);
+	RenderEngine::Canvas.Window->Parent->Bind(wxEVT_MENU, &InputManager::OnList, ID_SCENE_CLEAR, ID_SCENE_SAVE);
+
+	// KEYBOARD
 	RenderEngine::Canvas.Window->Parent->Bind(wxEVT_KEY_DOWN, &InputManager::OnKeyboard);
 
+	// MOUSE
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_MIDDLE_DOWN, &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_DOWN,  &InputManager::OnMouseDown,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_LEFT_UP,     &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
@@ -13,7 +19,9 @@ int InputManager::Init()
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_RIGHT_UP,    &InputManager::OnMouseUp,      ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOTION,      &InputManager::OnMouseMove,    ID_CANVAS, ID_CANVAS);
 	RenderEngine::Canvas.Canvas->Bind(wxEVT_MOUSEWHEEL,  &InputManager::OnMouseScroll,  ID_CANVAS, ID_CANVAS);
-	RenderEngine::Canvas.Canvas->Bind(wxEVT_SIZE,        &InputManager::OnWindowResize);
+
+	// WINDOW
+	RenderEngine::Canvas.Canvas->Bind(wxEVT_SIZE, &InputManager::OnWindowResize);
 
 	return 0;
 }
@@ -22,8 +30,8 @@ void InputManager::OnKeyboard(wxKeyEvent &event)
 {
 	bool result = false;
 
-	if ((RenderEngine::Camera != nullptr) && !RenderEngine::Canvas.Window->IsPropertiesActive())
-		result = RenderEngine::Camera->InputKeyboard(event.GetKeyCode());
+	if ((RenderEngine::CameraMain != nullptr) && !RenderEngine::Canvas.Window->IsPropertiesActive())
+		result = RenderEngine::CameraMain->InputKeyboard(event.GetKeyCode());
 
 	if (result)
 		RenderEngine::Canvas.Window->UpdateProperties();
@@ -41,9 +49,9 @@ void InputManager::OnMouseDown(wxMouseEvent &event)
 
 void InputManager::OnMouseMove(wxMouseEvent &event)
 {
-	if (event.Dragging() && (event.MiddleIsDown() || event.RightIsDown()) && (RenderEngine::Camera != nullptr))
+	if (event.Dragging() && (event.MiddleIsDown() || event.RightIsDown()) && (RenderEngine::CameraMain != nullptr))
 	{
-		RenderEngine::Camera->InputMouseMove(event, InputManager::mouseState);
+		RenderEngine::CameraMain->InputMouseMove(event, InputManager::mouseState);
 
 		wxPoint center = wxPoint(
 			((RenderEngine::Canvas.Position.x + RenderEngine::Canvas.Size.GetWidth())  / 2),
@@ -57,8 +65,8 @@ void InputManager::OnMouseMove(wxMouseEvent &event)
 
 void InputManager::OnMouseScroll(wxMouseEvent &event)
 {
-	if (RenderEngine::Camera != nullptr) {
-		RenderEngine::Camera->InputMouseScroll(event);
+	if (RenderEngine::CameraMain != nullptr) {
+		RenderEngine::CameraMain->InputMouseScroll(event);
 		RenderEngine::Canvas.Window->UpdateProperties();
 	} else {
 		event.Skip();
@@ -82,7 +90,7 @@ void InputManager::OnGraphicsMenu(wxCommandEvent &event)
 {
 	switch (event.GetId()) {
 		case ID_ASPECT_RATIO:  RenderEngine::SetAspectRatio(event.GetString());      break;
-		case ID_FOV:           RenderEngine::Camera->SetFOV(event.GetString());      break;
+		case ID_FOV:           RenderEngine::CameraMain->SetFOV(event.GetString());      break;
 		case ID_DRAW_MODE:     RenderEngine::SetDrawMode(event.GetString());         break;
 		case ID_DRAW_BOUNDING: RenderEngine::DrawBoundingVolume = event.IsChecked(); break;
 		case ID_GRAPHICS_API:  RenderEngine::SetGraphicsAPI(event.GetString());      break;
@@ -105,10 +113,15 @@ void InputManager::OnIcon(wxCommandEvent &event)
 		SceneManager::LoadSkybox();
 		break;
 	case ID_ICON_TERRAIN:
-		SceneManager::LoadTerrain(10, 1, 2.0f);
+		SceneManager::LoadTerrain();
 		break;
 	case ID_ICON_WATER:
 		SceneManager::LoadWater();
+		break;
+	case ID_ICON_LIGHT_DIRECTIONAL:
+	case ID_ICON_LIGHT_POINT:
+	case ID_ICON_LIGHT_SPOT:
+		SceneManager::LoadLightSource(iconType);
 		break;
 	default:
 		if ((iconType > ID_ICON_UNKNOWN) && (iconType < ID_CANVAS))
@@ -120,13 +133,35 @@ void InputManager::OnIcon(wxCommandEvent &event)
 void InputManager::OnList(wxCommandEvent &event)
 {
 	switch (event.GetId()) {
-		case ID_COMPONENTS:       SceneManager::SelectComponent(event.GetSelection());                break;
-		case ID_CHILDREN:         SceneManager::SelectChild(event.GetSelection());                    break;
-		case ID_SCENE_CLEAR:      SceneManager::Clear();                                              break;
-		case ID_SCENE_LOAD:       SceneManager::LoadScene(Utils::OpenFile(Utils::SCENE_FILE_FORMAT)); break;
-		case ID_SCENE_SAVE:       SceneManager::SaveScene(Utils::SaveFile(Utils::SCENE_FILE_FORMAT)); break;
-		case ID_REMOVE_COMPONENT: SceneManager::RemoveSelectedComponent();                            break;
-		case ID_REMOVE_CHILD:     SceneManager::RemoveSelectedChild();                                break;
+		case ID_COMPONENTS:
+			SceneManager::SelectComponent(event.GetSelection());
+			break;
+		case ID_CHILDREN:
+			SceneManager::SelectChild(event.GetSelection());
+			break;
+		case ID_SCENE_CLEAR:
+			SceneManager::Clear();
+
+			if (RenderEngine::CameraMain == nullptr) {
+				SceneManager::AddComponent(new Camera());
+				SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
+			}
+
+			break;
+		case ID_SCENE_LOAD:
+			SceneManager::LoadScene(Utils::OpenFile(Utils::SCENE_FILE_FORMAT));
+			break;
+		case ID_SCENE_SAVE:
+			SceneManager::SaveScene(Utils::SaveFile(Utils::SCENE_FILE_FORMAT));
+			break;
+		case ID_REMOVE_COMPONENT:
+			SceneManager::RemoveSelectedComponent();
+			break;
+		case ID_REMOVE_CHILD:
+			SceneManager::RemoveSelectedChild();
+			break;
+		default:
+			throw;
 	}
 }
 

@@ -9,6 +9,21 @@
 * Constant Buffers
 */
 
+struct CBLight
+{
+	CBLight(const Light &light);
+	CBLight() {}
+
+	glm::vec4 Active      = {};
+	glm::vec4 Ambient     = {};
+	glm::vec4 Angles      = {};
+	glm::vec4 Attenuation = {};
+	glm::vec4 Diffuse     = {};
+	glm::vec4 Direction   = {};
+	glm::vec4 Position    = {};
+	glm::vec4 Specular    = {};
+};
+
 struct CBMatrix
 {
 	CBMatrix(Component* mesh, bool removeTranslation);
@@ -33,35 +48,19 @@ struct CBDefault
 	CBDefault(Component* mesh, const DrawProperties &properties);
 	CBDefault() {}
 
+	CBLight LightSources[MAX_LIGHT_SOURCES];
+
 	glm::vec4 IsTextured[MAX_TEXTURES];
 	glm::vec4 TextureScales[MAX_TEXTURES];
 
-	glm::vec3 CameraPosition = {};
-	float     CameraPadding1 = {};
+	glm::vec4 CameraPosition = {};
 
-	glm::vec3 MeshSpecularIntensity = {};
-	float     MeshSpecularShininess = 0;
-
-	//glm::vec3 MeshAmbient  = {};
-	//float     MeshPadding1 = 0;
+	glm::vec4 MeshSpecular = {};
 	glm::vec4 MeshDiffuse  = {};
 
-	glm::vec3 SunLightSpecularIntensity = {};
-	float     SunLightSpecularShininess = 0;
-
-	glm::vec3 SunLightAmbient  = {};
-	float     SunLightPadding1 = 0;
-	glm::vec4 SunLightDiffuse  = {};
-
-	glm::vec3 SunLightPosition  = {};
-	float     SunLightPadding2  = 0;
-	glm::vec3 SunLightDirection = {};
-	float     SunLightPadding3  = 0;
-
-	glm::vec3 ClipMax        = {};
-	float     EnableClipping = 0;
-	glm::vec3 ClipMin        = {};
-	float     ClipPadding1   = 0;
+	glm::vec4 ClipMax        = {};
+	glm::vec4 ClipMin        = {};
+	glm::vec4 EnableClipping = {};
 };
 
 struct CBHUD
@@ -86,6 +85,22 @@ struct CBWater
 };
 
 #if defined _WINDOWS
+
+struct CBLightDX
+{
+	CBLightDX(const Light   &light);
+	CBLightDX(const CBLight &light);
+	CBLightDX() {}
+
+	DirectX::XMFLOAT4 Active      = {};
+	DirectX::XMFLOAT4 Ambient     = {};
+	DirectX::XMFLOAT4 Angles      = {};
+	DirectX::XMFLOAT4 Attenuation = {};
+	DirectX::XMFLOAT4 Diffuse     = {};
+	DirectX::XMFLOAT4 Direction   = {};
+	DirectX::XMFLOAT4 Position    = {};
+	DirectX::XMFLOAT4 Specular    = {};
+};
 
 struct CBMatrixDX
 {
@@ -115,35 +130,19 @@ struct CBDefaultDX
 
 	CBMatrixDX MB = {};
 
+	CBLightDX LightSources[MAX_LIGHT_SOURCES];
+
 	DirectX::XMFLOAT4 IsTextured[MAX_TEXTURES];
 	DirectX::XMFLOAT4 TextureScales[MAX_TEXTURES];
 
-	DirectX::XMFLOAT3 CameraPosition = {};
-	float             CameraPadding1 = {};
+	DirectX::XMFLOAT4 CameraPosition = {};
 
-	DirectX::XMFLOAT3 MeshSpecularIntensity = {};
-	float             MeshSpecularShininess = 0;
-
-	//DirectX::XMFLOAT3 MeshAmbient  = {};
-	//float             MeshPadding1 = 0;
+	DirectX::XMFLOAT4 MeshSpecular = {};
 	DirectX::XMFLOAT4 MeshDiffuse  = {};
 
-	DirectX::XMFLOAT3 SunLightSpecularIntensity = {};
-	float             SunLightSpecularShininess = 0;
-
-	DirectX::XMFLOAT3 SunLightAmbient  = {};
-	float             SunLightPadding1 = 0;
-	DirectX::XMFLOAT4 SunLightDiffuse  = {};
-
-	DirectX::XMFLOAT3 SunLightPosition  = {};
-	float             SunLightPadding2  = 0;
-	DirectX::XMFLOAT3 SunLightDirection = {};
-	float             SunLightPadding3  = 0;
-
-	DirectX::XMFLOAT3 ClipMax        = {};
-	float             EnableClipping = 0;
-	DirectX::XMFLOAT3 ClipMin        = {};
-	float             ClipPadding1   = 0;
+	DirectX::XMFLOAT4 ClipMax        = {};
+	DirectX::XMFLOAT4 ClipMin        = {};
+	DirectX::XMFLOAT4 EnableClipping = {};
 };
 
 struct CBHUDDX
@@ -189,13 +188,13 @@ public:
 	~Buffer();
 
 public:
-	UINT            BufferStride;
-	VkBuffer        IndexBuffer;
-	VkDeviceMemory  IndexBufferMemory;
-	VKPipeline      Pipeline;
-	VKUniform       Uniform;
-	VkBuffer        VertexBuffer;
-	VkDeviceMemory  VertexBufferMemory;
+	UINT           BufferStride;
+	VkBuffer       IndexBuffer;
+	VkDeviceMemory IndexBufferMemory;
+	VKPipeline     Pipeline;
+	VKUniform      Uniform;
+	VkBuffer       VertexBuffer;
+	VkDeviceMemory VertexBufferMemory;
 
 	#if defined _WINDOWS
 		ID3D11BlendState*        BlendStatesDX11[NR_OF_SHADERS];
@@ -211,11 +210,11 @@ public:
 		ID3D12DescriptorHeap* ConstantBufferHeapsDX12[NR_OF_SHADERS];
 		ID3D12DescriptorHeap* SamplerHeapsDX12[NR_OF_SHADERS];
 
-		CBColorDX          ConstantBufferColor;
-		CBDefaultDX        ConstantBufferDefault;
-		CBHUDDX            ConstantBufferHUD;
-		CBSkyboxDX         ConstantBufferSkybox;
-		CBWaterDX          ConstantBufferWater;
+		CBColorDX   ConstantBufferColor;
+		CBDefaultDX ConstantBufferDefault;
+		CBHUDDX     ConstantBufferHUD;
+		CBSkyboxDX  ConstantBufferSkybox;
+		CBWaterDX   ConstantBufferWater;
 
 		ID3D11Buffer*            VertexBufferDX11;
 		ID3D12Resource*          VertexBufferDX12;

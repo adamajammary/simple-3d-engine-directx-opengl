@@ -61,6 +61,8 @@ void FrameBuffer::Bind()
 		break;
 	case GRAPHICS_API_VULKAN:
 		break;
+	default:
+		throw;
 	}
 }
 
@@ -81,6 +83,8 @@ void FrameBuffer::Unbind()
 		break;
 	case GRAPHICS_API_VULKAN:
 		break;
+	default:
+		throw;
 	}
 }
 
@@ -112,6 +116,8 @@ void FrameBuffer::CreateColorTexture()
 	case GRAPHICS_API_VULKAN:
 		this->colorTexture = new Texture(VK_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight());
 		break;
+	default:
+		throw;
 	}
 }
 

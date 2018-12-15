@@ -1,12 +1,13 @@
 #include "RenderEngine.h"
 
 GLCanvas                RenderEngine::Canvas              = {};
-DrawModeType            RenderEngine::DrawMode            = DRAW_MODE_FILLED;
-Camera*                 RenderEngine::Camera              = nullptr;
+DrawModeType            RenderEngine::drawMode            = DRAW_MODE_FILLED;
+Camera*                 RenderEngine::CameraMain          = nullptr;
 GPUDescription          RenderEngine::GPU                 = {};
 bool                    RenderEngine::DrawBoundingVolume  = false;
 Mesh*                   RenderEngine::Skybox              = nullptr;
 std::vector<Component*> RenderEngine::HUDs;
+std::vector<Component*> RenderEngine::LightSources;
 bool                    RenderEngine::Ready               = false;
 std::vector<Component*> RenderEngine::Renderables;
 GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
@@ -72,12 +73,12 @@ void RenderEngine::createWaterFBOs()
 
 		glm::vec3       position       = water->Position();
 		glm::vec3       scale          = water->Scale();
-		float           cameraDistance = ((RenderEngine::Camera->Position().y - position.y) * 2.0f);
+		float           cameraDistance = ((RenderEngine::CameraMain->Position().y - position.y) * 2.0f);
 		VkCommandBuffer cmdBuffer      = nullptr;
 
 		// WATER REFLECTION PASS - ABOVE WATER
-		RenderEngine::Camera->MoveBy(glm::vec3(0.0f, -cameraDistance, 0.0f));
-		RenderEngine::Camera->InvertPitch();
+		RenderEngine::CameraMain->MoveBy(glm::vec3(0.0f, -cameraDistance, 0.0f));
+		RenderEngine::CameraMain->InvertPitch();
 
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
@@ -102,8 +103,8 @@ void RenderEngine::createWaterFBOs()
 		else
 			parent->FBO()->UnbindReflection();
 
-		RenderEngine::Camera->InvertPitch();
-		RenderEngine::Camera->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
+		RenderEngine::CameraMain->InvertPitch();
+		RenderEngine::CameraMain->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
 
 		// WATER REFRACTION PASS - BELOW WATER
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
@@ -160,16 +161,16 @@ int RenderEngine::drawBoundingVolumes()
     if (!RenderEngine::DrawBoundingVolume)
 		return 1;
 
-	DrawModeType oldDrawMode = RenderEngine::DrawMode;
+	DrawModeType oldDrawMode = RenderEngine::drawMode;
 
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
 	DrawProperties properties = {};
 	properties.DrawBoundingVolume = true;
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_COLOR, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
 
-	RenderEngine::DrawMode = oldDrawMode;
+	RenderEngine::drawMode = oldDrawMode;
 
     return 0;
 }    
@@ -186,9 +187,28 @@ int RenderEngine::drawHUDs(const DrawProperties &properties)
 		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_HUD : SHADER_ID_COLOR);
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_HUD : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes(RenderEngine::HUDs, shaderID, properties);
+
+	return 0;
+}
+
+int RenderEngine::drawLightSources(const DrawProperties &properties)
+{
+	if (RenderEngine::LightSources.empty())
+		return 1;
+
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+	{
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+		glDisable(GL_BLEND);
+	}
+
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_COLOR : SHADER_ID_WIREFRAME);
+
+	RenderEngine::drawMeshes(RenderEngine::LightSources, shaderID, properties);
 
 	return 0;
 }
@@ -205,7 +225,7 @@ int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuf
 		glDisable(GL_BLEND);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_COLOR);
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes(RenderEngine::Renderables, shaderID, properties, cmdBuffer);
 
@@ -214,7 +234,7 @@ int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuf
 
 int RenderEngine::drawSelected()
 {
-	DrawModeType oldDrawMode = RenderEngine::DrawMode;
+	DrawModeType oldDrawMode = RenderEngine::drawMode;
 
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
@@ -228,9 +248,9 @@ int RenderEngine::drawSelected()
 		glDisable(GL_BLEND);
 	}
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_COLOR, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
 
-	RenderEngine::DrawMode = oldDrawMode;
+	RenderEngine::drawMode = oldDrawMode;
 
 	return 0;
 }
@@ -247,7 +267,7 @@ int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer c
 		glDisable(GL_BLEND);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_SKYBOX : SHADER_ID_COLOR);
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_SKYBOX : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes({ RenderEngine::Skybox }, shaderID, properties, cmdBuffer);
 
@@ -266,7 +286,7 @@ int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer
 		glDisable(GL_BLEND);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_TERRAIN : SHADER_ID_COLOR);
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_TERRAIN : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes(RenderEngine::Terrains, shaderID, properties, cmdBuffer);
 
@@ -285,7 +305,7 @@ int RenderEngine::drawWaters(const DrawProperties &properties)
 		glDisable(GL_BLEND);
 	}
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_WATER : SHADER_ID_COLOR);
+	ShaderID shaderID = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_WATER : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes(RenderEngine::Waters, shaderID, properties);
 
@@ -310,7 +330,7 @@ void RenderEngine::drawMesh(Component* mesh, ShaderProgram* shaderProgram, const
 			RenderEngine::drawMeshVK(mesh, shaderProgram, properties, cmdBuffer);
 			break;
 		default:
-			break;
+			throw;
 	}
 }
 
@@ -326,7 +346,7 @@ int RenderEngine::drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, co
 
 int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
-	if ((RenderEngine::Camera == nullptr) ||
+	if ((RenderEngine::CameraMain == nullptr) ||
 		(shaderProgram == nullptr) || (shaderProgram->Program() < 1) ||
 		(mesh == nullptr) || (dynamic_cast<Mesh*>(mesh)->IBO() < 1))
 	{
@@ -393,6 +413,7 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, ShaderID sha
 void RenderEngine::drawScene(const DrawProperties &properties)
 {
 	RenderEngine::drawRenderables(properties);
+	RenderEngine::drawLightSources(properties);
 	RenderEngine::drawSelected();
 	RenderEngine::drawBoundingVolumes();
 	RenderEngine::drawSkybox(properties);
@@ -403,7 +424,7 @@ void RenderEngine::drawScene(const DrawProperties &properties)
 
 uint16_t RenderEngine::GetDrawMode()
 {
-	if (RenderEngine::DrawMode == DRAW_MODE_FILLED)
+	if (RenderEngine::drawMode == DRAW_MODE_FILLED)
 	{
 		switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
@@ -415,9 +436,11 @@ uint16_t RenderEngine::GetDrawMode()
 			return GL_TRIANGLES;
 		case GRAPHICS_API_VULKAN:
 			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		default:
+			throw;
 		}
 	}
-	else if (RenderEngine::DrawMode == DRAW_MODE_WIREFRAME)
+	else if (RenderEngine::drawMode == DRAW_MODE_WIREFRAME)
 	{
 		switch (RenderEngine::SelectedGraphicsAPI) {
 			#if defined _WINDOWS
@@ -429,6 +452,8 @@ uint16_t RenderEngine::GetDrawMode()
 				return GL_LINE_STRIP;
 			case GRAPHICS_API_VULKAN:
 				return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+			default:
+				throw;
 		}
 	}
 
@@ -469,29 +494,48 @@ int RenderEngine::RemoveMesh(Component* mesh)
 	if (mesh->Parent == nullptr)
 		return -1;
 
-    if (mesh->Parent->Type() == COMPONENT_HUD) {
-		auto index = std::find(RenderEngine::HUDs.begin(), RenderEngine::HUDs.end(), mesh);
+	std::vector<Component*>::iterator index;
+
+	switch (mesh->Parent->Type()) {
+	case COMPONENT_HUD:
+		index = std::find(RenderEngine::HUDs.begin(), RenderEngine::HUDs.end(), mesh);
 
         if (index != RenderEngine::HUDs.end())
 			RenderEngine::HUDs.erase(index);
-    } else if (mesh->Parent->Type() == COMPONENT_SKYBOX) {
+
+		break;
+	case COMPONENT_SKYBOX:
         RenderEngine::Skybox = nullptr;
-    } else if (mesh->Parent->Type() == COMPONENT_TERRAIN) {
-		auto index = std::find(RenderEngine::Terrains.begin(), RenderEngine::Terrains.end(), mesh);
+		break;
+	case COMPONENT_TERRAIN:
+		index = std::find(RenderEngine::Terrains.begin(), RenderEngine::Terrains.end(), mesh);
 
 		if (index != RenderEngine::Terrains.end())
 			RenderEngine::Terrains.erase(index);
-    } else if (mesh->Parent->Type() == COMPONENT_WATER) {
-		auto index = std::find(RenderEngine::Waters.begin(), RenderEngine::Waters.end(), mesh);
+
+		break;
+	case COMPONENT_WATER:
+		index = std::find(RenderEngine::Waters.begin(), RenderEngine::Waters.end(), mesh);
 
 		if (index != RenderEngine::Waters.end())
 			RenderEngine::Waters.erase(index);
-    } else {
-		auto index = std::find(RenderEngine::Renderables.begin(), RenderEngine::Renderables.end(), mesh);
+
+		break;
+	case COMPONENT_LIGHTSOURCE:
+		index = std::find(RenderEngine::LightSources.begin(), RenderEngine::LightSources.end(), mesh);
+
+		if (index != RenderEngine::LightSources.end())
+			RenderEngine::LightSources.erase(index);
+
+		break;
+	default:
+		index = std::find(RenderEngine::Renderables.begin(), RenderEngine::Renderables.end(), mesh);
 
 		if (index != RenderEngine::Renderables.end())
 			RenderEngine::Renderables.erase(index);
-    }
+
+		break;
+	}
 
 	return 0;
 }
@@ -516,7 +560,7 @@ void RenderEngine::SetCanvasSize(int width, int height)
 {
 	RenderEngine::Canvas.Size = wxSize(width, height);
 	RenderEngine::Canvas.Canvas->SetSize(RenderEngine::Canvas.Size);
-	RenderEngine::Camera->UpdateProjection();
+	RenderEngine::CameraMain->UpdateProjection();
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		glViewport(0, 0, width, height);
@@ -524,15 +568,15 @@ void RenderEngine::SetCanvasSize(int width, int height)
 
 void RenderEngine::SetDrawMode(DrawModeType mode)
 {
-	RenderEngine::DrawMode = mode;
+	RenderEngine::drawMode = mode;
 }
 
 void RenderEngine::SetDrawMode(const wxString &mode)
 {
 	if (mode == Utils::DRAW_MODES[DRAW_MODE_FILLED])
-		RenderEngine::DrawMode = DRAW_MODE_FILLED;
+		RenderEngine::drawMode = DRAW_MODE_FILLED;
 	else if (mode == Utils::DRAW_MODES[DRAW_MODE_WIREFRAME])
-		RenderEngine::DrawMode = DRAW_MODE_WIREFRAME;
+		RenderEngine::drawMode = DRAW_MODE_WIREFRAME;
 }
 
 int RenderEngine::SetGraphicsAPI(const wxString &api)
@@ -562,7 +606,7 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 
 int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 {
-	RenderEngine::Ready        = false;
+	RenderEngine::Ready               = false;
 	RenderEngine::SelectedGraphicsAPI = api;
 
 	// CLEAR SCENE AND FREE MEMORY
@@ -589,10 +633,7 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 		result = RenderEngine::setGraphicsApiVK();
 		break;
 	default:
-		RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-		RenderEngine::Canvas.Window->SetStatusText("GRAPHICS_API_UNKNOWN: INVALID API");
-		RenderEngine::Close();
-		break;
+		throw;
 	}
 
 	if (result < 0)
@@ -612,6 +653,11 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	if (InputManager::Init() < 0) {
 		RenderEngine::Close();
 		return -5;
+	}
+
+	if (RenderEngine::CameraMain == nullptr) {
+		SceneManager::AddComponent(new Camera());
+		SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
 	}
 
 	RenderEngine::Ready = true;
@@ -728,6 +774,6 @@ void RenderEngine::SetVSync(bool enable)
 			RenderEngine::Canvas.VK->SetVSync(enable);
 		break;
 	default:
-		break;
+		throw;
 	}
 }

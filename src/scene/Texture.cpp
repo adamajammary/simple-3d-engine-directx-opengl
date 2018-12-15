@@ -29,6 +29,8 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		case GRAPHICS_API_VULKAN:
 			this->loadTextureImagesVK({ image });
 			break;
+		default:
+			throw;
 		}
 	}
 	else
@@ -75,6 +77,8 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 		case GRAPHICS_API_VULKAN:
 			this->loadTextureImagesVK({ image });
 			break;
+		default:
+			throw;
 		}
 
 		image->Destroy();
@@ -130,6 +134,8 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 		case GRAPHICS_API_VULKAN:
 			this->loadTextureImagesVK(images);
 			break;
+		default:
+			throw;
 		}
 	}
 
@@ -185,6 +191,8 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 
 		break;
 	#endif
+	default:
+		throw;
 	}
 }
 
@@ -259,6 +267,8 @@ Texture::Texture()
 		this->SamplerInfo = {};
 
 		break;
+	default:
+		throw;
 	}
 }
 
@@ -338,6 +348,8 @@ bool Texture::IsOK()
 		return (this->id > 0);
 	case GRAPHICS_API_VULKAN:
 		return ((this->ImageView != nullptr) && (this->Sampler != nullptr));
+	default:
+		throw;
 	}
 
 	return false;
@@ -395,6 +407,8 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 				wxMessageBox(("ERROR: Texture::loadTextureImagesDX12: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
+		default:
+			throw;
 		}
 	}
 

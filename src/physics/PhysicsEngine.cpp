@@ -22,6 +22,8 @@ void PhysicsEngine::CheckRayCasts(wxMouseEvent &event)
 		case BOUNDING_VOLUME_SPHERE:
 			dynamic_cast<Mesh*>(mesh)->Select(ray->RayIntersectSphere(volume->MinBoundaries(), volume->MaxBoundaries()));
 			break;
+		default:
+			throw;
 		}
 	}
 }

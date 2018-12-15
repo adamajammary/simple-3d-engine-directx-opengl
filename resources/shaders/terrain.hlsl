@@ -1,4 +1,17 @@
-static const int MAX_TEXTURES = 6;
+static const int MAX_LIGHT_SOURCES = 16;
+static const int MAX_TEXTURES      = 6;
+
+struct CBLight
+{
+    float4 Active;
+    float4 Ambient;
+    float4 Angles;
+    float4 Attenuation;
+    float4 Diffuse;
+    float4 Direction;
+    float4 Position;
+    float4 Specular;
+};
 
 struct CBMatrix
 {
@@ -12,30 +25,19 @@ cbuffer TerrainBuffer : register(b0)
 {
     CBMatrix MB;
 
+    CBLight LightSources[MAX_LIGHT_SOURCES];
+
     float4 IsTextured[MAX_TEXTURES];
     float4 TextureScales[MAX_TEXTURES];
 
-    float3 MeshSpecularIntensity;
-	float  MeshSpecularShininess;
+    float4 CameraPosition;
 
+    float4 MeshSpecular;
     float4 MeshDiffuse;
 
-    float3 SunLightSpecularIntensity;
-	float  SunLightSpecularShininess;
-
-    float3 SunLightAmbient;
-	float  SunLightPadding1;
-    float4 SunLightDiffuse;
-
-    float3 SunLightPosition;
-	float  SunLightPadding2;
-    float3 SunLightDirection;
-	float  SunLightPadding3;
-
-    float3 ClipMax;
-    float  EnableClipping;
-    float3 ClipMin;
-    float  ClipPadding1;
+    float4 ClipMax;
+    float4 ClipMin;
+    float4 EnableClipping;
 };
 
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
@@ -90,8 +92,17 @@ float4 PS(FS_INPUT input) : SV_Target
 	float4 totalColor              = (backgroundTextureColor + rTextureColor + gTextureColor + bTextureColor);
 
 	// LIGHT COLOR (PHONG REFLECTION)
-	float3 lightColor   = (SunLightAmbient + (SunLightDiffuse.rgb * dot(normalize(input.FragmentNormal), normalize(-SunLightDirection))));
-	float4 GL_FragColor = float4((totalColor.rgb * lightColor), totalColor.a);
+    float4 GL_FragColor = float4(0, 0, 0, 0);
+
+    for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+    {
+        if ((LightSources[i].Active.x < 0.1) || (LightSources[i].Angles.x > 0.1) || (LightSources[i].Attenuation.r > 0.1))
+            continue;
+
+        float3 lightColor = (LightSources[i].Ambient.rgb + (LightSources[i].Diffuse.rgb * dot(normalize(input.FragmentNormal), normalize(-LightSources[i].Direction.xyz))));
+
+        GL_FragColor += float4((totalColor.rgb * lightColor), totalColor.a);
+    }
 
 	return GL_FragColor;
 }

@@ -7,37 +7,36 @@
 	precision mediump float;
 #endif
 
-const int MAX_TEXTURES = 6;
+const int MAX_LIGHT_SOURCES = 16;
+const int MAX_TEXTURES      = 6;
+
+struct CBLight
+{
+    vec4 Active;
+    vec4 Ambient;
+    vec4 Angles;
+    vec4 Attenuation;
+    vec4 Diffuse;
+    vec4 Direction;
+    vec4 Position;
+    vec4 Specular;
+};
 
 struct CBDefault
 {
+    CBLight LightSources[MAX_LIGHT_SOURCES];
+
     vec4 IsTextured[MAX_TEXTURES];
     vec4 TextureScales[MAX_TEXTURES];
 
-	vec3  CameraPosition;
-	float CameraPadding1;
+	vec4 CameraPosition;
 
-    vec3  MeshSpecularIntensity;
-	float MeshSpecularShininess;
+    vec4 MeshSpecular;
+    vec4 MeshDiffuse;
 
-    vec4  MeshDiffuse;
-
-    vec3  SunLightSpecularIntensity;
-	float SunLightSpecularShininess;
-
-    vec3  SunLightAmbient;
-	float SunLightPadding1;
-    vec4  SunLightDiffuse;
-
-    vec3  SunLightPosition;
-	float SunLightPadding2;
-    vec3  SunLightDirection;
-	float SunLightPadding3;
-
-    vec3  ClipMax;
-	float EnableClipping;
-    vec3  ClipMin;
-    float ClipPadding1;
+    vec4 ClipMax;
+    vec4 ClipMin;
+	vec4 EnableClipping;
 };
 
 layout(location = 0) in vec4 ClipSpace;
@@ -91,15 +90,24 @@ void main()
 	vec3 normal         = normalize(vec3((normalMapColor.r * 2.0 - 1.0), (normalMapColor.b * 7.0), (normalMapColor.g * 2.0 - 1.0)));
 
 	// FRESNEL EFFECT
-    vec3  fromSurfaceToCamera = (wb.DB.CameraPosition - FragmentPosition.xyz);
-	vec3  fromLightToSurface  = (FragmentPosition.xyz - wb.DB.SunLightPosition);
-	vec3  viewVector         = normalize(fromSurfaceToCamera);
-	float refractionFactor   = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);	// higher power => less reflective (transparent)
-	vec3  reflectedLight     = reflect(normalize(fromLightToSurface), normal);
-	float specular           = pow(max(0.0, dot(reflectedLight, viewVector)), wb.DB.SunLightSpecularIntensity[0]);
-	vec3  specularHighlights = (wb.DB.SunLightDiffuse.rgb * specular * wb.DB.SunLightSpecularShininess);
+	vec3  fromSurfaceToCamera = (wb.DB.CameraPosition.xyz - FragmentPosition.xyz);
+	vec3  viewVector          = normalize(fromSurfaceToCamera);
+	float refractionFactor    = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);	// higher power => less reflective (transparent)
+	GL_FragColor              = vec4(0);
 
-	GL_FragColor = (mix(reflectionColor, refractionColor, refractionFactor) + vec4(specularHighlights, 0.0));
+	for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+	{
+        if ((wb.DB.LightSources[i].Active.x < 0.1) || (wb.DB.LightSources[i].Angles.x > 0.1) || (wb.DB.LightSources[i].Attenuation.r > 0.1))
+			continue;
+
+		vec3  fromLightToSurface = (FragmentPosition.xyz - wb.DB.LightSources[i].Position.xyz);
+		vec3  reflectedLight     = reflect(normalize(fromLightToSurface), normal);
+		float specular           = pow(max(0.0, dot(reflectedLight, viewVector)), wb.DB.LightSources[i].Specular.r);
+		vec3  specularHighlights = (wb.DB.LightSources[i].Diffuse.rgb * specular * wb.DB.LightSources[i].Specular.a);
+
+		GL_FragColor += (mix(reflectionColor, refractionColor, refractionFactor) + vec4(specularHighlights, 0.0));
+	}
+
 	//GL_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 	//GL_FragColor = vec4(texture(Textures[0], FragmentTextureCoords).rgb, 1.0);
 

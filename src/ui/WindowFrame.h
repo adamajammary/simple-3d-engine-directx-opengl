@@ -29,7 +29,7 @@ public:
 	void     AddListChildren(std::vector<Component*> children);
 	void     ClearScene();
 	void     DeactivateProperties();
-	void     InitProperties();
+	int      InitProperties();
 	bool     IsPropertiesActive();
 	void     OnAbout(wxCommandEvent &event);
 	void     OnExit(wxCommandEvent &event);
@@ -45,10 +45,10 @@ public:
 
 private:
 	void          addAds(wxBoxSizer* sizer);
-	void          addButton(void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, wxDirection direction, const wxPoint &position = wxDefaultPosition, const wxSize &size = wxDefaultSize);
+	void          addButton(wxWindow* parent, void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position = wxDefaultPosition, const wxSize &size = wxDefaultSize);
 	wxCheckBox*   addCheckBox(wxGridBagSizer* sizer, IconType id, wxGBPosition position, bool default = false);
 	wxChoice*     addDropDown(wxGridBagSizer* sizer, IconType id, wxGBPosition position, int nrOfChoices, const wxString* choices);
-	void          addIcon(wxBoxSizer* sizer, const Icon &icon);
+	void          addIcon(wxWindow* parent, wxBoxSizer* sizer, const Icon &icon, int flag);
 	void          addLine(wxBoxSizer* sizer, int flag, wxSize size = wxSize(1, 1));
 	wxListBox*    addListBox(wxBoxSizer* sizer, IconType id);
 	void          addMenu();
@@ -56,12 +56,16 @@ private:
 	void          addPropertyEnum(const wxString &label, const wxString &id, const wxChar** values, const wxChar* value);
 	void          addPropertyRange(const wxString &label, const wxString &id, float value, float min = 0.0f, float max = 1.0f, float step = 0.01f);
 	void          addPropertyXYZ(const wxString &category, const wxString &id, float x, float y, float z, float min = 0.0f, float max = 1.0f, float step = 0.01f);
+	void          addTab(IconType id, const wxString &label, wxNotebook* tabs, const std::vector<Icon> &icons);
 	wxStaticText* addTextLabel(wxString text);
 	void          addTextLabel(wxGridBagSizer* sizer, wxString text, wxGBPosition position, int flag, int border = 0);
 	void          addTextLabel(wxBoxSizer* sizer, wxString text, int flag, int border = 0);
 	int           init();
+	int           initPropertiesLightSources(Component* selected);
 	void          setPropertyXYZ(const wxString &id, float x, float y, float z);
 	glm::vec3     updatePropertyXYZ(const wxString &id, float value, const glm::vec3 &values);
+	int           updatePropertiesLightSources(Component* selected);
+	void          initPropertiesTextures(Component* selected);
 
 	wxDECLARE_EVENT_TABLE();
 

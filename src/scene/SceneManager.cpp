@@ -3,24 +3,12 @@
 std::vector<Component*> SceneManager::Components;
 Texture*                SceneManager::EmptyCubemap      = nullptr;
 Texture*                SceneManager::EmptyTexture      = nullptr;
+bool                    SceneManager::Ready             = true;
 Component*              SceneManager::SelectedChild     = nullptr;
 Component*              SceneManager::SelectedComponent = nullptr;
 glm::vec4               SceneManager::SelectColor       = { 1.0f, 0.5f, 0.0f, 1.0f };
 
-DirectionalLight SceneManager::SunLight = DirectionalLight(
-	{ -0.1f, -0.5f, -1.0f },				// DIRECTION
-	Light(
-		{ 10.0f, 50.0f, 100.0f },			// POSITION
-		Material(
-			{ 0.4f, 0.4f, 0.4f, 1.0f },		// DIFFUSE (COLOR)
-			{ 0.2f, 0.2f, 0.2f },			// AMBIENT
-			Specular(
-				{ 0.6f, 0.6f, 0.6f },		// INTENSITY
-				20.0f						// SHININESS
-			)
-		)
-	)
-);
+LightSource* SceneManager::LightSources[MAX_LIGHT_SOURCES] = {};
 
 int SceneManager::AddComponent(Component* component)
 {
@@ -29,7 +17,7 @@ int SceneManager::AddComponent(Component* component)
 
 	switch (component->Type()) {
 	case COMPONENT_CAMERA:
-        RenderEngine::Camera = (Camera*)component;
+        RenderEngine::CameraMain = (Camera*)component;
 		break;
 	case COMPONENT_HUD:
         for (auto child : component->Children)
@@ -47,6 +35,16 @@ int SceneManager::AddComponent(Component* component)
 		for (auto child : component->Children)
 			RenderEngine::Waters.push_back(child);
 		break;
+	case COMPONENT_LIGHTSOURCE:
+		if (SceneManager::AddLightSource(component) < 0)
+			return -2;
+
+		if (dynamic_cast<LightSource*>(component)->SourceType() != ID_ICON_LIGHT_DIRECTIONAL) {
+			for (auto child : component->Children)
+				RenderEngine::LightSources.push_back(child);
+		}
+
+		break;
 	default:
 		for (auto child : component->Children)
 			RenderEngine::Renderables.push_back(child);
@@ -57,27 +55,50 @@ int SceneManager::AddComponent(Component* component)
 	SceneManager::Components.push_back(component);
 	RenderEngine::Canvas.Window->AddListComponent(component);
 	RenderEngine::Canvas.Window->AddListChildren(SceneManager::SelectedComponent->Children);
-	RenderEngine::Canvas.Window->InitProperties();
+
+	if (SceneManager::Ready)
+		RenderEngine::Canvas.Window->InitProperties();
 
 	return 0;
 }
 
+int SceneManager::AddLightSource(Component* component)
+{
+	LightSource* lightSource = dynamic_cast<LightSource*>(component);
+
+	if (lightSource == nullptr)
+		return -1;
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] == nullptr) {
+			SceneManager::LightSources[i] = lightSource;
+			return 0;
+		}
+	}
+
+	wxMessageBox(("WARNING: Max " + std::to_wstring(MAX_LIGHT_SOURCES) + " light sources are supported in the scene."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
+
+	return -2;
+}
+
 void SceneManager::Clear()
 {
-	RenderEngine::Skybox = nullptr;
+	RenderEngine::CameraMain            = nullptr;
+	SceneManager::SelectedComponent = nullptr;
+	SceneManager::SelectedChild     = nullptr;
+	RenderEngine::Skybox            = nullptr;
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
+		SceneManager::LightSources[i] = nullptr;
 
 	RenderEngine::HUDs.clear();
     RenderEngine::Terrains.clear();
     RenderEngine::Waters.clear();
-    RenderEngine::Renderables.clear();
+	RenderEngine::LightSources.clear();
+	RenderEngine::Renderables.clear();
 
-	if (SceneManager::Components.size() > 1) {
-		for (auto it = SceneManager::Components.begin() + 1; it != SceneManager::Components.end(); it++)
-			_DELETEP(*it);
-	}
-
-	SceneManager::SelectedComponent = nullptr;
-	SceneManager::SelectedChild     = nullptr;
+	for (auto it = SceneManager::Components.begin(); it != SceneManager::Components.end(); it++)
+		_DELETEP(*it);
 
 	SceneManager::Components.clear();
 
@@ -107,6 +128,19 @@ HUD* SceneManager::LoadHUD()
 	return hud;
 }
 
+LightSource* SceneManager::LoadLightSource(IconType type)
+{
+	LightSource* light = new LightSource(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE], type);
+
+	if ((light == nullptr) || !light->IsValid())
+		return nullptr;
+
+	if (SceneManager::AddComponent(light) < 0)
+		_DELETEP(light);
+
+	return light;
+}
+
 Model* SceneManager::LoadModel(const wxString &file)
 {
 	if (file.empty())
@@ -122,9 +156,10 @@ Model* SceneManager::LoadModel(const wxString &file)
 	return model;
 }
 
-
 int SceneManager::LoadScene(const wxString &file)
 {
+	SceneManager::Ready = false;
+
 	if (file.empty())
 		return -1;
 
@@ -139,6 +174,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 	SceneManager::Clear();
 
+	if (RenderEngine::CameraMain == nullptr)
+		SceneManager::AddComponent(new Camera());
+
 	std::string error;
 	auto        sceneDataJSON = json11::Json::parse(sceneData, error);
 	Component*  component     = nullptr;
@@ -150,14 +188,15 @@ int SceneManager::LoadScene(const wxString &file)
 
 		switch (type) {
 		case COMPONENT_CAMERA:
-			RenderEngine::Camera->Name = componentJSON["name"].string_value();
-			RenderEngine::Camera->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
-			RenderEngine::Camera->RotateTo(Utils::ToVec3(componentJSON["rotation"].array_items()));
+			RenderEngine::CameraMain->Name = componentJSON["name"].string_value();
+			RenderEngine::CameraMain->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
+			RenderEngine::CameraMain->RotateTo(Utils::ToVec3(componentJSON["rotation"].array_items()));
 
 			break;
 		case COMPONENT_HUD:
-			component                                  = SceneManager::LoadHUD();
-			component->Name                            = componentJSON["name"].string_value();
+			component       = SceneManager::LoadHUD();
+			component->Name = componentJSON["name"].string_value();
+
 			dynamic_cast<HUD*>(component)->Transparent = componentJSON["transparent"].bool_value();
 			dynamic_cast<HUD*>(component)->TextAlign   = componentJSON["text_align"].string_value();
 			dynamic_cast<HUD*>(component)->TextFont    = componentJSON["text_font"].string_value();
@@ -183,16 +222,31 @@ int SceneManager::LoadScene(const wxString &file)
 			
 			break;
 		case COMPONENT_WATER:
-			component                                            = SceneManager::LoadWater();
-			component->Name                                      = componentJSON["name"].string_value();
+			component       = SceneManager::LoadWater();
+			component->Name = componentJSON["name"].string_value();
+
 			dynamic_cast<Water*>(component)->FBO()->Speed        = componentJSON["speed"].number_value();
 			dynamic_cast<Water*>(component)->FBO()->WaveStrength = componentJSON["wave_strength"].number_value();
 			
 			break;
-		//case COMPONENT_MATERIAL:
-		//	break;
-		//case COMPONENT_LIGHT:
-		//	break;
+		case COMPONENT_LIGHTSOURCE:
+			component       = SceneManager::LoadLightSource((IconType)componentJSON["source_type"].int_value());
+			component->Name = componentJSON["name"].string_value();
+
+			dynamic_cast<LightSource*>(component)->SetActive(componentJSON["active"].bool_value());
+			dynamic_cast<LightSource*>(component)->SetAmbient(Utils::ToVec3(componentJSON["ambient"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetColor(Utils::ToVec4(componentJSON["diffuse"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetSpecularIntensity(Utils::ToVec3(componentJSON["spec_intensity"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetSpecularShininess(componentJSON["spec_shininess"].number_value());
+			dynamic_cast<LightSource*>(component)->SetDirection(Utils::ToVec3(componentJSON["direction"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetAttenuationLinear(componentJSON["att_linear"].number_value());
+			dynamic_cast<LightSource*>(component)->SetAttenuationQuadratic(componentJSON["att_quadratic"].number_value());
+			dynamic_cast<LightSource*>(component)->SetConeInnerAngle(componentJSON["inner_angle"].number_value());
+			dynamic_cast<LightSource*>(component)->SetConeOuterAngle(componentJSON["outer_angle"].number_value());
+
+			break;
+		default:
+			throw;
 		}
 
 		// CHILDREN
@@ -277,10 +331,15 @@ int SceneManager::LoadScene(const wxString &file)
 				}
 			}
 		}
+
+		if ((component != nullptr) && (component->Type() == COMPONENT_LIGHTSOURCE))
+			dynamic_cast<LightSource*>(component)->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
 	}
 
-	RenderEngine::Canvas.Window->UpdateProperties();
+	RenderEngine::Canvas.Window->InitProperties();
 	RenderEngine::Canvas.Window->SetStatusText("Finished loading the scene '" + file + "'");
+
+	SceneManager::Ready = true;
 
 	return 0;
 }
@@ -355,6 +414,9 @@ int SceneManager::RemoveSelectedComponent()
 	for (auto child : SceneManager::SelectedComponent->Children)
 		RenderEngine::RemoveMesh(child);
 
+	if (SceneManager::SelectedComponent->Type() == COMPONENT_LIGHTSOURCE)
+		SceneManager::removeSelectedLightSource();
+
 	int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
 
 	SceneManager::SelectComponent(index - 1);
@@ -387,6 +449,16 @@ int SceneManager::RemoveSelectedChild()
 	}
 
 	return 0;
+}
+
+void SceneManager::removeSelectedLightSource()
+{
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::SelectedComponent == SceneManager::LightSources[i]) {
+			_DELETEP(SceneManager::LightSources[i]);
+			break;
+		}
+	}
 }
 
 int SceneManager::SaveScene(const wxString &file)
@@ -520,8 +592,28 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "children",       childrenJSON }
 			};
 			break;
-		//case COMPONENT_LIGHT:
-		//	break;
+		case COMPONENT_LIGHTSOURCE:
+			componentJSON = json11::Json::object{
+				{ "type",           (int)component->Type() },
+				{ "name",           static_cast<std::string>(component->Name) },
+				{ "source_type",    (int)dynamic_cast<LightSource*>(component)->SourceType() },
+				{ "active",         dynamic_cast<LightSource*>(component)->Active() },
+				{ "position",       Utils::ToJsonArray(component->Children[0]->Position()) },
+				{ "ambient",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().ambient) },
+				{ "diffuse",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().diffuse) },
+				{ "spec_intensity", Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().specular.intensity) },
+				{ "spec_shininess", dynamic_cast<LightSource*>(component)->GetMaterial().specular.shininess },
+				{ "direction",      Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->Direction()) },
+				{ "att_linear",     dynamic_cast<LightSource*>(component)->GetAttenuation().linear },
+				{ "att_quadratic",  dynamic_cast<LightSource*>(component)->GetAttenuation().quadratic },
+				{ "inner_angle",    dynamic_cast<LightSource*>(component)->GetConeInnerAngle() },
+				{ "outer_angle",    dynamic_cast<LightSource*>(component)->GetConeOuterAngle() },
+				{ "children",       childrenJSON }
+			};
+
+			break;
+		default:
+			throw;
 		}
 
 		componentsJSON.push_back(componentJSON);

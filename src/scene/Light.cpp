@@ -1,12 +1,37 @@
 #include "Light.h"
 
-Light::Light(const glm::vec3 &position, const Material &material)
+Attenuation::Attenuation(float constant, float linear, float quadratic)
 {
-	this->material = material;
-	this->position = position;
+	this->constant  = constant;
+	this->linear    = linear;
+	this->quadratic = quadratic;
 }
 
-DirectionalLight::DirectionalLight(const glm::vec3 &direction, const Light &light) : Light(light)
+Attenuation::Attenuation()
 {
-	this->direction = direction;
+	this->constant  = 0;
+	this->linear    = 0;
+	this->quadratic = 0;
+}
+
+Light::Light(const glm::vec3 &pos, const Material &mat, const glm::vec3 &dir, const Attenuation &att, float innerAngle, float outerAngle)
+{
+	this->active      = true;
+	this->attenuation = att;
+	this->direction   = dir;
+	this->innerAngle  = innerAngle;
+	this->outerAngle  = outerAngle;
+	this->material    = mat;
+	this->position    = pos;
+}
+
+Light::Light()
+{
+	this->active      = true;
+	this->attenuation = {};
+	this->direction   = {};
+	this->innerAngle  = 0;
+	this->outerAngle  = 0;
+	this->material    = {};
+	this->position    = {};
 }

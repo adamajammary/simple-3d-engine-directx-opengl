@@ -102,6 +102,8 @@ bool Mesh::IsOK()
 		return ((this->IBO() > 0) && (this->VBO() > 0));
 	case GRAPHICS_API_VULKAN:
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
+	default:
+		throw;
 	}
 
 	return false;
@@ -314,7 +316,7 @@ bool Mesh::setModelData()
 
 		break;
 	default:
-		return false;
+		throw;
 	}
 
 	return true;

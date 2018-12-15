@@ -15,25 +15,21 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 void WindowFrame::addAds(wxBoxSizer* sizer)
 {
 	// ADS
-	//#ifdef _DEBUG
 	wxStaticBoxSizer* sizerAds = new wxStaticBoxSizer(wxHORIZONTAL, this->Parent->GetTopWindow(), "Google Ads");
 	wxWebView*        webView  = nullptr;
 
-	//for (int i = 0; i < 2; i++) {
-	webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, wxSize(730, 90), wxWebViewBackendDefault, wxBORDER_NONE);
+	webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, Utils::UI_ADS_SIZE, wxWebViewBackendDefault, wxBORDER_NONE);
 	sizerAds->Add(webView, 0, wxALL, 10);
-	//}
 
 	sizer->Add(sizerAds, 0, (wxALIGN_CENTER_HORIZONTAL | wxALL), 10);
-	//#endif
 }
 
-void WindowFrame::addButton(void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, wxDirection direction, const wxPoint &position, const wxSize &size)
+void WindowFrame::addButton(wxWindow* parent, void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position, const wxSize &size)
 {
-	wxButton* button = new wxButton(this, id, label, position, size);
+	wxButton* button = new wxButton(parent, id, label, position, size);
 
 	button->Bind(wxEVT_BUTTON, eventHandler, id, id);
-	sizer->Add(button, 0, direction, 10);
+	sizer->Add(button, 0, flag, 10);
 }
 
 wxCheckBox* WindowFrame::addCheckBox(wxGridBagSizer* sizer, IconType id, wxGBPosition position, bool default)
@@ -59,13 +55,12 @@ wxChoice* WindowFrame::addDropDown(wxGridBagSizer* sizer, IconType id, wxGBPosit
 	return dropDown;
 }
 
-void WindowFrame::addIcon(wxBoxSizer* sizer, const Icon &icon)
+void WindowFrame::addIcon(wxWindow* parent, wxBoxSizer* sizer, const Icon &icon, int flag)
 {
 	wxImage image = wxImage(icon.File, wxBITMAP_TYPE_PNG);
 	image.Rescale(30, 30, wxIMAGE_QUALITY_BICUBIC);
 
-	//button = new wxButton(this, Utils::ICONS[i].ID, Utils::ICONS[i].Title, wxDefaultPosition, wxDefaultSize, (wxBORDER_NONE | wxBU_EXACTFIT));
-	wxButton* button = new wxButton(this, icon.ID, icon.Title, wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
+	wxButton* button = new wxButton(parent, icon.ID, icon.Title, wxDefaultPosition, wxDefaultSize, wxBU_EXACTFIT);
 
 	wxFont font = button->GetFont();
 	font.SetWeight(wxFONTWEIGHT_BOLD);
@@ -74,11 +69,10 @@ void WindowFrame::addIcon(wxBoxSizer* sizer, const Icon &icon)
 	button->SetForegroundColour(wxColour(0xFF, 0xFF, 0xFF, 0xFF));
 	button->SetBackgroundColour(wxColour(0x20, 0x20, 0x20, 0xFF));
 	button->SetBitmap(image);
-	button->SetBitmapMargins(wxSize(5, 5));
 
 	button->Bind(wxEVT_BUTTON, &InputManager::OnIcon, icon.ID, icon.ID);
 
-	sizer->Add(button, 0, wxLEFT, 10);
+	sizer->Add(button, 0, flag, 9);
 }
 
 void WindowFrame::addLine(wxBoxSizer* sizer, int flag, wxSize size)
@@ -91,7 +85,7 @@ void WindowFrame::addLine(wxBoxSizer* sizer, int flag, wxSize size)
 
 wxListBox* WindowFrame::addListBox(wxBoxSizer* sizer, IconType id)
 {
-	wxListBox* listBox = new wxListBox(this, id, wxDefaultPosition, wxSize(370, 200), 0, 0, (wxLB_SINGLE | wxLB_ALWAYS_SB));
+	wxListBox* listBox = new wxListBox(this, id, wxDefaultPosition, Utils::UI_LIST_BOX_SIZE, 0, 0, (wxLB_SINGLE | wxLB_ALWAYS_SB));
 
 	listBox->Bind(wxEVT_LISTBOX, &InputManager::OnList, id, id);
 	sizer->Add(listBox, 0, wxLEFT, 10);
@@ -119,15 +113,51 @@ void WindowFrame::AddListChildren(std::vector<Component*> children)
 
 void WindowFrame::addMenu()
 {
-	wxMenu* menuFile = new wxMenu;
+	wxMenu* menuFile        = new wxMenu;
+	wxMenu* menuEnvironment = new wxMenu;
+	wxMenu* menuGeometry    = new wxMenu;
+	wxMenu* menuLights      = new wxMenu;
+	wxMenu* menuUI          = new wxMenu;
+	wxMenu* menuHelp        = new wxMenu;
+
+	// FILE
+	menuFile->Append(ID_SCENE_LOAD,  "Load Scene");
+	menuFile->Append(ID_SCENE_SAVE,  "Save Scene");
+	menuFile->Append(ID_SCENE_CLEAR, "Clear Scene");
+	menuFile->AppendSeparator();
 	menuFile->Append(wxID_EXIT);
 
-	wxMenu* menuHelp = new wxMenu;
+	// ENVIRONMENT
+	for (auto icon : Utils::ICONS_ENVIRONMENT)
+		menuEnvironment->Append(icon.ID, icon.Title);
+
+	// GEOMETRY
+	menuGeometry->Append(ID_ICON_BROWSE, "Browse");
+	menuGeometry->AppendSeparator();
+
+	for (auto icon : Utils::ICONS_GEOMETRY)
+		menuGeometry->Append(icon.ID, icon.Title);
+
+	// LIGHTS
+	for (auto icon : Utils::ICONS_LIGHTS)
+		menuLights->Append(icon.ID, icon.Title);
+
+	// UI
+	for (auto icon : Utils::ICONS_UI)
+		menuUI->Append(icon.ID, icon.Title);
+
+	// HELP
 	menuHelp->Append(wxID_ABOUT);
 
+	// MENU
 	wxMenuBar* menuBar = new wxMenuBar;
-	menuBar->Append(menuFile, "&File");
-	menuBar->Append(menuHelp, "&Help");
+
+	menuBar->Append(menuFile,        "&File");
+	menuBar->Append(menuEnvironment, "&Environment");
+	menuBar->Append(menuGeometry,    "&Geometry");
+	menuBar->Append(menuLights,      "&Lights");
+	menuBar->Append(menuUI,          "&UI");
+	menuBar->Append(menuHelp,        "&Help");
 
 	this->SetMenuBar(menuBar);
 }
@@ -161,6 +191,27 @@ void WindowFrame::addPropertyXYZ(const wxString &category, const wxString &id, f
 	this->addPropertyRange("Z", wxString(id + "_Z"), z, min, max, step);
 }
 
+void WindowFrame::addTab(IconType id, const wxString &label, wxNotebook* tabs, const std::vector<Icon> &icons)
+{
+	wxNotebookPage* tab   = new wxNotebookPage(tabs, id);
+	wxBoxSizer*     sizer = new wxBoxSizer(wxHORIZONTAL);
+
+	if (id == ID_TABS_GEOMETRY)
+	{
+		this->addButton(
+			tab, InputManager::OnIcon, sizer, ID_ICON_BROWSE, "BROWSE",
+			(wxLEFT | wxTOP), wxDefaultPosition, wxSize(-1, 36)
+		);
+	}
+
+	for (auto icon : icons)
+		this->addIcon(tab, sizer, icon, (wxLEFT | wxTOP));
+
+	tab->SetBackgroundColour(this->GetBackgroundColour());
+	tab->SetSizer(sizer);
+	tabs->AddPage(tab, label);
+}
+
 wxStaticText* WindowFrame::addTextLabel(wxString text)
 {
 	wxStaticText* label = new wxStaticText(this, wxID_ANY, text);
@@ -186,12 +237,6 @@ void WindowFrame::ClearScene()
 {
 	this->listBoxComponents->Clear();
 	this->listBoxChildren->Clear();
-
-	// Add camera back to the scene
-	if (RenderEngine::Camera != NULL) {
-		RenderEngine::Camera->UpdateProjection();
-		SceneManager::AddComponent(RenderEngine::Camera);
-	}
 }
 
 void WindowFrame::DeactivateProperties()
@@ -220,18 +265,16 @@ int WindowFrame::init()
 	// ADS
 	this->addAds(sizer);
 
-	// TOP - ICONS
-	wxBoxSizer* sizerIcons = new wxBoxSizer(wxHORIZONTAL);
+	// TABS
+	wxNotebook* tabs = new wxNotebook(this, ID_TABS, wxDefaultPosition, Utils::UI_TABS_SIZE, wxNB_TOP);
 
-	this->addButton(InputManager::OnIcon, sizerIcons, ID_ICON_BROWSE, "BROWSE", wxLEFT, wxDefaultPosition, wxSize(-1, 45));
+	this->addTab(ID_TABS_GEOMETRY, "Geometry",    tabs, Utils::ICONS_GEOMETRY);
+	this->addTab(ID_TABS_LIGHTS,   "Environment", tabs, Utils::ICONS_ENVIRONMENT);
+	this->addTab(ID_TABS_LIGHTS,   "Lights",      tabs, Utils::ICONS_LIGHTS);
+	this->addTab(ID_TABS_LIGHTS,   "UI",          tabs, Utils::ICONS_UI);
 
-	for (int i = 0; i < (int)Utils::ICONS.size(); i++)
-		this->addIcon(sizerIcons, Utils::ICONS[i]);
-
-	sizer->Add(sizerIcons);
-
-	// LINE SEPARATOR
-	this->addLine(sizer, (wxEXPAND | wxLEFT | wxRIGHT | wxTOP));
+	tabs->Layout();
+	sizer->Add(tabs, 0, wxLEFT, 10);
 
 	// TOP - DROPDOWNS
 	wxGridBagSizer* sizerDropDowns = new wxGridBagSizer();
@@ -262,9 +305,6 @@ int WindowFrame::init()
 
 	sizer->Add(sizerDropDowns, 0, wxBOTTOM, 10);
 
-	// LINE SEPARATOR
-	this->addLine(sizer, (wxEXPAND | wxLEFT | wxRIGHT | wxTOP));
-
 	// MIDDLE
 	this->sizerMiddle = new wxBoxSizer(wxHORIZONTAL);
 
@@ -276,14 +316,11 @@ int WindowFrame::init()
 
 	this->addTextLabel(sizerSceneMenu, "Scene", (wxALIGN_CENTER_VERTICAL | wxLEFT), 10);
 
-	this->addButton(InputManager::OnList, sizerSceneMenu, ID_SCENE_SAVE,  "SAVE",  wxLEFT);
-	this->addButton(InputManager::OnList, sizerSceneMenu, ID_SCENE_LOAD,  "LOAD",  wxLEFT);
-	this->addButton(InputManager::OnList, sizerSceneMenu, ID_SCENE_CLEAR, "CLEAR", wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_SAVE,  "SAVE",  wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_LOAD,  "LOAD",  wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_CLEAR, "CLEAR", wxLEFT);
 
-	sizerMiddleRight->Add(sizerSceneMenu);
-
-	// LINE SEPARATOR
-	this->addLine(sizerMiddleRight, (wxLEFT | wxTOP | wxBOTTOM), wxSize(750, 1));
+	sizerMiddleRight->Add(sizerSceneMenu, 0, wxBOTTOM, 10);
 
 	wxBoxSizer* sizerSceneComponents = new wxBoxSizer(wxHORIZONTAL);
 
@@ -306,7 +343,7 @@ int WindowFrame::init()
 	return 0;
 }
 
-void WindowFrame::InitProperties()
+int WindowFrame::InitProperties()
 {
 	this->sizerSceneProperties->Clear(true);
 
@@ -315,15 +352,15 @@ void WindowFrame::InitProperties()
 
 	// REMOVE COMPONENT
 	if ((SceneManager::SelectedComponent != nullptr) && (selectedType != COMPONENT_CAMERA))
-		this->addButton(InputManager::OnList, sizerButtons, ID_REMOVE_COMPONENT, wxString("REMOVE " + SceneManager::SelectedComponent->Name), wxBOTTOM);
+		this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_COMPONENT, wxString("REMOVE " + SceneManager::SelectedComponent->Name), wxBOTTOM);
 
 	// REMOVE CHILD
 	if ((SceneManager::SelectedChild != nullptr) && (selectedType != COMPONENT_CAMERA))
-		this->addButton(InputManager::OnList, sizerButtons, ID_REMOVE_CHILD, wxString("REMOVE " + SceneManager::SelectedChild->Name), wxLEFT);
+		this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_CHILD, wxString("REMOVE " + SceneManager::SelectedChild->Name), wxLEFT);
 
 	this->sizerSceneProperties->Add(sizerButtons);
 
-	this->propertyGrid = new wxPropertyGrid(this, ID_SCENE_DETAILS, wxDefaultPosition, wxSize(750, 280), wxPG_SPLITTER_AUTO_CENTER);
+	this->propertyGrid = new wxPropertyGrid(this, ID_SCENE_DETAILS, wxDefaultPosition, Utils::UI_PROPS_SIZE, wxPG_SPLITTER_AUTO_CENTER);
 	this->propertyGrid->SetEmptySpaceColour(wxColour(0x40, 0x40, 0x40, 0xFF));
 	this->sizerSceneProperties->Add(this->propertyGrid, 1, (wxEXPAND | wxRIGHT | wxBOTTOM), 10);
 	this->propertyGrid->Bind(wxEVT_PG_CHANGED, &InputManager::OnPropertyChanged, ID_SCENE_DETAILS, ID_SCENE_DETAILS);
@@ -341,34 +378,42 @@ void WindowFrame::InitProperties()
 		if (selected->Type() == COMPONENT_CAMERA)
 			this->propertyGrid->SetPropertyReadOnly(Utils::PROPERTY_IDS[PROPERTY_ID_NAME]);
 
-		// LOCATION
-		if (selected->Type() != COMPONENT_SKYBOX) {
+		// LIGHT SOURCE
+		if (selected->Type() == COMPONENT_LIGHTSOURCE)
+			return this->initPropertiesLightSources(selected);
+
+		if (selected->Type() != COMPONENT_SKYBOX)
+		{
+			// LOCATION / POSITION
 			glm::vec3 position = selected->Position();
 			this->addPropertyXYZ("Location", Utils::PROPERTY_IDS[PROPERTY_ID_LOCATION], position[0], position[1], position[2], -100.0f, 100.0f, 0.01f);
-		}
 
-		// ROTATION
-		if (selected->Type() != COMPONENT_SKYBOX) {
+			// ROTATION
 			glm::vec3 rotation = selected->Rotation();
 			this->addPropertyXYZ("Rotation (rad)", Utils::PROPERTY_IDS[PROPERTY_ID_ROTATION], rotation[0], rotation[1], rotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 		}
 
-		// SCALE
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
-			glm::vec3 scale = selected->Scale();
-			this->addPropertyXYZ("Scale", Utils::PROPERTY_IDS[PROPERTY_ID_SCALE], scale[0], scale[1], scale[2], -100.0f, 100.0f, 0.01f);
+		// CAMERA
+		if (selected->Type() == COMPONENT_CAMERA)
+		{
+			this->propertyGrid->ExpandAll();
+			this->sizerSceneProperties->Layout();
+
+			return 0;
 		}
 
-		// AUTO-ROTATE
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
+		if (selected->Type() != COMPONENT_SKYBOX)
+		{
+			// SCALE
+			glm::vec3 scale = selected->Scale();
+			this->addPropertyXYZ("Scale", Utils::PROPERTY_IDS[PROPERTY_ID_SCALE], scale[0], scale[1], scale[2], -100.0f, 100.0f, 0.01f);
+
+			// AUTO-ROTATE
 			glm::vec3 autoRotation = selected->AutoRotation;
 			this->addPropertyXYZ("Auto-Rotate (rad)", Utils::PROPERTY_IDS[PROPERTY_ID_AUTO_ROTATION], autoRotation[0], autoRotation[1], autoRotation[2], -glm::pi<float>(), glm::pi<float>(), 0.01f);
 			this->addPropertyCheckbox("Enable", Utils::PROPERTY_IDS[PROPERTY_ID_ENABLE_AUTO_ROTATION], selected->AutoRotate);
-		}
-
-		// MATERIAL
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
-		{
+			
+			// MATERIAL
 			this->propertyGrid->Append(new wxPropertyCategory("Material"));
 
 			this->propertyGrid->Append(new wxColourProperty((selected->Type() == COMPONENT_HUD ? "Background" : "Color"), Utils::PROPERTY_IDS[PROPERTY_ID_COLOR], Utils::ToWxColour(selected->ComponentMaterial.diffuse)));
@@ -390,75 +435,22 @@ void WindowFrame::InitProperties()
 			this->addPropertyEnum("Font",      Utils::PROPERTY_IDS[PROPERTY_ID_TEXT_FONT],      Utils::FONTS,      dynamic_cast<HUD*>(selected->Parent)->TextFont);
 			this->addPropertyRange("Size",     Utils::PROPERTY_IDS[PROPERTY_ID_TEXT_SIZE],      dynamic_cast<HUD*>(selected->Parent)->TextSize, 10.0f, 100.0f, 1.0f);
 			this->propertyGrid->Append(new wxColourProperty("Color", Utils::PROPERTY_IDS[PROPERTY_ID_TEXT_COLOR],  dynamic_cast<HUD*>(selected->Parent)->TextColor));
-			
-			// TEXTURE
-			this->propertyGrid->Append(new wxPropertyCategory("Texture"));
-
-			this->propertyGrid->Append(new wxImageFileProperty("Texture", Utils::PROPERTY_IDS[PROPERTY_ID_HUD_TEXTURE], selected->Textures[0]->ImageFile()));
-			this->propertyGrid->SetPropertyAttribute(Utils::PROPERTY_IDS[PROPERTY_ID_HUD_TEXTURE], wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
-
-			this->addPropertyCheckbox(" Remove Texture", Utils::PROPERTY_IDS[PROPERTY_ID_HUD_REMOVE_TEXTURE], false);
 		}
-		else if (selected->Type() != COMPONENT_CAMERA)
+
+		// TEXTURES
+		this->initPropertiesTextures(selected);
+
+		// SKYBOX
+		if ((selected->Type() == COMPONENT_HUD) || (selected->Type() == COMPONENT_SKYBOX))
 		{
-			// TEXTURE
-			wxString label, imageFile;
-			wxString defaultLabels[] = { "Texture (diffuse)", "Texture (specular)", "", "", "", "" };
-			wxString skyboxLabels[]  = { "Right", "Left", "Top", "Bottom", "Back", "Front" };
-			wxString terrainLabels[] = { "Background", "Red",  "Green", "Blue", "Blend Map", "" };
-			wxString waterLabels[]   = { "", "", "DU/DV Map", "Normal Map", "", "" };
+			this->propertyGrid->ExpandAll();
+			this->sizerSceneProperties->Layout();
 
-			this->propertyGrid->Append(new wxPropertyCategory("Texture"));
-
-			for (int i = 0; i < MAX_TEXTURES; i++)
-			{
-				if (selected->Type() == COMPONENT_SKYBOX)
-				{
-					label     = skyboxLabels[i];
-					imageFile = selected->Textures[0]->ImageFile(i);
-				}
-				else if (selected->Type() == COMPONENT_TERRAIN)
-				{
-					if (selected->Textures[i]->ImageFile(0).empty())
-						continue;
-
-					label     = terrainLabels[i];
-					imageFile = selected->Textures[i]->ImageFile(0);
-				}
-				else if (selected->Type() == COMPONENT_WATER)
-				{
-					if (selected->Textures[i]->ImageFile(0).empty())
-						continue;
-
-					label     = waterLabels[i];
-					imageFile = selected->Textures[i]->ImageFile(0);
-				}
-				else
-				{
-					if (i > 1)
-						continue;
-
-					label     = defaultLabels[i];
-					imageFile = selected->Textures[i]->ImageFile(0);
-				}
-
-				this->propertyGrid->Append(new wxImageFileProperty(label, wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_] + std::to_string(i)), imageFile));
-				this->propertyGrid->SetPropertyAttribute(wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_] + std::to_string(i)), wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
-
-				this->addPropertyCheckbox(" Remove Texture", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_REMOVE_TEXTURE_] + std::to_string(i)), false);
-
-				if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
-					this->addPropertyCheckbox(" Flip Y", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_FLIP_TEXTURE_]   + std::to_string(i)), selected->Textures[i]->FlipY());
-					this->addPropertyCheckbox(" Repeat", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_REPEAT_TEXTURE_] + std::to_string(i)), selected->Textures[i]->Repeat());
-				}
-
-				this->addPropertyRange(" Tiling U", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TILING_U_] + std::to_string(i)), selected->Textures[i]->Scale[0], 1.0f, 100.0f, 0.01f);
-				this->addPropertyRange(" Tiling V", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TILING_V_] + std::to_string(i)), selected->Textures[i]->Scale[1], 1.0f, 100.0f, 0.01f);
-			}
+			return 0;
 		}
 
 		// PHYSICS
-		if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
+		if ((selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
 		{
 			BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
 			BoundingVolumeType volumeType = (volume != nullptr ? volume->VolumeType() : BOUNDING_VOLUME_NONE);
@@ -492,13 +484,142 @@ void WindowFrame::InitProperties()
 		}
 
 		this->propertyGrid->ExpandAll();
-
-		//if (selected->Type() != COMPONENT_SKYBOX) {
-		//	this->propertyGrid->Expand("Location");
-		//}
 	}
 
 	this->sizerSceneProperties->Layout();
+
+	return 0;
+}
+
+int WindowFrame::initPropertiesLightSources(Component* selected)
+{
+	Attenuation  attenuation;
+	glm::vec3    direction;
+	LightSource* lightSource = dynamic_cast<LightSource*>(selected->Parent);
+
+	// TOGGLE ACTIVE STATE
+	this->addPropertyCheckbox("Active", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ACTIVE], lightSource->Active());
+
+	// LOCATION / POSITION
+	glm::vec3 position = selected->Position();
+	this->addPropertyXYZ("Location", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_LOCATION], position[0], position[1], position[2], -100.0f, 100.0f, 0.01f);
+
+	switch (lightSource->SourceType()) {
+	case ID_ICON_LIGHT_DIRECTIONAL:
+		direction = lightSource->Direction();
+		this->addPropertyXYZ("Direction", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIRECTION], direction[0], direction[1], direction[2], -1.0f, 1.0f);
+
+		break;
+	case ID_ICON_LIGHT_POINT:
+		attenuation = lightSource->GetAttenuation();
+		this->propertyGrid->Append(new wxPropertyCategory("Attenuation"));
+
+		this->addPropertyRange("Attenuation Linear",    Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_LINEAR], attenuation.linear);
+		this->addPropertyRange("Attenuation Quadratic", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_QUAD],   attenuation.quadratic, 0.0f, 2.0f);
+
+		break;
+	case ID_ICON_LIGHT_SPOT:
+		direction = lightSource->Direction();
+		this->addPropertyXYZ("Direction", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIRECTION], direction[0], direction[1], direction[2], -1.0f, 1.0f);
+
+		attenuation = lightSource->GetAttenuation();
+		this->propertyGrid->Append(new wxPropertyCategory("Attenuation"));
+
+		this->addPropertyRange("Attenuation Linear",    Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_LINEAR], attenuation.linear);
+		this->addPropertyRange("Attenuation Quadratic", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_QUAD],   attenuation.quadratic, 0.0f, 2.0f);
+
+		this->propertyGrid->Append(new wxPropertyCategory("Cone"));
+
+		this->addPropertyRange("Inner Angle (rad)", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_INNER], lightSource->GetConeInnerAngle(), -glm::pi<float>(), glm::pi<float>(), 0.01f);
+		this->addPropertyRange("Outer Angle (rad)", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_OUTER], lightSource->GetConeOuterAngle(), -glm::pi<float>(), glm::pi<float>(), 0.01f);
+
+		break;
+	default:
+		throw;
+	}
+
+	// MATERIAL
+	Material material = lightSource->GetMaterial();
+	this->propertyGrid->Append(new wxPropertyCategory("Material"));
+
+	this->propertyGrid->Append(new wxColourProperty("Ambient",            Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_AMBIENT],        Utils::ToWxColour(material.ambient)));
+	this->propertyGrid->Append(new wxColourProperty("Color",              Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIFFUSE],        Utils::ToWxColour(material.diffuse)));
+	this->propertyGrid->Append(new wxColourProperty("Specular Intensity", Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_INTENSITY], Utils::ToWxColour(material.specular.intensity)));
+	this->addPropertyRange("Specular Shininess",                          Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_SHININESS], material.specular.shininess, 0.0f, 1024.0f, 1.0f);
+
+	this->propertyGrid->ExpandAll();
+	this->sizerSceneProperties->Layout();
+
+	return 0;
+}
+
+void WindowFrame::initPropertiesTextures(Component* selected)
+{
+	if (selected->Type() == COMPONENT_HUD)
+	{
+		this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+
+		this->propertyGrid->Append(new wxImageFileProperty("Texture", Utils::PROPERTY_IDS[PROPERTY_ID_HUD_TEXTURE], selected->Textures[0]->ImageFile()));
+		this->propertyGrid->SetPropertyAttribute(Utils::PROPERTY_IDS[PROPERTY_ID_HUD_TEXTURE], wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
+		this->addPropertyCheckbox(" Remove Texture", Utils::PROPERTY_IDS[PROPERTY_ID_HUD_REMOVE_TEXTURE], false);
+	}
+	else
+	{
+		wxString label, imageFile;
+		wxString defaultLabels[] = { "Texture (diffuse)", "Texture (specular)", "", "", "", "" };
+		wxString skyboxLabels[]  = { "Right", "Left", "Top", "Bottom", "Back", "Front" };
+		wxString terrainLabels[] = { "Background", "Red",  "Green", "Blue", "Blend Map", "" };
+		wxString waterLabels[]   = { "", "", "DU/DV Map", "Normal Map", "", "" };
+
+		this->propertyGrid->Append(new wxPropertyCategory("Texture"));
+
+		for (int i = 0; i < MAX_TEXTURES; i++)
+		{
+			if (selected->Type() == COMPONENT_SKYBOX)
+			{
+				label     = skyboxLabels[i];
+				imageFile = selected->Textures[0]->ImageFile(i);
+			}
+			else if (selected->Type() == COMPONENT_TERRAIN)
+			{
+				if (selected->Textures[i]->ImageFile(0).empty())
+					continue;
+
+				label     = terrainLabels[i];
+				imageFile = selected->Textures[i]->ImageFile(0);
+			}
+			else if (selected->Type() == COMPONENT_WATER)
+			{
+				if (selected->Textures[i]->ImageFile(0).empty())
+					continue;
+
+				label     = waterLabels[i];
+				imageFile = selected->Textures[i]->ImageFile(0);
+			}
+			else
+			{
+				if (i > 1)
+					continue;
+
+				label     = defaultLabels[i];
+				imageFile = selected->Textures[i]->ImageFile(0);
+			}
+
+			this->propertyGrid->Append(new wxImageFileProperty(label, wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_] + std::to_string(i)), imageFile));
+			this->propertyGrid->SetPropertyAttribute(wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_] + std::to_string(i)), wxPG_FILE_WILDCARD, Utils::IMAGE_FILE_FORMATS);
+
+			this->addPropertyCheckbox(" Remove Texture", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_REMOVE_TEXTURE_] + std::to_string(i)), false);
+
+			if ((selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER)) {
+				this->addPropertyCheckbox(" Flip Y", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_FLIP_TEXTURE_]   + std::to_string(i)), selected->Textures[i]->FlipY());
+				this->addPropertyCheckbox(" Repeat", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_REPEAT_TEXTURE_] + std::to_string(i)), selected->Textures[i]->Repeat());
+			}
+
+			this->addPropertyRange(" Tiling U", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TILING_U_] + std::to_string(i)), selected->Textures[i]->Scale[0], 1.0f, 100.0f, 0.01f);
+			this->addPropertyRange(" Tiling V", wxString(Utils::PROPERTY_IDS[PROPERTY_ID_TILING_V_] + std::to_string(i)), selected->Textures[i]->Scale[1], 1.0f, 100.0f, 0.01f);
+		}
+	}
 }
 
 bool WindowFrame::IsPropertiesActive()
@@ -530,7 +651,7 @@ void WindowFrame::OnExit(wxCommandEvent &event)
 
 void WindowFrame::RemoveComponent(int index)
 {
-	if ((index > 0) && (index < (int)this->listBoxComponents->GetCount())) {
+	if ((index >= 0) && (index < (int)this->listBoxComponents->GetCount())) {
 		this->listBoxComponents->Delete(index);
 		this->listBoxComponents->Select(index - 1);
 	}
@@ -618,18 +739,20 @@ int WindowFrame::UpdateComponents(wxPGProperty* property)
 
 	if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_BOUNDING_VOLUME])
 		dynamic_cast<Mesh*>(selected)->SetBoundingVolume(static_cast<BoundingVolumeType>(property->GetChoiceSelection()));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_ENABLE_AUTO_ROTATION])
+		selected->AutoRotate = property->GetValue().GetBool();
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_NAME])
+		selected->Name = (!property->GetValueAsString().Trim().empty() ? property->GetValueAsString() : selected->Name);
+	// MATERIAL
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_COLOR])
 		selected->ComponentMaterial.diffuse = Utils::ToVec4Color(Utils::ToWxColour(property->GetValue()));
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_SPEC_INTENSITY])
 		selected->ComponentMaterial.specular.intensity = Utils::ToVec3Color(Utils::ToWxColour(property->GetValue()));
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_SPEC_SHININESS])
 		selected->ComponentMaterial.specular.shininess = property->GetValue().GetDouble();
-	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_ENABLE_AUTO_ROTATION])
-		selected->AutoRotate = property->GetValue().GetBool();
-	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_NAME])
-		selected->Name = (!property->GetValueAsString().Trim().empty() ? property->GetValueAsString() : selected->Name);
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_OPACITY])
 		selected->ComponentMaterial.diffuse.a = (property->GetValue().GetDouble() / 255.0f);
+	// HUD
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_TRANSPARENCY])
 		dynamic_cast<HUD*>(selected->Parent)->Transparent = property->GetValue().GetBool();
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_TEXT])
@@ -646,16 +769,42 @@ int WindowFrame::UpdateComponents(wxPGProperty* property)
 		dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), 0);
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_HUD_REMOVE_TEXTURE])
 		dynamic_cast<Mesh*>(selected)->RemoveTexture(0);
+	// TERRAIN
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_TERRAIN_SIZE])
 		dynamic_cast<Terrain*>(selected->Parent)->Resize(property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_TERRAIN_OCTAVES])
 		dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), property->GetValue().GetInteger(), dynamic_cast<Terrain*>(selected->Parent)->Redistribution());
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_TERRAIN_REDISTRIBUTION])
 		dynamic_cast<Terrain*>(selected->Parent)->Resize(dynamic_cast<Terrain*>(selected->Parent)->Size(), dynamic_cast<Terrain*>(selected->Parent)->Octaves(), property->GetValue().GetDouble());
+	// WATER
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_WATER_SPEED])
 		dynamic_cast<Water*>(selected->Parent)->FBO()->Speed = property->GetValue().GetDouble();
 	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_WATER_WAVE_STRENGTH])
 		dynamic_cast<Water*>(selected->Parent)->FBO()->WaveStrength = property->GetValue().GetDouble();
+	// LIGHT SOURCES
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ACTIVE])
+		dynamic_cast<LightSource*>(selected->Parent)->SetActive(property->GetValue().GetBool());
+	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_LOCATION_])
+		dynamic_cast<LightSource*>(selected->Parent)->MoveTo(this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->Position()));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_AMBIENT])
+		dynamic_cast<LightSource*>(selected->Parent)->SetAmbient(Utils::ToVec4Color(Utils::ToWxColour(property->GetValue())));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIFFUSE])
+		dynamic_cast<LightSource*>(selected->Parent)->SetColor(Utils::ToVec4Color(Utils::ToWxColour(property->GetValue())));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_INTENSITY])
+		dynamic_cast<LightSource*>(selected->Parent)->SetSpecularIntensity(Utils::ToVec4Color(Utils::ToWxColour(property->GetValue())));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_SHININESS])
+		dynamic_cast<LightSource*>(selected->Parent)->SetSpecularShininess(property->GetValue().GetDouble());
+	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIRECTION_])
+		dynamic_cast<LightSource*>(selected->Parent)->SetDirection(this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), dynamic_cast<LightSource*>(selected->Parent)->Direction()));
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_LINEAR])
+		dynamic_cast<LightSource*>(selected->Parent)->SetAttenuationLinear(property->GetValue().GetDouble());
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_QUAD])
+		dynamic_cast<LightSource*>(selected->Parent)->SetAttenuationQuadratic(property->GetValue().GetDouble());
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_INNER])
+		dynamic_cast<LightSource*>(selected->Parent)->SetConeInnerAngle(property->GetValue().GetDouble());
+	else if (propertyName == Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_OUTER])
+		dynamic_cast<LightSource*>(selected->Parent)->SetConeOuterAngle(property->GetValue().GetDouble());
+	// VEC3 PROPERTIES
 	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_AUTO_ROTATION_])
 		selected->AutoRotation = this->updatePropertyXYZ(propertyName, property->GetValue().GetDouble(), selected->AutoRotation);
 	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_FLIP_TEXTURE_])
@@ -677,6 +826,7 @@ int WindowFrame::UpdateComponents(wxPGProperty* property)
 	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_])
 		dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), std::atoi(propertyNameLast.c_str().AsChar()));
 
+	// HUD
 	if (selected->Type() == COMPONENT_HUD)
 		dynamic_cast<HUD*>(selected->Parent)->Update();
 
@@ -691,6 +841,10 @@ int WindowFrame::UpdateProperties()
 		return -1;
 
 	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_NAME], static_cast<wxString>(selected->Name));
+
+	// LIGHT SOURCES
+	if (selected->Type() == COMPONENT_LIGHTSOURCE)
+		return this->updatePropertiesLightSources(selected);
 
 	// UPDATE LIST OF COMPONENTS/CHILDREN
 	if (selected->Type() == COMPONENT_CAMERA)
@@ -708,12 +862,15 @@ int WindowFrame::UpdateProperties()
 		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_ROTATION], rotation[0], rotation[1], rotation[2]);
 	}
 
-	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
+	if (selected->Type() == COMPONENT_CAMERA)
+		return 2;
+
+	if (selected->Type() != COMPONENT_SKYBOX) {
 		glm::vec3 scale = selected->Scale();
 		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_SCALE], scale[0], scale[1], scale[2]);
 	}
 
-	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX))
+	if (selected->Type() != COMPONENT_SKYBOX)
 	{
 		glm::vec3 autoRotation = selected->AutoRotation;
 
@@ -721,7 +878,7 @@ int WindowFrame::UpdateProperties()
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_ENABLE_AUTO_ROTATION], selected->AutoRotate);
 	}
 
-	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_SKYBOX)) {
+	if (selected->Type() != COMPONENT_SKYBOX) {
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_COLOR],          Utils::ToWxColour(selected->ComponentMaterial.diffuse));
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_SPEC_INTENSITY], Utils::ToWxColour(selected->ComponentMaterial.specular.intensity));
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_SPEC_SHININESS], selected->ComponentMaterial.specular.shininess);
@@ -739,7 +896,7 @@ int WindowFrame::UpdateProperties()
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_HUD_TEXTURE],        selected->Textures[0]->ImageFile());
 		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_HUD_REMOVE_TEXTURE], false);
 	}
-	else if (selected->Type() != COMPONENT_CAMERA)
+	else
 	{
 		for (int i = 0; i < MAX_TEXTURES; i++)
 		{
@@ -767,7 +924,10 @@ int WindowFrame::UpdateProperties()
 		}
 	}
 
-	if ((selected->Type() != COMPONENT_CAMERA) && (selected->Type() != COMPONENT_HUD) && (selected->Type() != COMPONENT_SKYBOX) && (selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
+	if ((selected->Type() == COMPONENT_HUD) || (selected->Type() == COMPONENT_SKYBOX))
+		return 3;
+
+	if ((selected->Type() != COMPONENT_TERRAIN) && (selected->Type() != COMPONENT_WATER))
 	{
 		BoundingVolume*    volume     = dynamic_cast<Mesh*>(selected)->GetBoundingVolume();
 		BoundingVolumeType volumeType = (volume != nullptr ? volume->VolumeType() : BOUNDING_VOLUME_NONE);
@@ -790,6 +950,60 @@ int WindowFrame::UpdateProperties()
 			this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_WATER_SPEED],         fbo->Speed);
 			this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_WATER_WAVE_STRENGTH], fbo->WaveStrength);
 		}
+	}
+
+	return 0;
+}
+
+int WindowFrame::updatePropertiesLightSources(Component* selected)
+{
+	Attenuation  attenuation;
+	glm::vec3    direction;
+	LightSource* lightSource = dynamic_cast<LightSource*>(selected->Parent);
+
+	// TOGGLE ACTIVE STATE
+	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ACTIVE], lightSource->Active());
+
+	// LOCATION / POSITION
+	glm::vec3 position = selected->Position();
+	this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_LOCATION], position[0], position[1], position[2]);
+
+	// MATERIAL
+	Material material = lightSource->GetMaterial();
+
+	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_AMBIENT],        Utils::ToWxColour(material.ambient));
+	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIFFUSE],        Utils::ToWxColour(material.diffuse));
+	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_INTENSITY], Utils::ToWxColour(material.specular.intensity));
+	this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_SPEC_SHININESS], material.specular.shininess);
+
+	switch (lightSource->SourceType()) {
+	case ID_ICON_LIGHT_DIRECTIONAL:
+		direction = lightSource->Direction();
+		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIRECTION], direction[0], direction[1], direction[2]);
+
+		break;
+	case ID_ICON_LIGHT_POINT:
+		attenuation = lightSource->GetAttenuation();
+
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_LINEAR], attenuation.linear);
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_QUAD],   attenuation.quadratic);
+
+		break;
+	case ID_ICON_LIGHT_SPOT:
+		direction = lightSource->Direction();
+		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_DIRECTION], direction[0], direction[1], direction[2]);
+		
+		attenuation = lightSource->GetAttenuation();
+
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_LINEAR], attenuation.linear);
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ATT_QUAD],   attenuation.quadratic);
+
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_INNER], lightSource->GetConeInnerAngle());
+		this->propertyGrid->SetPropertyValue(Utils::PROPERTY_IDS[PROPERTY_ID_LIGHT_ANGLE_OUTER], lightSource->GetConeOuterAngle());
+
+		break;
+	default:
+		throw;
 	}
 
 	return 0;

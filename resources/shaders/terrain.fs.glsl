@@ -1,13 +1,26 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-//#ifdef GL_FRAGMENT_PRECISION_HIGH
-//	precision highp float;
-//#else
-//	precision mediump float;
-//#endif
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+	precision highp float;
+#else
+	precision mediump float;
+#endif
 
-const int MAX_TEXTURES = 6;
+const int MAX_LIGHT_SOURCES = 16;
+const int MAX_TEXTURES      = 6;
+
+struct CBLight
+{
+    vec4 Active;
+    vec4 Ambient;
+    vec4 Angles;
+    vec4 Attenuation;
+    vec4 Diffuse;
+    vec4 Direction;
+    vec4 Position;
+    vec4 Specular;
+};
 
 layout(location = 0) in vec3 FragmentNormal;
 layout(location = 1) in vec4 FragmentPosition;
@@ -17,30 +30,19 @@ layout(location = 0) out vec4 GL_FragColor;
 
 layout(binding = 1) uniform TerrainBuffer
 {
+    CBLight LightSources[MAX_LIGHT_SOURCES];
+
     vec4 IsTextured[MAX_TEXTURES];
     vec4 TextureScales[MAX_TEXTURES];
 
-    vec3  MeshSpecularIntensity;
-	float MeshSpecularShininess;
+	vec4 CameraPosition;
 
-    vec4  MeshDiffuse;
+    vec4 MeshSpecular;
+    vec4 MeshDiffuse;
 
-    vec3  SunLightSpecularIntensity;
-	float SunLightSpecularShininess;
-
-    vec3  SunLightAmbient;
-	float SunLightPadding1;
-    vec4  SunLightDiffuse;
-
-    vec3  SunLightPosition;
-	float SunLightPadding2;
-    vec3  SunLightDirection;
-	float SunLightPadding3;
-
-    vec3  ClipMax;
-	float EnableClipping;
-    vec3  ClipMin;
-    float ClipPadding1;
+    vec4 ClipMax;
+    vec4 ClipMin;
+	vec4 EnableClipping;
 } tb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
@@ -66,9 +68,17 @@ void main()
 	vec4  totalColor              = (backgroundTextureColor + rTextureColor + gTextureColor + bTextureColor);
 
 	// LIGHT COLOR (PHONG REFLECTION)
-	//vec3 lightColor = max((tb.Ambient + (tb.SunLight.Color.rgb * dot(normalize(FragmentNormal), normalize(-tb.SunLight.Direction)))), 0.0);
-	vec3 lightColor = (tb.SunLightAmbient + (tb.SunLightDiffuse.rgb * dot(normalize(FragmentNormal), normalize(-tb.SunLightDirection))));
-	GL_FragColor    = vec4((totalColor.rgb * lightColor), totalColor.a);
+	GL_FragColor = vec4(0);
+
+	for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+	{
+        if ((tb.LightSources[i].Active.x < 0.1) || (tb.LightSources[i].Angles.x > 0.1) || (tb.LightSources[i].Attenuation.r > 0.1))
+			continue;
+
+		vec3 lightColor = (tb.LightSources[i].Ambient.rgb + (tb.LightSources[i].Diffuse.rgb * dot(normalize(FragmentNormal), normalize(-tb.LightSources[i].Direction.xyz))));
+
+		GL_FragColor += vec4((totalColor.rgb * lightColor), totalColor.a);
+	}
 
 	/*
 	// DEEP WATER

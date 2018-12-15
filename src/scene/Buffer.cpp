@@ -1,11 +1,25 @@
 #include "Buffer.h"
 
+CBLight::CBLight(const Light &light)
+{
+	this->Active      = Utils::ToVec4Float(light.active);
+	this->Ambient     = glm::vec4(light.material.ambient, 0.0f);
+	this->Attenuation = glm::vec4(light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f);
+	this->Diffuse     = light.material.diffuse;
+	this->Direction   = glm::vec4(light.direction, 0.0f);
+	this->Specular    = glm::vec4(light.material.specular.intensity, light.material.specular.shininess);
+	this->Position    = glm::vec4(light.position,  0.0f);
+
+	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
+		this->Angles = glm::vec4(glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f);
+}
+
 CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
 {
 	this->Model      = mesh->Matrix();
-	this->MVP        = RenderEngine::Camera->MVP(mesh->Matrix(), removeTranslation);
-	this->Projection = RenderEngine::Camera->Projection();
-	this->View       = RenderEngine::Camera->View(removeTranslation);
+	this->MVP        = RenderEngine::CameraMain->MVP(mesh->Matrix(), removeTranslation);
+	this->Projection = RenderEngine::CameraMain->Projection();
+	this->View       = RenderEngine::CameraMain->View(removeTranslation);
 }
 
 CBColor::CBColor(const glm::vec4 &color)
@@ -15,29 +29,25 @@ CBColor::CBColor(const glm::vec4 &color)
 
 CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 {
-	this->CameraPosition = RenderEngine::Camera->Position();
+	this->CameraPosition = glm::vec4(RenderEngine::CameraMain->Position(), 0.0f);
 
-	this->MeshSpecularIntensity = mesh->ComponentMaterial.specular.intensity;
-	this->MeshSpecularShininess = mesh->ComponentMaterial.specular.shininess;
-	//this->MeshAmbient           = mesh->ComponentMaterial.ambient;
-	this->MeshDiffuse           = mesh->ComponentMaterial.diffuse;
+	this->MeshSpecular = glm::vec4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = mesh->ComponentMaterial.diffuse;
 
-	this->SunLightSpecularIntensity = SceneManager::SunLight.material.specular.intensity;
-	this->SunLightSpecularShininess = SceneManager::SunLight.material.specular.shininess;
-	this->SunLightAmbient           = SceneManager::SunLight.material.ambient;
-	this->SunLightDiffuse           = SceneManager::SunLight.material.diffuse;
-	this->SunLightPosition          = SceneManager::SunLight.position;
-	this->SunLightDirection         = SceneManager::SunLight.direction;
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] != nullptr)
+			this->LightSources[i] = CBLight(SceneManager::LightSources[i]->GetLight());
+	}
 
-	this->ClipMax        = properties.ClipMax;
-	this->ClipMin        = properties.ClipMin;
-	this->EnableClipping = Utils::ToFloat(properties.EnableClipping);
+	this->ClipMax        = glm::vec4(properties.ClipMax, 0.0f);
+	this->ClipMin        = glm::vec4(properties.ClipMin, 0.0f);
+	this->EnableClipping = Utils::ToVec4Float(properties.EnableClipping);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0, 0);
+		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
 }
 
 CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
@@ -55,6 +65,32 @@ CBWater::CBWater(const CBDefault &default, float moveFactor, float waveStrength)
 }
 
 #if defined _WINDOWS
+
+CBLightDX::CBLightDX(const Light &light)
+{
+	this->Active      = Utils::ToXMFLOAT4(light.active);
+	this->Ambient     = Utils::ToXMFLOAT4(light.material.ambient, 0.0f);
+	this->Attenuation = { light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f };
+	this->Diffuse     = Utils::ToXMFLOAT4(light.material.diffuse);
+	this->Direction   = Utils::ToXMFLOAT4(light.direction, 0.0f);
+	this->Position    = Utils::ToXMFLOAT4(light.position,  0.0f);
+	this->Specular    = Utils::ToXMFLOAT4(light.material.specular.intensity, light.material.specular.shininess);
+
+	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
+		this->Angles = { glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f };
+}
+
+CBLightDX::CBLightDX(const CBLight &light)
+{
+	this->Active      = Utils::ToXMFLOAT4(light.Active);
+	this->Ambient     = Utils::ToXMFLOAT4(light.Ambient);
+	this->Angles      = Utils::ToXMFLOAT4(light.Angles);
+	this->Attenuation = Utils::ToXMFLOAT4(light.Attenuation);
+	this->Diffuse     = Utils::ToXMFLOAT4(light.Diffuse);
+	this->Direction   = Utils::ToXMFLOAT4(light.Direction);
+	this->Position    = Utils::ToXMFLOAT4(light.Position);
+	this->Specular    = Utils::ToXMFLOAT4(light.Specular);
+}
 
 CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
 {
@@ -74,52 +110,42 @@ CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::v
 {
 	this->MB = CBMatrixDX(matrices);
 
-	this->CameraPosition = Utils::ToXMFLOAT3(RenderEngine::Camera->Position());
+	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
 
-	this->MeshSpecularIntensity = Utils::ToXMFLOAT3(mesh->ComponentMaterial.specular.intensity);
-	this->MeshSpecularShininess = mesh->ComponentMaterial.specular.shininess;
-	//this->MeshAmbient           = Utils::ToXMFLOAT3(mesh->ComponentMaterial.ambient);
-	this->MeshDiffuse           = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
+	this->MeshSpecular = Utils::ToXMFLOAT4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
 
-	this->SunLightSpecularIntensity = Utils::ToXMFLOAT3(SceneManager::SunLight.material.specular.intensity);
-	this->SunLightSpecularShininess = SceneManager::SunLight.material.specular.shininess;
-	this->SunLightAmbient           = Utils::ToXMFLOAT3(SceneManager::SunLight.material.ambient);
-	this->SunLightDiffuse           = Utils::ToXMFLOAT4(SceneManager::SunLight.material.diffuse);
-	this->SunLightPosition          = Utils::ToXMFLOAT3(SceneManager::SunLight.position);
-	this->SunLightDirection         = Utils::ToXMFLOAT3(SceneManager::SunLight.direction);
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] != nullptr)
+			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]->GetLight());
+	}
 
-	this->ClipMax        = Utils::ToXMFLOAT3(clipMax);
-	this->ClipMin        = Utils::ToXMFLOAT3(clipMin);
-	this->EnableClipping = Utils::ToFloat(enableClipping);
+	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);
+	this->ClipMin        = Utils::ToXMFLOAT4(clipMin, 0.0f);
+	this->EnableClipping = Utils::ToXMFLOAT4(enableClipping);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0, 0);
+		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
 }
 
 CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 {
 	this->MB = CBMatrixDX(matrices);
 
-	this->CameraPosition = Utils::ToXMFLOAT3(RenderEngine::Camera->Position());
+	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
 
-	this->MeshSpecularIntensity = Utils::ToXMFLOAT3(default.MeshSpecularIntensity);
-	this->MeshSpecularShininess = default.MeshSpecularShininess;
-	//this->MeshAmbient           = Utils::ToXMFLOAT3(default.MeshAmbient);
-	this->MeshDiffuse           = Utils::ToXMFLOAT4(default.MeshDiffuse);
+	this->MeshSpecular = Utils::ToXMFLOAT4(default.MeshSpecular);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(default.MeshDiffuse);
 
-	this->SunLightSpecularIntensity = Utils::ToXMFLOAT3(default.SunLightSpecularIntensity);
-	this->SunLightSpecularShininess = default.SunLightSpecularShininess;
-	this->SunLightAmbient           = Utils::ToXMFLOAT3(default.SunLightAmbient);
-	this->SunLightDiffuse           = Utils::ToXMFLOAT4(default.SunLightDiffuse);
-	this->SunLightPosition          = Utils::ToXMFLOAT3(default.SunLightPosition);
-	this->SunLightDirection         = Utils::ToXMFLOAT3(default.SunLightDirection);
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
+		this->LightSources[i] = CBLightDX(default.LightSources[i]);
 
-	this->ClipMax        = Utils::ToXMFLOAT3(default.ClipMax);
-	this->ClipMin        = Utils::ToXMFLOAT3(default.ClipMin);
-	this->EnableClipping = default.EnableClipping;
+	this->ClipMax        = Utils::ToXMFLOAT4(default.ClipMax);
+	this->ClipMin        = Utils::ToXMFLOAT4(default.ClipMin);
+	this->EnableClipping = Utils::ToXMFLOAT4(default.EnableClipping);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToXMFLOAT4(default.IsTextured[i]);
@@ -177,7 +203,7 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, this);
 		break;
 	default:
-		break;
+		throw;
 	}
 }
 
@@ -215,6 +241,8 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.VK->InitPipelines(this);
 		break;
+	default:
+		throw;
 	}
 }
 

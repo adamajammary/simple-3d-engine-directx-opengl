@@ -1,4 +1,17 @@
-static const int MAX_TEXTURES = 6;
+static const int MAX_LIGHT_SOURCES = 16;
+static const int MAX_TEXTURES      = 6;
+
+struct CBLight
+{
+    float4 Active;
+    float4 Ambient;
+    float4 Angles;
+    float4 Attenuation;
+    float4 Diffuse;
+    float4 Direction;
+    float4 Position;
+    float4 Specular;
+};
 
 struct CBMatrix
 {
@@ -12,33 +25,19 @@ cbuffer DefaultBuffer : register(b0)
 {
     CBMatrix MB;
 
+    CBLight LightSources[MAX_LIGHT_SOURCES];
+
     float4 IsTextured[MAX_TEXTURES];
     float4 TextureScales[MAX_TEXTURES];
 
-    float3 CameraPosition;
-    float  CameraPadding1;
+    float4 CameraPosition;
 
-    float3 MeshSpecularIntensity;
-	float  MeshSpecularShininess;
-
+    float4 MeshSpecular;
     float4 MeshDiffuse;
 
-    float3 SunLightSpecularIntensity;
-	float  SunLightSpecularShininess;
-
-    float3 SunLightAmbient;
-	float  SunLightPadding1;
-    float4 SunLightDiffuse;
-
-    float3 SunLightPosition;
-	float  SunLightPadding2;
-    float3 SunLightDirection;
-	float  SunLightPadding3;
-
-    float3 ClipMax;
-    float  EnableClipping;
-    float3 ClipMin;
-    float  ClipPadding1;
+    float4 ClipMax;
+    float4 ClipMin;
+    float4 EnableClipping;
 };
 
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
@@ -59,6 +58,20 @@ struct FS_INPUT
 	float4 GL_Position           : SV_POSITION;
 };
 
+// Attenuation = 1 / (c + l * d + q * d^2)
+float GetAttenuationFactor(float3 lightPosition, float3 fragmentPosition, float3 attenuation)
+{
+	// Distance from fragment surface to the light source
+    float distanceToLight = length(lightPosition - fragmentPosition);
+
+	float constant     = attenuation.x;
+	float linearFactor = (attenuation.y * distanceToLight);
+	float quadratic    = (attenuation.z * distanceToLight * distanceToLight);
+	
+    return (1.0f / (constant + linearFactor + quadratic + 0.0001));
+	//return (1.0f / (constant + linearFactor + 0.0001));
+}
+
 // Diffuse (color) - the impact of the light on the the fragment surface (angle difference)
 float GetDiffuseFactor(float3 normal, float3 lightDirection)
 {
@@ -68,18 +81,28 @@ float GetDiffuseFactor(float3 normal, float3 lightDirection)
 // Specular - reflects/mirrors the light direction over the normal
 float GetSpecularFactor(float3 lightDirection, float3 normal, float3 viewDirection)
 {
-    if (MeshSpecularShininess < 1.0)
+    if (MeshSpecular.w < 1.0)
         return 0.0;
 
-	//return pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), MeshSpecularShininess);	// Phong
-	return pow(max(dot(normal, normalize(lightDirection + viewDirection)), 0.0), MeshSpecularShininess);	// Blinn-Phong
+	//return pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), MeshSpecular.w);	// Phong
+	return pow(max(dot(normal, normalize(lightDirection + viewDirection)), 0.0), MeshSpecular.w);   // Blinn-Phong
+}
+
+// Spot Light - the impact of light inside the cone
+// I = ((theta - outer) / epsilon)
+float GetSpotLightFactor(CBLight light, float3 lightDirection)
+{
+    float theta   = dot(lightDirection, normalize(-light.Direction.xyz));   // Angle between light and spot directions
+    float epsilon = (light.Angles.x - light.Angles.y);                      // Angle between inner and outer cones
+	
+    return clamp(((theta - light.Angles.y) / epsilon), 0.0, 1.0);
 }
 
 // Directional light - all light rays have the same direction, independent of the location of the light source. Ex: sun light
-float4 GetDirectionalLight(float3 normal, float3 viewDirection, float4 materialColor, float3 materialSpecIntensity)
+float4 GetDirectionalLight(CBLight light, float3 normal, float3 viewDirection, float4 materialColor, float3 materialSpecIntensity)
 {
 	// Direction of the light from the fragment surface
-    float3 lightDirection = normalize(-SunLightDirection);
+    float3 lightDirection = normalize(-light.Direction.xyz);
 	
     // Diffuse - the impact of the light on the the fragment surface (angle difference)
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
@@ -92,12 +115,65 @@ float4 GetDirectionalLight(float3 normal, float3 viewDirection, float4 materialC
 	//float shadow             = (1.0 - calculateShadow(lightDirection, normal, light.shadowMapTexture2D, positionLightSpace));
 	
     // Combine the light calculations
-    float3 ambientFinal  = (SunLightAmbient * materialColor.rgb);
-    float3 diffuseFinal  = (SunLightDiffuse.rgb * materialColor.rgb * diffuseFactor);
-    float3 specularFinal = (SunLightSpecularIntensity * materialSpecIntensity * specularFactor);
+    float3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
+    float3 diffuseFinal  = (light.Diffuse.rgb  * materialColor.rgb     * diffuseFactor);
+    float3 specularFinal = (light.Specular.rgb * materialSpecIntensity * specularFactor);
 	
     return float4((ambientFinal + diffuseFinal + specularFinal), materialColor.a);
     //return float4((ambientFinal + (shadow * (diffuseFinal + specularFinal))), materialColor.a);
+}
+
+float4 GetPointLight(CBLight light, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float3 materialSpecIntensity)
+{
+	// Direction of the light from the fragment surface
+    float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
+	
+    // Diffuse - the impact of the light on the the fragment surface (angle difference)
+	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
+	
+    // Specular - reflects/mirrors the light direction over the normal
+	float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection);
+	
+	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
+    float attenuation = GetAttenuationFactor(light.Position.xyz, fragmentPosition, light.Attenuation.xyz);
+	
+	// Shadow
+	//float shadow = (1.0 - GetShadow(light.Position, lightDirection, normal, light.ShadowMapTextureCube));
+	
+    // Combine the light calculations
+    float3 ambient  = (attenuation * light.Ambient.rgb  * materialColor.rgb);
+    float3 diffuse  = (attenuation * light.Diffuse.rgb  * diffuseFactor  * materialColor.rgb);
+    float3 specular = (attenuation * light.Specular.rgb * specularFactor * materialSpecIntensity);
+	
+    return float4((ambient + diffuse + specular), materialColor.a);
+    //return float4((ambient + (shadow * (diffuse + specular))), materialColor.a);
+	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
+}
+
+float4 GetSpotLight(CBLight light, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float3 materialSpecIntensity)
+{
+	// Direction of the light from the fragment surface
+    float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
+	
+    // Diffuse - the impact of the light on the the fragment surface (angle difference)
+	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
+	
+    // Specular - reflects/mirrors the light direction over the normal
+	float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection);
+	
+	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
+    float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragmentPosition, light.Attenuation.xyz);
+	
+	// Spotlight intensity
+    float spotLightFactor = GetSpotLightFactor(light, lightDirection);
+	
+    // Combine the light calculations
+    float3 ambient  = (spotLightFactor * attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
+    float3 diffuse  = (spotLightFactor * attenuationFactor * light.Diffuse.rgb  * diffuseFactor  * materialColor.rgb);
+    float3 specular = (spotLightFactor * attenuationFactor * light.Specular.rgb * specularFactor * materialSpecIntensity);
+	
+    return float4((ambient + diffuse + specular), materialColor.a);
+    //return (float4(ambient, 1.0) + ((1.0 - GetShadow()) * (diffuse + float4(specular, 1.0))));
 }
 
 // VERTEX SHADER
@@ -147,14 +223,29 @@ float4 PS(FS_INPUT input) : SV_Target
 
         materialSpecular = Textures[1].Sample(TextureSamplers[1], tiledCoordinates).rgb;
 	} else {
-		materialSpecular = MeshSpecularIntensity;
+		materialSpecular = MeshSpecular.xyz;
 	}
 	
-	float3 normal        = normalize(input.FragmentNormal);					    	// Normal on the fragment surface
-    float3 viewDirection = normalize(CameraPosition - input.FragmentPosition.xyz);  // The direction the camera is viewing the fragment surface
-	
-	// DIRECTIONAL LIGHT
-    float4 GL_FragColor = GetDirectionalLight(normal, viewDirection, materialColor, materialSpecular);
+	float3 normal        = normalize(input.FragmentNormal);	    				    	// Normal on the fragment surface
+    float3 viewDirection = normalize(CameraPosition.xyz - input.FragmentPosition.xyz);  // The direction the camera is viewing the fragment surface
+    float4 GL_FragColor  = float4(0, 0, 0, 0);
+
+    // LIGHT SOURCES
+    for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+    {
+        if (LightSources[i].Active.x < 0.1)
+            continue;
+
+    	// SPOT LIGHT
+        if (LightSources[i].Angles.x > 0.1)
+            GL_FragColor += GetSpotLight(LightSources[i], input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
+    	// POINT LIGHT
+        else if (LightSources[i].Attenuation.r > 0.1)
+            GL_FragColor += GetPointLight(LightSources[i], input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
+    	// DIRECTIONAL LIGHT
+        else
+            GL_FragColor += GetDirectionalLight(LightSources[i], normal, viewDirection, materialColor, materialSpecular);
+    }
 
 	// LIGHT COLOR (PHONG REFLECTION)
     //float3 lightColor = float3(SunLightAmbient + (SunLightDiffuse.rgb * dot(normalize(input.Normal), normalize(-SunLightDirection))));

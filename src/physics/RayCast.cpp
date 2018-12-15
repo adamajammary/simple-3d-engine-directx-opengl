@@ -4,7 +4,7 @@ RayCast::RayCast(int x, int y)
 {
 	this->direction        = this->calculateRay(x, y);
 	this->inverseDirection = glm::vec3((1.0f / direction[0]), (1.0f / direction[1]), (1.0f / direction[2]));
-	this->origin           = RenderEngine::Camera->Position();
+	this->origin           = RenderEngine::CameraMain->Position();
 }
 
 RayCast::RayCast()
@@ -34,14 +34,14 @@ glm::vec3 RayCast::calculateRay(int x, int y)
 	glm::vec4 clipSpace = glm::vec4(normalizedDeviceSpace[0], normalizedDeviceSpace[1], -1.0f, 1.0f);
             
 	// EYE (CAMERA) SPACE
-	glm::mat4 inverseProjectionMatrix = glm::inverse(RenderEngine::Camera->Projection());
+	glm::mat4 inverseProjectionMatrix = glm::inverse(RenderEngine::CameraMain->Projection());
 	glm::vec4 eyeSpace                = (inverseProjectionMatrix * clipSpace);
 
 	eyeSpace[2] = -1.0f;
 	eyeSpace[3] = 0.0f;
             
 	// WORLD SPACE
-	glm::mat4 inverseViewMatrix = glm::inverse(RenderEngine::Camera->View());
+	glm::mat4 inverseViewMatrix = glm::inverse(RenderEngine::CameraMain->View());
 	glm::vec4 worldSpace        = (inverseViewMatrix * eyeSpace);
 
 	// RAY

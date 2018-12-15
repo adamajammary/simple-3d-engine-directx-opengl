@@ -67,6 +67,7 @@
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/dataview.h>
 #include <wx/dcmemory.h>
 #include <wx/dcgraph.h>
 #include <wx/event.h>
@@ -78,6 +79,7 @@
 #include <wx/listbox.h>
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
+#include <wx/notebook.h>
 #include <wx/propgrid/propgrid.h>
 #include <wx/propgrid/advprops.h>
 #include <wx/sizer.h>
@@ -120,6 +122,7 @@ static const uint32_t BUFFER_SIZE           = 1024;
 static const uint32_t LZMA_OFFSET_ID        = 8;
 static const uint32_t LZMA_OFFSET_SIZE      = 8;
 static const uint32_t MAX_CONCURRENT_FRAMES = 2;
+static const uint32_t MAX_LIGHT_SOURCES     = 16;
 static const uint32_t MAX_TEXTURES          = 6;
 static const uint32_t NR_OF_FRAMEBUFFERS    = 2;
 
@@ -149,7 +152,8 @@ enum ComponentType
 	COMPONENT_MODEL,
 	COMPONENT_SKYBOX,
 	COMPONENT_TERRAIN,
-	COMPONENT_WATER
+	COMPONENT_WATER,
+	COMPONENT_LIGHTSOURCE
 };
 
 enum DrawModeType
@@ -160,10 +164,10 @@ enum DrawModeType
 enum GraphicsAPI
 {
 	GRAPHICS_API_UNKNOWN = -1,
-	GRAPHICS_API_DIRECTX11,
-	GRAPHICS_API_DIRECTX12,
 	GRAPHICS_API_OPENGL,
 	GRAPHICS_API_VULKAN,
+	GRAPHICS_API_DIRECTX11,
+	GRAPHICS_API_DIRECTX12,
 	NR_OF_GRAPHICS_ENGINES
 };
 
@@ -184,6 +188,9 @@ enum IconType
 	ID_ICON_WATER,
 	ID_ICON_HUD,
 	ID_ICON_QUAD,
+	ID_ICON_LIGHT_DIRECTIONAL,
+	ID_ICON_LIGHT_POINT,
+	ID_ICON_LIGHT_SPOT,
 	ID_CANVAS,
 	ID_ASPECT_RATIO,
 	ID_FOV,
@@ -199,6 +206,9 @@ enum IconType
 	ID_SCENE_SAVE,
 	ID_REMOVE_COMPONENT,
 	ID_REMOVE_CHILD,
+	ID_TABS,
+	ID_TABS_GEOMETRY,
+	ID_TABS_LIGHTS
 };
 
 enum PropertyID
@@ -237,6 +247,19 @@ enum PropertyID
 	PROPERTY_ID_TERRAIN_REDISTRIBUTION,
 	PROPERTY_ID_WATER_SPEED,
 	PROPERTY_ID_WATER_WAVE_STRENGTH,
+	PROPERTY_ID_LIGHT_ACTIVE,
+	PROPERTY_ID_LIGHT_LOCATION,
+	PROPERTY_ID_LIGHT_LOCATION_,
+	PROPERTY_ID_LIGHT_AMBIENT,
+	PROPERTY_ID_LIGHT_DIFFUSE,
+	PROPERTY_ID_LIGHT_SPEC_INTENSITY,
+	PROPERTY_ID_LIGHT_SPEC_SHININESS,
+	PROPERTY_ID_LIGHT_DIRECTION,
+	PROPERTY_ID_LIGHT_DIRECTION_,
+	PROPERTY_ID_LIGHT_ATT_LINEAR,
+	PROPERTY_ID_LIGHT_ATT_QUAD,
+	PROPERTY_ID_LIGHT_ANGLE_INNER,
+	PROPERTY_ID_LIGHT_ANGLE_OUTER,
 	NR_OF_PROPERTY_IDS
 };
 
@@ -254,6 +277,7 @@ enum ShaderID
 	SHADER_ID_SKYBOX,
 	SHADER_ID_TERRAIN,
 	SHADER_ID_WATER,
+	SHADER_ID_WIREFRAME,
 	NR_OF_SHADERS
 };
 
@@ -391,7 +415,6 @@ struct GLCanvas
 #ifndef GE3D_INPUTMANAGER_H
 	#include "input/InputManager.h"
 #endif
-
 #ifndef GE3D_RAYCAST_H
 	#include "physics/RayCast.h"
 #endif
@@ -408,14 +431,18 @@ struct GLCanvas
 //#ifndef GE3D_LIGHT_H
 //	#include "scene/Light.h"
 //#endif
-
 #ifndef GE3D_DXCONTEXT_H
 	#include "render/DXContext.h"
 #endif
 #ifndef GE3D_VKCONTEXT_H
 	#include "render/VKContext.h"
 #endif
-
+#ifndef GE3D_COMPONENT_H
+	#include "scene/Component.h"
+#endif
+#ifndef GE3D_CAMERA_H
+	#include "scene/Camera.h"
+#endif
 #ifndef GE3D_RENDERENGINE_H
 	#include "render/RenderEngine.h"
 #endif
@@ -425,30 +452,29 @@ struct GLCanvas
 #ifndef GE3D_SHADERPROGRAM_H
 	#include "render/ShaderProgram.h"
 #endif
-
 #ifndef GE3D_BUFFER_H
 	#include "scene/Buffer.h"
 #endif
-
-#ifndef GE3D_COMPONENT_H
-	#include "scene/Component.h"
-#endif
+//#ifndef GE3D_COMPONENT_H
+//	#include "scene/Component.h"
+//#endif
 #ifndef GE3D_MESH_H
 	#include "scene/Mesh.h"
 #endif
 #ifndef GE3D_BOUNDINGVOLUME_H
 	#include "scene/BoundingVolume.h"
 #endif
-
-#ifndef GE3D_CAMERA_H
-	#include "scene/Camera.h"
-#endif
-
+//#ifndef GE3D_CAMERA_H
+//	#include "scene/Camera.h"
+//#endif
 #ifndef GE3D_HUD_H
 	#include "scene/HUD.h"
 #endif
 #ifndef GE3D_MODEL_H
 	#include "scene/Model.h"
+#endif
+#ifndef GE3D_LIGHTSOURCE_H
+	#include "scene/LightSource.h"
 #endif
 #ifndef GE3D_SCENEMANAGER_H
 	#include "scene/SceneManager.h"

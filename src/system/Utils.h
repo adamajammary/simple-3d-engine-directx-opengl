@@ -36,17 +36,25 @@ public:
 	static const wxChar*                FONTS[];
 	static const wxString               FOVS[];
 	static const wxString               GRAPHIC_APIS[];
-	static const std::vector<Icon>      ICONS;
+	static const std::vector<Icon>      ICONS_ENVIRONMENT;
+	static const std::vector<Icon>      ICONS_GEOMETRY;
+	static const std::vector<Icon>      ICONS_LIGHTS;
+	static const std::vector<Icon>      ICONS_UI;
 	static const wxString               IMAGE_FILE_FORMATS;
 	static const wxString               MODEL_FILE_FORMATS;
+	static const size_t                 NR_OF_GRAPHICS_APIS;
 	static wxString                     PROPERTY_IDS[NR_OF_PROPERTY_IDS];
-	static const wxSize                 RENDER_SIZE;
 	static std::map<IconType, wxString> RESOURCE_MODELS;
 	static std::map<wxString, wxString> RESOURCE_IMAGES;
 	static const wxString               SCENE_FILE_FORMAT;
 	static const std::vector<Resource>  SHADER_RESOURCES_DX;
 	static const std::vector<Resource>  SHADER_RESOURCES_GL_VK;
-	static const wxSize                 WINDOW_SIZE;
+	static const wxSize                 UI_ADS_SIZE;
+	static const wxSize                 UI_LIST_BOX_SIZE;
+	static const wxSize                 UI_RENDER_SIZE;
+	static const wxSize                 UI_WINDOW_SIZE;
+	static const wxSize                 UI_PROPS_SIZE;
+	static const wxSize                 UI_TABS_SIZE;
 
 public:
 	static std::vector<uint8_t>     Compress(const std::vector<uint8_t>   &data);
@@ -90,6 +98,7 @@ public:
 		static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
 		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean);
+		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec3 &vector, float w);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec4 &vector);
 		static DirectX::XMMATRIX ToXMMATRIX(const glm::mat4 &matrix);
 	#endif

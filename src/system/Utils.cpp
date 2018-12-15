@@ -26,11 +26,21 @@ const wxString Utils::GOOGLE_ADS_URL     = "http://jammary.com/google_ad_horizon
 const wxString Utils::DRAW_MODES[]       = { "Filled", "Wireframe" };
 const wxString Utils::FOVS[]             = { "45\u00B0", "60\u00B0", "75\u00B0", "90\u00B0" };
 const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
-const wxSize   Utils::RENDER_SIZE        = wxSize(640, 360);
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
-const wxSize   Utils::WINDOW_SIZE        = wxSize(1600, 900);
+const wxSize   Utils::UI_ADS_SIZE        = wxSize(730,  90);
+const wxSize   Utils::UI_LIST_BOX_SIZE   = wxSize(290,  150);
+const wxSize   Utils::UI_RENDER_SIZE     = wxSize(640,  360);
+const wxSize   Utils::UI_WINDOW_SIZE     = wxSize(1280, 875);
+const wxSize   Utils::UI_PROPS_SIZE      = wxSize(590,  280);
+const wxSize   Utils::UI_TABS_SIZE       = wxSize(1245, 85);
 
-const wxString Utils::GRAPHIC_APIS[] = {
+#if defined _WINDOWS
+	const size_t Utils::NR_OF_GRAPHICS_APIS = 4;
+#else
+	const size_t Utils::NR_OF_GRAPHICS_APIS = 2;
+#endif
+
+const wxString Utils::GRAPHIC_APIS[NR_OF_GRAPHICS_APIS] = {
 	"OpenGL", "Vulkan"
 	#if defined _WINDOWS
 	, "DirectX 11", "DirectX 12"
@@ -54,7 +64,7 @@ const wxChar* Utils::FONTS[] = {
 	nullptr
 };
 
-const std::vector<Icon> Utils::ICONS = {
+const std::vector<Icon> Utils::ICONS_GEOMETRY = {
 	{ "img/icon-plane-128.png",         ID_ICON_PLANE,       "Plane" },
 	{ "img/icon-cube-100.png",          ID_ICON_CUBE,        "Cube" },
 	{ "img/icon-uvsphere-100.png",      ID_ICON_UV_SPHERE,   "UV Sphere" },
@@ -62,11 +72,23 @@ const std::vector<Icon> Utils::ICONS = {
 	{ "img/icon-cylinder-100.png",      ID_ICON_CYLINDER,    "Cylinder" },
 	{ "img/icon-cone-128-1.png",        ID_ICON_CONE,        "Cone" },
 	{ "img/icon-torus-256.png",         ID_ICON_TORUS,       "Torus" },
-	{ "img/icon-monkeyhead-100x83.png", ID_ICON_MONKEY_HEAD, "Monkey" },
-	{ "img/icon-skybox-256.png",        ID_ICON_SKYBOX,      "Skybox" },
-	{ "img/icon-terrain-200x121.png",   ID_ICON_TERRAIN,     "Terrain" },
-	{ "img/icon-water-208x235.png",     ID_ICON_WATER,       "Water" },
-	{ "img/icon-hud-128.png",           ID_ICON_HUD,         "HUD" }
+	{ "img/icon-monkeyhead-100x83.png", ID_ICON_MONKEY_HEAD, "Monkey" }
+};
+
+const std::vector<Icon> Utils::ICONS_ENVIRONMENT = {
+	{ "img/icon-skybox-256.png",      ID_ICON_SKYBOX,  "Skybox" },
+	{ "img/icon-terrain-200x121.png", ID_ICON_TERRAIN, "Terrain" },
+	{ "img/icon-water-208x235.png",   ID_ICON_WATER,   "Water" }
+};
+
+const std::vector<Icon> Utils::ICONS_LIGHTS = {
+	{ "img/icon-light-directional-128.png", ID_ICON_LIGHT_DIRECTIONAL, "Directional Light" },
+	{ "img/icon-light-point-128.png",       ID_ICON_LIGHT_POINT,       "Point Light" },
+	{ "img/icon-light-spot-2-128.png",      ID_ICON_LIGHT_SPOT,        "Spot Light" }
+};
+
+const std::vector<Icon> Utils::ICONS_UI = {
+	{ "img/icon-hud-128.png", ID_ICON_HUD, "HUD" }
 };
 
 const wxString Utils::MODEL_FILE_FORMATS =
@@ -143,7 +165,20 @@ wxString Utils::PROPERTY_IDS[NR_OF_PROPERTY_IDS] = {
 	"PROPERTY_ID_TERRAIN_OCTAVES",
 	"PROPERTY_ID_TERRAIN_REDISTRIBUTION",
 	"PROPERTY_ID_WATER_SPEED",
-	"PROPERTY_ID_WATER_WAVE_STRENGTH"
+	"PROPERTY_ID_WATER_WAVE_STRENGTH",
+	"PROPERTY_ID_LIGHT_ACTIVE",
+	"PROPERTY_ID_LIGHT_LOCATION",
+	"PROPERTY_ID_LIGHT_LOCATION_",
+	"PROPERTY_ID_LIGHT_AMBIENT",
+	"PROPERTY_ID_LIGHT_DIFFUSE",
+	"PROPERTY_ID_LIGHT_SPEC_INTENSITY",
+	"PROPERTY_ID_LIGHT_SPEC_SHININESS",
+	"PROPERTY_ID_LIGHT_DIRECTION",
+	"PROPERTY_ID_LIGHT_DIRECTION_",
+	"PROPERTY_ID_LIGHT_ATT_LINEAR",
+	"PROPERTY_ID_LIGHT_ATT_QUAD",
+	"PROPERTY_ID_LIGHT_ANGLE_INNER",
+	"PROPERTY_ID_LIGHT_ANGLE_OUTER"
 };
 
 std::map<wxString, wxString> Utils::RESOURCE_IMAGES = {
@@ -176,27 +211,30 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
-	{ "resources/shaders/color.hlsl",   "color",   "" },
-	{ "resources/shaders/default.hlsl", "default", "" },
-	{ "resources/shaders/hud.hlsl",     "hud",     "" },
-	{ "resources/shaders/skybox.hlsl",  "skybox",  "" },
-	{ "resources/shaders/terrain.hlsl", "terrain", "" },
-	{ "resources/shaders/water.hlsl",   "water",   "" }
+	{ "resources/shaders/color.hlsl",   "color",     "" },
+	{ "resources/shaders/default.hlsl", "default",   "" },
+	{ "resources/shaders/hud.hlsl",     "hud",       "" },
+	{ "resources/shaders/skybox.hlsl",  "skybox",    "" },
+	{ "resources/shaders/terrain.hlsl", "terrain",   "" },
+	{ "resources/shaders/water.hlsl",   "water",     "" },
+	{ "resources/shaders/color.hlsl",   "wireframe", "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
-	{ "resources/shaders/color.vs.glsl",   "color_vs",   "" },
-	{ "resources/shaders/color.fs.glsl",   "color_fs",   "" },
-	{ "resources/shaders/default.vs.glsl", "default_vs", "" },
-	{ "resources/shaders/default.fs.glsl", "default_fs", "" },
-	{ "resources/shaders/hud.vs.glsl",     "hud_vs",     "" },
-	{ "resources/shaders/hud.fs.glsl",     "hud_fs",     "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",  "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",  "" },
-	{ "resources/shaders/terrain.vs.glsl", "terrain_vs", "" },
-	{ "resources/shaders/terrain.fs.glsl", "terrain_fs", "" },
-	{ "resources/shaders/water.vs.glsl",   "water_vs",   "" },
-	{ "resources/shaders/water.fs.glsl",   "water_fs",   "" }
+	{ "resources/shaders/color.vs.glsl",   "color_vs",     "" },
+	{ "resources/shaders/color.fs.glsl",   "color_fs",     "" },
+	{ "resources/shaders/default.vs.glsl", "default_vs",   "" },
+	{ "resources/shaders/default.fs.glsl", "default_fs",   "" },
+	{ "resources/shaders/hud.vs.glsl",     "hud_vs",       "" },
+	{ "resources/shaders/hud.fs.glsl",     "hud_fs",       "" },
+	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",    "" },
+	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",    "" },
+	{ "resources/shaders/terrain.vs.glsl", "terrain_vs",   "" },
+	{ "resources/shaders/terrain.fs.glsl", "terrain_fs",   "" },
+	{ "resources/shaders/water.vs.glsl",   "water_vs",     "" },
+	{ "resources/shaders/water.fs.glsl",   "water_fs",     "" },
+	{ "resources/shaders/color.vs.glsl",   "wireframe_vs", "" },
+	{ "resources/shaders/color.fs.glsl",   "wireframe_fs", "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)
@@ -276,7 +314,7 @@ wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 		#endif
 		case GRAPHICS_API_OPENGL:    apiString = "OpenGL"; break;
 		case GRAPHICS_API_VULKAN:    apiString = "Vulkan"; break;
-		default:                     apiString = "Unknown Graphics API"; break;
+		default: throw;
 	}
 
 	return apiString;
@@ -309,6 +347,7 @@ GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
 		case GL_INT:            stride = (size * sizeof(int));            break;
 		case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
 		case GL_FLOAT:          stride = (size * sizeof(float));          break;
+		default: throw;
 	}
 
 	return stride;
@@ -686,7 +725,7 @@ glm::vec4 Utils::ToVec4Color(const wxColour &color)
 glm::vec4 Utils::ToVec4Float(bool boolean)
 {
 	float value = (boolean ? 1.0f : 0);
-	return glm::vec4(value, value, value, value);
+	return glm::vec4(value, 0.0, 0.0, 0.0);
 }
 
 std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
@@ -747,6 +786,11 @@ DirectX::XMFLOAT2 Utils::ToXMFLOAT2(const glm::vec2 &vector)
 DirectX::XMFLOAT3 Utils::ToXMFLOAT3(const glm::vec3 &vector)
 {
 	return DirectX::XMFLOAT3(reinterpret_cast<const float*>(&vector[0]));
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec3 &vector, float w)
+{
+	return DirectX::XMFLOAT4(vector.x, vector.y, vector.z, w);
 }
 
 DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec4 &vector)

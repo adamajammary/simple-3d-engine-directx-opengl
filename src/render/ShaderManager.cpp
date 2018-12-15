@@ -60,6 +60,8 @@ int ShaderManager::Init()
 		}
 
 		break;
+	default:
+		throw;
 	}
 
 	return 0;

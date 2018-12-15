@@ -68,6 +68,8 @@ bool Component::IsTextured(int index)
 		return ((texture->ID() > 0) && !texture->ImageFile().empty());
 	case GRAPHICS_API_VULKAN:
 		return ((texture->ImageView != nullptr) && (texture->Sampler != nullptr) && !texture->ImageFile().empty());
+	default:
+		throw;
 	}
 
 	return false;

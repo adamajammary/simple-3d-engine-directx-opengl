@@ -5,7 +5,7 @@
 #ifndef GE3D_INPUTMANAGER_H
 #define GE3D_INPUTMANAGER_H
 
-class InputManager
+class InputManager : wxEvtHandler
 {
 public:
 	InputManager()  {}

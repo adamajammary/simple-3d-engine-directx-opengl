@@ -135,6 +135,9 @@
     <ClCompile Include="src\scene\Material.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="src\scene\LightSource.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\globals.h">
@@ -228,6 +231,9 @@
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="src\scene\Material.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\LightSource.h">
       <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>

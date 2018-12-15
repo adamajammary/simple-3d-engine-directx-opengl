@@ -7,7 +7,7 @@ BoundingVolume::BoundingVolume(Mesh* parent, BoundingVolumeType type, float scal
 	switch (type) {
 		case BOUNDING_VOLUME_BOX:    this->loadBoundingBox(scaleSize);        break;
 		case BOUNDING_VOLUME_SPHERE: this->loadBoundingSphere(scaleSize);     break;
-		default:                     this->volumeType = BOUNDING_VOLUME_NONE; break;
+		default: throw;
 	}
 }
 

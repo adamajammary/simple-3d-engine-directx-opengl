@@ -54,6 +54,14 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		return bufferValues;
 
 	switch (this->ID()) {
+	case SHADER_ID_COLOR:
+	case SHADER_ID_WIREFRAME:
+		vertexBuffer->ConstantBufferColor = CBColorDX(matrices, mesh->ComponentMaterial.diffuse);
+
+		bufferSize   = sizeof(vertexBuffer->ConstantBufferColor);
+		bufferValues = &vertexBuffer->ConstantBufferColor;
+
+		break;
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_TERRAIN:
 		vertexBuffer->ConstantBufferDefault = CBDefaultDX(
@@ -92,13 +100,8 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		bufferValues = &vertexBuffer->ConstantBufferWater;
 
 		break;
-	case SHADER_ID_COLOR:
-		vertexBuffer->ConstantBufferColor = CBColorDX(matrices, mesh->ComponentMaterial.diffuse);
-
-		bufferSize   = sizeof(vertexBuffer->ConstantBufferColor);
-		bufferValues = &vertexBuffer->ConstantBufferColor;
-
-		break;
+	default:
+		throw;
 	}
 
 	return bufferValues;
@@ -107,7 +110,9 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 
 ShaderID ShaderProgram::ID()
 {
-	if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEFAULT].Name)
+	if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_COLOR].Name)
+		return SHADER_ID_COLOR;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEFAULT].Name)
 		return SHADER_ID_DEFAULT;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_HUD].Name)
 		return SHADER_ID_HUD;
@@ -117,8 +122,8 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_TERRAIN;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WATER].Name)
 		return SHADER_ID_WATER;
-	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_COLOR].Name)
-		return SHADER_ID_COLOR;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WIREFRAME].Name)
+		return SHADER_ID_WIREFRAME;
 
 	return SHADER_ID_UNKNOWN;
 }
@@ -137,7 +142,7 @@ bool ShaderProgram::IsOK()
 		case GRAPHICS_API_VULKAN:
 			return ((this->vulkanVS != nullptr) && (this->vulkanFS != nullptr));
 		default:
-			return false;
+			throw;
 	}
 }
 
@@ -169,7 +174,7 @@ int ShaderProgram::Link()
 	case GRAPHICS_API_VULKAN:
 		break;
 	default:
-		return -1;
+		throw;
 	}
 
 	return 0;
@@ -188,7 +193,7 @@ int ShaderProgram::Load(const wxString &shaderFile)
 		result = RenderEngine::Canvas.DX->CreateShader12(shaderFile, &this->vs, &this->fs);
 		break;
 	default:
-		return -1;
+		throw;
 	}
 
 	if (result < 0)
@@ -224,7 +229,7 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 
 		break;
 	default:
-		return -6;
+		throw;
 	}
 
 	return 0;
@@ -469,6 +474,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 
 	switch (this->ID()) {
 	case SHADER_ID_COLOR:
+	case SHADER_ID_WIREFRAME:
 		cbColor = CBColor(
 			dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() != nullptr ? mesh->ComponentMaterial.diffuse : mesh->Parent->ComponentMaterial.diffuse
 		);
@@ -513,6 +519,8 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 			UBO_VK_WATER, UBO_BINDING_DEFAULT, uniform, &cbWater, sizeof(cbWater), deviceContext, mesh
 		);
 
+		break;
+	default:
 		break;
 	}
 

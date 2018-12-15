@@ -7,7 +7,7 @@ DXContext::DXContext(GraphicsAPI api, bool vsync)
 	switch (api) {
 		case GRAPHICS_API_DIRECTX11: this->isOK = this->init11(vsync); break;
 		case GRAPHICS_API_DIRECTX12: this->isOK = this->init12(vsync); break;
-		default:                     this->isOK = false; break;
+		default: throw;
 	}
 
 	if (!this->isOK)
@@ -192,12 +192,13 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 
 	UINT bufferSizes[NR_OF_SHADERS];
 
-	bufferSizes[SHADER_ID_COLOR]   = sizeof(CBColorDX);
-	bufferSizes[SHADER_ID_DEFAULT] = sizeof(CBDefaultDX);
-	bufferSizes[SHADER_ID_HUD]     = sizeof(CBHUDDX);
-	bufferSizes[SHADER_ID_SKYBOX]  = sizeof(CBSkyboxDX);
-	bufferSizes[SHADER_ID_TERRAIN] = sizeof(CBDefaultDX);
-	bufferSizes[SHADER_ID_WATER]   = sizeof(CBWaterDX);
+	bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
+	bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
+	bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
+	bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_WATER]     = sizeof(CBWaterDX);
+	bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
 
 	D3D11_BUFFER_DESC bufferDesc = {};
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -268,12 +269,13 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 
 		UINT bufferSizes[NR_OF_SHADERS];
 
-		bufferSizes[SHADER_ID_COLOR]   = sizeof(CBColorDX);
-		bufferSizes[SHADER_ID_DEFAULT] = sizeof(CBDefaultDX);
-		bufferSizes[SHADER_ID_HUD]     = sizeof(CBHUDDX);
-		bufferSizes[SHADER_ID_SKYBOX]  = sizeof(CBSkyboxDX);
-		bufferSizes[SHADER_ID_TERRAIN] = sizeof(CBDefaultDX);
-		bufferSizes[SHADER_ID_WATER]   = sizeof(CBWaterDX);
+		bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
+		bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
+		bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
+		bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_WATER]     = sizeof(CBWaterDX);
+		bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {};
 
@@ -412,7 +414,7 @@ int DXContext::createPipeline(
 	if (fbo)
 		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
 
-	if (shaderProgram->ID() == SHADER_ID_COLOR) {
+	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
 		pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 		pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	}
@@ -852,7 +854,7 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 			break;
 		}
 
-		if ((ShaderID)i == SHADER_ID_COLOR)
+		if ((ShaderID)i == SHADER_ID_WIREFRAME)
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 
 		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &buffer->RasterizerStatesDX11[i])))
@@ -987,7 +989,7 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 
 int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
-	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
+	if ((RenderEngine::CameraMain == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
 	Buffer*             indexBuffer    = dynamic_cast<Mesh*>(mesh)->IndexBuffer();
@@ -1064,7 +1066,7 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 
 int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
-	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
+	if ((RenderEngine::CameraMain == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
 	Buffer*   indexBuffer    = dynamic_cast<Mesh*>(mesh)->IndexBuffer();

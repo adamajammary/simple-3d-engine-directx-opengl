@@ -613,7 +613,7 @@ int VKContext::createPipeline(
 		break;
 	}
 
-	if (shaderProgram->ID() == SHADER_ID_COLOR) {
+	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
 		inputAssembly.topology        = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 	}
@@ -1078,7 +1078,7 @@ bool VKContext::deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysical
 
 int VKContext::Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
 {
-	if ((RenderEngine::Camera == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
+	if ((RenderEngine::CameraMain == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
 
 	Buffer*  indexBuffer     = dynamic_cast<Mesh*>(mesh)->IndexBuffer();
@@ -1217,7 +1217,7 @@ wxString VKContext::getDeviceName(VkPhysicalDevice device)
 		case 0x1002: vendor = "AMD";    break;
 		case 0x10DE: vendor = "NVIDIA"; break;
 		case 0x8086: vendor = "Intel";  break;
-		default:     vendor = "";  break;
+		default:     vendor = "";       break;
 	}
 
 	char adapterName[BUFFER_SIZE] = {};

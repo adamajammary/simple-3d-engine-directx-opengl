@@ -1,4 +1,17 @@
-static const int MAX_TEXTURES = 6;
+static const int MAX_LIGHT_SOURCES = 16;
+static const int MAX_TEXTURES      = 6;
+
+struct CBLight
+{
+    float4 Active;
+    float4 Ambient;
+    float4 Angles;
+    float4 Attenuation;
+    float4 Diffuse;
+    float4 Direction;
+    float4 Position;
+    float4 Specular;
+};
 
 struct CBMatrix
 {
@@ -12,33 +25,19 @@ struct CBDefault
 {
     CBMatrix MB;
 
+    CBLight LightSources[MAX_LIGHT_SOURCES];
+
     float4 IsTextured[MAX_TEXTURES];
     float4 TextureScales[MAX_TEXTURES];
 
-    float3 CameraPosition;
-    float  CameraPadding1;
-
-    float3 MeshSpecularIntensity;
-	float  MeshSpecularShininess;
-
+    float4 CameraPosition;
+ 
+    float4 MeshSpecular;
     float4 MeshDiffuse;
 
-    float3 SunLightSpecularIntensity;
-	float  SunLightSpecularShininess;
-
-    float3 SunLightAmbient;
-	float  SunLightPadding1;
-    float4 SunLightDiffuse;
-
-    float3 SunLightPosition;
-	float  SunLightPadding2;
-    float3 SunLightDirection;
-	float  SunLightPadding3;
-
-    float3 ClipMax;
-    float  EnableClipping;
-    float3 ClipMin;
-    float  ClipPadding1;
+    float4 ClipMax;
+    float4 ClipMin;
+    float4 EnableClipping;
 };
 
 cbuffer WaterBuffer : register(b0)
@@ -116,14 +115,24 @@ float4 PS(FS_INPUT input) : SV_Target
 	float3 normal         = normalize(float3((normalMapColor.r * 2.0 - 1.0), (normalMapColor.b * 7.0), (normalMapColor.g * 2.0 - 1.0)));
 
 	// FRESNEL EFFECT
-	float3 fromSurfaceToCamera = (DB.CameraPosition - input.FragmentPosition.xyz);
-    float3 fromLightToSurface  = (input.FragmentPosition.xyz - DB.SunLightPosition);
+	float3 fromSurfaceToCamera = (DB.CameraPosition.xyz - input.FragmentPosition.xyz);
 	float3 viewVector          = normalize(fromSurfaceToCamera);
 	float  refractionFactor    = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);	// higher power => less reflective (transparent)
-	float3 reflectedLight      = reflect(normalize(fromLightToSurface), normal);
-	float  specular            = pow(max(0.0, dot(reflectedLight, viewVector)), DB.SunLightSpecularIntensity[0]);
-	float3 specularHighlights  = (DB.SunLightDiffuse.rgb * specular * DB.SunLightSpecularShininess);
-	float4 GL_FragColor        = (lerp(reflectionColor, refractionColor, refractionFactor) + float4(specularHighlights, 0.0));
+    float4 GL_FragColor        = float4(0, 0, 0, 0);
+
+    for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+    {
+        if ((DB.LightSources[i].Active.x < 0.1) || (DB.LightSources[i].Angles.x > 0.1) || (DB.LightSources[i].Attenuation.r > 0.1))
+            continue;
+
+        float3 fromLightToSurface = (input.FragmentPosition.xyz - DB.LightSources[i].Position.xyz);
+        float3 reflectedLight     = reflect(normalize(fromLightToSurface), normal);
+        float  specular           = pow(max(0.0, dot(reflectedLight, viewVector)), DB.LightSources[i].Specular.r);
+        float3 specularHighlights = (DB.LightSources[i].Diffuse.rgb * specular * DB.LightSources[i].Specular.a);
+
+        GL_FragColor += (lerp(reflectionColor, refractionColor, refractionFactor) + float4(specularHighlights, 0.0));
+    }
+
 	//float4 GL_FragColor = float4(1.0, 0.0, 0.0, 1.0);
 	//float4 GL_FragColor = Textures[0].Sample(TextureSamplers[0], input.TextureCoords);
 
