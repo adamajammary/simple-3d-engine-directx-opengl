@@ -37,6 +37,8 @@ struct CBDefault
     vec4 ClipMax;
     vec4 ClipMin;
 	vec4 EnableClipping;
+
+    vec4 EnableSRGB;
 };
 
 layout(location = 0) in vec4 ClipSpace;
@@ -106,6 +108,12 @@ void main()
 		vec3  specularHighlights = (wb.DB.LightSources[i].Diffuse.rgb * specular * wb.DB.LightSources[i].Specular.a);
 
 		GL_FragColor += (mix(reflectionColor, refractionColor, refractionFactor) + vec4(specularHighlights, 0.0));
+	}
+
+	// sRGB GAMMA CORRECTION
+    if (wb.DB.EnableSRGB.x > 0.1) {
+		float sRGB = (1.0 / 2.2);
+		GL_FragColor.rgb = pow(GL_FragColor.rgb, vec3(sRGB, sRGB, sRGB));
 	}
 
 	//GL_FragColor = vec4(1.0, 0.0, 0.0, 1.0);

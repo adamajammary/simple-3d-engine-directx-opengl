@@ -61,6 +61,8 @@ struct CBDefault
 	glm::vec4 ClipMax        = {};
 	glm::vec4 ClipMin        = {};
 	glm::vec4 EnableClipping = {};
+
+	glm::vec4 EnableSRGB = {};
 };
 
 struct CBHUD
@@ -143,6 +145,8 @@ struct CBDefaultDX
 	DirectX::XMFLOAT4 ClipMax        = {};
 	DirectX::XMFLOAT4 ClipMin        = {};
 	DirectX::XMFLOAT4 EnableClipping = {};
+
+	DirectX::XMFLOAT4 EnableSRGB = {};
 };
 
 struct CBHUDDX

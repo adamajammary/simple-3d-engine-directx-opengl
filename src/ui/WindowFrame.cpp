@@ -278,30 +278,35 @@ int WindowFrame::init()
 
 	// TOP - DROPDOWNS
 	wxGridBagSizer* sizerDropDowns = new wxGridBagSizer();
+	int             column         = 1;
 
 	// GRAPHICS API
-	this->addTextLabel(sizerDropDowns, "Graphics API:", wxGBPosition(1, 1), wxALIGN_CENTER_VERTICAL);
-	this->dropDownGraphicsAPIs = this->addDropDown(sizerDropDowns, ID_GRAPHICS_API, wxGBPosition(1, 2), 4, Utils::GRAPHIC_APIS);
+	this->addTextLabel(sizerDropDowns, "Graphics API:", wxGBPosition(1, column++), wxALIGN_CENTER_VERTICAL);
+	this->dropDownGraphicsAPIs = this->addDropDown(sizerDropDowns, ID_GRAPHICS_API, wxGBPosition(1, column++), 4, Utils::GRAPHIC_APIS);
 
 	// ASPECT RATIO
-	this->addTextLabel(sizerDropDowns, "Aspect Ratio:", wxGBPosition(1, 3), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
-	this->addDropDown(sizerDropDowns, ID_ASPECT_RATIO, wxGBPosition(1, 4), 2, Utils::ASPECT_RATIOS);
+	this->addTextLabel(sizerDropDowns, "Aspect Ratio:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->addDropDown(sizerDropDowns,  ID_ASPECT_RATIO, wxGBPosition(1, column++), 2, Utils::ASPECT_RATIOS);
 
 	// FOV
-	this->addTextLabel(sizerDropDowns, "FOV:", wxGBPosition(1, 5), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
-	this->addDropDown(sizerDropDowns, ID_FOV, wxGBPosition(1, 6), 4, Utils::FOVS);
+	this->addTextLabel(sizerDropDowns, "FOV:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->addDropDown(sizerDropDowns,  ID_FOV, wxGBPosition(1, column++), 4, Utils::FOVS);
 
 	// DRAW MODE
-	this->addTextLabel(sizerDropDowns, "Draw Mode:", wxGBPosition(1, 7), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
-	this->dropDownDrawModes = this->addDropDown(sizerDropDowns, ID_DRAW_MODE, wxGBPosition(1, 8), 2, Utils::DRAW_MODES);
+	this->addTextLabel(sizerDropDowns, "Draw Mode:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->dropDownDrawModes = this->addDropDown(sizerDropDowns, ID_DRAW_MODE, wxGBPosition(1, column++), 2, Utils::DRAW_MODES);
 
 	// DRAW BOUNDING VOLUMES
-	this->addTextLabel(sizerDropDowns, "Draw Bounding Volumes:", wxGBPosition(1, 9), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
-	this->addCheckBox(sizerDropDowns, ID_DRAW_BOUNDING, wxGBPosition(1, 10));
+	this->addTextLabel(sizerDropDowns, "Draw Bounding Volumes:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->addCheckBox(sizerDropDowns,  ID_DRAW_BOUNDING,         wxGBPosition(1, column++));
+
+	// sRGB GAMMA CORRECTION
+	this->addTextLabel(sizerDropDowns, "sRGB Gamma Correction:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->sRGBEnable = this->addCheckBox(sizerDropDowns, ID_SRGB, wxGBPosition(1, column++), true);
 
 	// VSYNC
-	this->addTextLabel(sizerDropDowns, "V-sync:", wxGBPosition(1, 11), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
-	this->VSyncEnable = this->addCheckBox(sizerDropDowns, ID_VSYNC, wxGBPosition(1, 12), true);
+	this->addTextLabel(sizerDropDowns, "V-sync:", wxGBPosition(1, column++), (wxALIGN_CENTER_VERTICAL | wxLEFT), 20);
+	this->VSyncEnable = this->addCheckBox(sizerDropDowns, ID_VSYNC, wxGBPosition(1, column++), true);
 
 	sizer->Add(sizerDropDowns, 0, wxBOTTOM, 10);
 

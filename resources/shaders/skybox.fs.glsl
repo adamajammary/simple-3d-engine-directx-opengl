@@ -16,4 +16,8 @@ layout(binding  = 2) uniform samplerCube Textures[MAX_TEXTURES];
 void main()
 {
 	GL_FragColor = texture(Textures[0], FragmentTextureCoords);
+
+	// sRGB GAMMA CORRECTION
+	float sRGB = (1.0 / 2.2);
+	GL_FragColor.rgb = pow(GL_FragColor.rgb, vec3(sRGB, sRGB, sRGB));
 }

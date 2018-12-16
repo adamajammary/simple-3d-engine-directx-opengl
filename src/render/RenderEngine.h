@@ -16,6 +16,7 @@ public:
 	static GLCanvas                Canvas;
 	static GPUDescription          GPU;
 	static bool                    DrawBoundingVolume;
+	static bool                    EnableSRGB;
 	static std::vector<Component*> HUDs;
 	static std::vector<Component*> LightSources;
 	static bool                    Ready;
@@ -25,7 +26,7 @@ public:
 	static std::vector<Component*> Terrains;
 	static std::vector<Component*> Waters;
 
-public:
+private:
 	static DrawModeType drawMode;
 
 public:

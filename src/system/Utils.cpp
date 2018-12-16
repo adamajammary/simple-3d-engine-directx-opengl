@@ -294,12 +294,9 @@ std::vector<uint8_t> Utils::Decompress(const std::vector<uint8_t> &data)
 }
 
 #if defined _WINDOWS
-DXGI_FORMAT Utils::GetImageFormatDXGI(wxImage* image)
+DXGI_FORMAT Utils::GetImageFormatDXGI(const wxImage &image, bool srgb)
 {
-	if ((image != nullptr) && (image->GetMaskBlue() == 0xFF))
-		return DXGI_FORMAT_B8G8R8A8_UNORM;
-
-	return DXGI_FORMAT_R8G8B8A8_UNORM;
+	return (srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
 }
 #endif
 
@@ -320,19 +317,14 @@ wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 	return apiString;
 }
 
-GLenum Utils::GetImageFormat(wxImage* image)
+GLenum Utils::GetImageFormat(const wxImage &image, bool srgb, bool in)
 {
-	if (image == nullptr)
-		return GL_RGB;
+	return (in ? (srgb ? GL_SRGB8_ALPHA8 : GL_RGBA8) : GL_RGBA);
+}
 
-	GLenum format;
-
-	if (image->HasAlpha())
-		format = (image->GetMaskBlue() == 0xFF ? GL_BGRA : GL_RGBA);
-	else
-		format = (image->GetMaskBlue() == 0xFF ? GL_BGR : GL_RGB);
-
-	return format;
+VkFormat Utils::GetImageFormatVK(const wxImage &image, bool srgb)
+{
+	return (srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
@@ -650,14 +642,11 @@ json11::Json::array Utils::ToJsonArray(const glm::vec4 &arr)
 	return jsonArray;
 }
 
-uint8_t* Utils::ToRGBA(wxImage* image)
+uint8_t* Utils::ToRGBA(const wxImage &image)
 {
-	if (image == nullptr)
-		return nullptr;
-
-	int      size  = (image->GetWidth() * image->GetHeight() * 4);
-	uint8_t* rgb   = image->GetData();
-	uint8_t* alpha = image->GetAlpha();
+	int      size  = (image.GetWidth() * image.GetHeight() * 4);
+	uint8_t* rgb   = image.GetData();
+	uint8_t* alpha = image.GetAlpha();
 	uint8_t* rgba  = (uint8_t*)std::malloc(size);
 
 	if ((rgb == nullptr) || (rgba == nullptr))
@@ -668,7 +657,7 @@ uint8_t* Utils::ToRGBA(wxImage* image)
 		rgba[i + 0] = rgb[r + 0];
 		rgba[i + 1] = rgb[r + 1];
 		rgba[i + 2] = rgb[r + 2];
-		rgba[i + 3] = (alpha != nullptr ? alpha[a] : 255);
+		rgba[i + 3] = (alpha != nullptr ? alpha[a] : 0xFF);
 	}
 
 	return rgba;

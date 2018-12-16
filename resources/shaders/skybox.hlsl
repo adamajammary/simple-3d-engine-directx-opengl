@@ -44,5 +44,10 @@ FS_INPUT VS(VS_INPUT input)
 float4 PS(FS_INPUT input) : SV_Target
 {
 	float4 GL_FragColor = Textures[0].Sample(TextureSamplers[0], input.FragmentTextureCoords);
+
+	// sRGB GAMMA CORRECTION
+    float sRGB = (1.0 / 2.2);
+    GL_FragColor.rgb = pow(GL_FragColor.rgb, float3(sRGB, sRGB, sRGB));
+
 	return GL_FragColor;
 }

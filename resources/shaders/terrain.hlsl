@@ -38,6 +38,8 @@ cbuffer TerrainBuffer : register(b0)
     float4 ClipMax;
     float4 ClipMin;
     float4 EnableClipping;
+
+    float4 EnableSRGB;
 };
 
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
@@ -102,6 +104,12 @@ float4 PS(FS_INPUT input) : SV_Target
         float3 lightColor = (LightSources[i].Ambient.rgb + (LightSources[i].Diffuse.rgb * dot(normalize(input.FragmentNormal), normalize(-LightSources[i].Direction.xyz))));
 
         GL_FragColor += float4((totalColor.rgb * lightColor), totalColor.a);
+    }
+
+	// sRGB GAMMA CORRECTION
+    if (EnableSRGB.x > 0.1) {
+        float sRGB = (1.0 / 2.2);
+        GL_FragColor.rgb = pow(GL_FragColor.rgb, float3(sRGB, sRGB, sRGB));
     }
 
 	return GL_FragColor;

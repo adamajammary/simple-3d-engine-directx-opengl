@@ -9,9 +9,9 @@ class Texture
 {
 public:
 	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture(const wxString &imageFile, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture::Texture(VkFormat format, int width, int height);
+	Texture::Texture(VkFormat imageFormat, int width, int height);
 	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height);
 	Texture();
 	~Texture();
@@ -47,6 +47,7 @@ private:
 	uint32_t              mipLevels;
 	bool                  repeat;
 	wxSize                size;
+	bool                  srgb;
 	bool                  transparent;
 	GLenum                type;
 	VkViewport            colorBufferViewPort;
@@ -70,6 +71,7 @@ public:
 	void       SetRepeat(bool newRepeat);
 	void       SetTransparent(bool newTransparent);
 	wxSize     Size();
+	bool       SRGB();
 	GLenum     Type();
 
 	#if defined _WINDOWS

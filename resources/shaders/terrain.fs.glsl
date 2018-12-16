@@ -43,6 +43,8 @@ layout(binding = 1) uniform TerrainBuffer
     vec4 ClipMax;
     vec4 ClipMin;
 	vec4 EnableClipping;
+
+    vec4 EnableSRGB;
 } tb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
@@ -78,6 +80,12 @@ void main()
 		vec3 lightColor = (tb.LightSources[i].Ambient.rgb + (tb.LightSources[i].Diffuse.rgb * dot(normalize(FragmentNormal), normalize(-tb.LightSources[i].Direction.xyz))));
 
 		GL_FragColor += vec4((totalColor.rgb * lightColor), totalColor.a);
+	}
+
+	// sRGB GAMMA CORRECTION
+    if (tb.EnableSRGB.x > 0.1) {
+		float sRGB = (1.0 / 2.2);
+		GL_FragColor.rgb = pow(GL_FragColor.rgb, vec3(sRGB, sRGB, sRGB));
 	}
 
 	/*

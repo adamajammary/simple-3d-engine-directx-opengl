@@ -28,8 +28,8 @@ WaterFBO::WaterFBO(const std::vector<wxString> &textureImageFiles)
 	{
 		this->Textures[0] = this->reflectionFBO->ColorTexture();
 		this->Textures[1] = this->refractionFBO->ColorTexture();
-		this->Textures[2] = new Texture(textureImageFiles[0], "duDvMap.png",   true);
-		this->Textures[3] = new Texture(textureImageFiles[1], "normalMap.png", true);
+		this->Textures[2] = new Texture(textureImageFiles[0], false, true);
+		this->Textures[3] = new Texture(textureImageFiles[1], false, true);
 
 		for (int i = 4; i < MAX_TEXTURES; i++)
 			this->Textures[i] = SceneManager::EmptyTexture;

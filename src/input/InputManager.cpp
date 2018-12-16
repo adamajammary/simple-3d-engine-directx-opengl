@@ -90,10 +90,11 @@ void InputManager::OnGraphicsMenu(wxCommandEvent &event)
 {
 	switch (event.GetId()) {
 		case ID_ASPECT_RATIO:  RenderEngine::SetAspectRatio(event.GetString());      break;
-		case ID_FOV:           RenderEngine::CameraMain->SetFOV(event.GetString());      break;
+		case ID_FOV:           RenderEngine::CameraMain->SetFOV(event.GetString());  break;
 		case ID_DRAW_MODE:     RenderEngine::SetDrawMode(event.GetString());         break;
 		case ID_DRAW_BOUNDING: RenderEngine::DrawBoundingVolume = event.IsChecked(); break;
 		case ID_GRAPHICS_API:  RenderEngine::SetGraphicsAPI(event.GetString());      break;
+		case ID_SRGB:          RenderEngine::EnableSRGB = event.IsChecked();         break;
 		case ID_VSYNC:         RenderEngine::SetVSync(event.IsChecked());            break;
 	}
 }

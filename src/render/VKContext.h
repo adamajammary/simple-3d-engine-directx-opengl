@@ -109,8 +109,8 @@ public:
 	void            CommandBufferEnd(VkCommandBuffer cmdBuffer);
 	int             CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* buffer);
 	int             CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
-	int             CreateTextureBuffer(VkFormat format, Texture* texture);
+	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture, VkFormat imageFormat);
+	int             CreateTextureBuffer(VkFormat imageFormat, Texture* texture);
 	int             CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	void            DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void            DestroyFramebuffer(VkFramebuffer* frameBuffer);
@@ -130,7 +130,7 @@ public:
 private:
 	void                                   blitImage(VkCommandBuffer cmdBuffer, VkImage image, int mipWidth, int mipHeight, int index);
 	int                                    copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
-	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t index = 0);
+	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, int colorComponents, uint32_t width, uint32_t height, uint32_t index = 0);
 	int                                    copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                    createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);

@@ -321,6 +321,7 @@ int SceneManager::LoadScene(const wxString &file)
 
 					texture = new Texture(
 						imageFile,
+						textureJSON["srgb"].bool_value(),
 						textureJSON["repeat"].bool_value(),
 						textureJSON["flip"].bool_value(),
 						textureJSON["transparent"].bool_value(),
@@ -495,6 +496,7 @@ int SceneManager::SaveScene(const wxString &file)
 
 				textureJSON = json11::Json::object {
 					{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
+					{ "srgb",        texture->SRGB() },
 					{ "repeat",      texture->Repeat() },
 					{ "flip",        texture->FlipY() },
 					{ "transparent", texture->Transparent() },

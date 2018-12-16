@@ -363,18 +363,18 @@ int DXContext::createPipeline(
 	const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs
 )
 {
+	if (shaderProgram == nullptr)
+		return -1;
+
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
 
 	pipelineStateDesc.DSVFormat        = (fbo ? DXGI_FORMAT_UNKNOWN : DXGI_FORMAT_D32_FLOAT);
 	pipelineStateDesc.InputLayout      = { attribsDescs.data(), (UINT)attribsDescs.size() };
 	pipelineStateDesc.NumRenderTargets = 1;
-	pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_R8G8B8A8_UNORM;
+	pipelineStateDesc.RTVFormats[0]    = (fbo ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
 	pipelineStateDesc.SampleMask       = UINT_MAX;
 	pipelineStateDesc.SampleDesc.Count = 1;
 	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
-
-	if (shaderProgram == nullptr)
-		return -1;
 
 	ID3D10Blob* fs = shaderProgram->FS();
 	ID3D10Blob* vs = shaderProgram->VS();

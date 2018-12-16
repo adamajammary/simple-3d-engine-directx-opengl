@@ -95,10 +95,10 @@ void FrameBuffer::CreateColorTexture()
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight());
+		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight());
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight());
+		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight());
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
@@ -108,13 +108,13 @@ void FrameBuffer::CreateColorTexture()
 		glDrawBuffers(1, buffers);
 
 		this->colorTexture = new Texture(
-			GL_RGB, GL_RGB, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0, this->size.GetWidth(), this->size.GetHeight()
+			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0, this->size.GetWidth(), this->size.GetHeight()
 		);
 
 		this->Unbind();
 		break;
 	case GRAPHICS_API_VULKAN:
-		this->colorTexture = new Texture(VK_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight());
+		this->colorTexture = new Texture(VK_FORMAT_R8G8B8A8_SRGB, this->size.GetWidth(), this->size.GetHeight());
 		break;
 	default:
 		throw;

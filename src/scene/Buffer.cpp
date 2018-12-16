@@ -43,6 +43,8 @@ CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 	this->ClipMin        = glm::vec4(properties.ClipMin, 0.0f);
 	this->EnableClipping = Utils::ToVec4Float(properties.EnableClipping);
 
+	this->EnableSRGB = Utils::ToVec4Float(RenderEngine::EnableSRGB);
+
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
 
@@ -123,6 +125,8 @@ CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::v
 	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);
 	this->ClipMin        = Utils::ToXMFLOAT4(clipMin, 0.0f);
 	this->EnableClipping = Utils::ToXMFLOAT4(enableClipping);
+
+	this->EnableSRGB = Utils::ToXMFLOAT4(RenderEngine::EnableSRGB);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));

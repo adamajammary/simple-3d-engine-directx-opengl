@@ -38,6 +38,8 @@ struct CBDefault
     float4 ClipMax;
     float4 ClipMin;
     float4 EnableClipping;
+
+    float4 EnableSRGB;
 };
 
 cbuffer WaterBuffer : register(b0)
@@ -135,6 +137,12 @@ float4 PS(FS_INPUT input) : SV_Target
 
 	//float4 GL_FragColor = float4(1.0, 0.0, 0.0, 1.0);
 	//float4 GL_FragColor = Textures[0].Sample(TextureSamplers[0], input.TextureCoords);
+
+	// sRGB GAMMA CORRECTION
+    if (DB.EnableSRGB.x > 0.1) {
+        float sRGB = (1.0 / 2.2);
+        GL_FragColor.rgb = pow(GL_FragColor.rgb, float3(sRGB, sRGB, sRGB));
+    }
 
 	return GL_FragColor;
 }

@@ -5,6 +5,7 @@ DrawModeType            RenderEngine::drawMode            = DRAW_MODE_FILLED;
 Camera*                 RenderEngine::CameraMain          = nullptr;
 GPUDescription          RenderEngine::GPU                 = {};
 bool                    RenderEngine::DrawBoundingVolume  = false;
+bool                    RenderEngine::EnableSRGB          = true;
 Mesh*                   RenderEngine::Skybox              = nullptr;
 std::vector<Component*> RenderEngine::HUDs;
 std::vector<Component*> RenderEngine::LightSources;
@@ -359,7 +360,9 @@ int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, cons
 
     // DRAW
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dynamic_cast<Mesh*>(mesh)->IBO());
+	//glEnable(GL_FRAMEBUFFER_SRGB);
 	glDrawElements(RenderEngine::GetDrawMode(), (GLsizei)dynamic_cast<Mesh*>(mesh)->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
+	//glDisable(GL_FRAMEBUFFER_SRGB);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	//glDrawArrays(RenderEngine::DrawMode, 0, (GLsizei)mesh->NrOfVertices());
 

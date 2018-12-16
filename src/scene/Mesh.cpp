@@ -218,7 +218,7 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 		return -1;
 	}
 
-	this->Textures[index] = new Texture(imageFile);
+	this->Textures[index] = new Texture(imageFile, (index == 0));
 
     return 0;
 }

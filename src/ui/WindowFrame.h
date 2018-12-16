@@ -12,6 +12,7 @@ public:
 
 public:
 	Window*     Parent;
+	wxCheckBox* sRGBEnable;
 	wchar_t     Title[BUFFER_SIZE];
 	wxCheckBox* VSyncEnable;
 

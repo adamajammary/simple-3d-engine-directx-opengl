@@ -60,7 +60,8 @@ public:
 	static std::vector<uint8_t>     Compress(const std::vector<uint8_t>   &data);
 	static std::vector<uint8_t>     Decompress(const std::vector<uint8_t> &data);
 	static wxString                 GetGraphicsAPI(GraphicsAPI api);
-	static GLenum                   GetImageFormat(wxImage* image);
+	static GLenum                   GetImageFormat(const wxImage &image, bool srgb, bool in);
+	static VkFormat                 GetImageFormatVK(const wxImage &image, bool srgb);
 	static GLsizei                  GetStride(GLsizei size, GLenum arrayType);
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
 	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_ANY);
@@ -80,7 +81,7 @@ public:
 	static json11::Json::array      ToJsonArray(const glm::vec2 &arr);
 	static json11::Json::array      ToJsonArray(const glm::vec3 &arr);
 	static json11::Json::array      ToJsonArray(const glm::vec4 &arr);
-	static uint8_t*                 ToRGBA(wxImage* image);
+	static uint8_t*                 ToRGBA(const wxImage &image);
 	static std::string              ToString(const std::vector<uint8_t> &data);
 	static glm::vec2                ToVec2(const json11::Json::array &jsonArray);
 	static glm::vec3                ToVec3(const json11::Json::array &jsonArray);
@@ -94,7 +95,7 @@ public:
 	static wxColour                 ToWxColour(const glm::vec4 &color);
 
 	#if defined _WINDOWS
-		static DXGI_FORMAT       GetImageFormatDXGI(wxImage* image);
+		static DXGI_FORMAT       GetImageFormatDXGI(const wxImage &image, bool srgb);
 		static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
 		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean);

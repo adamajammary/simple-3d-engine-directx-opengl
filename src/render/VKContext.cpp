@@ -171,7 +171,7 @@ int VKContext::copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkD
 	return 0;
 }
 
-int VKContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t index)
+int VKContext::copyBufferToImage(VkBuffer buffer, VkImage image, int colorComponents, uint32_t width, uint32_t height, uint32_t index)
 {
 	VkCommandBuffer cmdBuffer = this->CommandBufferBegin();
 
@@ -180,7 +180,7 @@ int VKContext::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width,
 
 	VkBufferImageCopy copyRegion = {};
 
-	copyRegion.bufferOffset                    = (index * width * height * 4);
+	copyRegion.bufferOffset                    = (index * width * height * colorComponents);
 	copyRegion.imageExtent                     = { width, height, 1 };
 	copyRegion.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
 	copyRegion.imageSubresource.baseArrayLayer = index;
@@ -676,7 +676,7 @@ int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &st
 	return 0;
 }
 
-int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture)
+int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture, VkFormat imageFormat)
 {
 	if (texture == nullptr)
 		return -1;
@@ -684,12 +684,12 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	VkBufferUsageFlags    bufferUseFlags      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags bufferMemFlags      = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	bool                  cubeMap             = (imagePixels.size() > 1);
-	VkFormat              imageFormat         = VK_FORMAT_R8G8B8A8_UNORM;
 	void*                 imageMemData        = nullptr;
 	VkMemoryPropertyFlags imageUseFlags       = (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	VkMemoryPropertyFlags imageMemFlags       = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	wxSize                textureSize         = texture->Size();
-	VkDeviceSize          imageSize           = (textureSize.GetWidth() * textureSize.GetHeight() * 4);
+	int                   colorComponents     = ((imageFormat == VK_FORMAT_R8G8B8A8_UNORM || imageFormat == VK_FORMAT_R8G8B8A8_SRGB) ? 4 : 3);
+	VkDeviceSize          imageSize           = (textureSize.GetWidth() * textureSize.GetHeight() * colorComponents);
 	uint32_t              mipLevels           = (cubeMap ? 1 : texture->MipLevels());
 	VkBuffer              stagingBuffer       = nullptr;
 	VkDeviceMemory        stagingBufferMemory = nullptr;
@@ -723,7 +723,7 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 			return -4;
 
 		// COPY DATA FROM STAGING BUFFER TO IMAGE (DEVICE LOCAL)
-		if (this->copyBufferToImage(stagingBuffer, texture->Image, (uint32_t)textureSize.GetWidth(), (uint32_t)textureSize.GetHeight(), i) < 0)
+		if (this->copyBufferToImage(stagingBuffer, texture->Image, colorComponents, (uint32_t)textureSize.GetWidth(), (uint32_t)textureSize.GetHeight(), i) < 0)
 			return -5;
 
 		// TRANSITION IMAGE LAYOUT TO SHADER
@@ -754,7 +754,7 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	return 0;
 }
 
-int VKContext::CreateTextureBuffer(VkFormat format, Texture* texture)
+int VKContext::CreateTextureBuffer(VkFormat imageFormat, Texture* texture)
 {
 	if (texture == nullptr)
 		return -1;
@@ -764,7 +764,7 @@ int VKContext::CreateTextureBuffer(VkFormat format, Texture* texture)
 	wxSize                textureSize   = texture->Size();
 
 	int result = this->createImage(
-		textureSize.GetWidth(), textureSize.GetHeight(), 1, 1, format, VK_IMAGE_TILING_OPTIMAL,
+		textureSize.GetWidth(), textureSize.GetHeight(), 1, 1, imageFormat, VK_IMAGE_TILING_OPTIMAL,
 		imageUseFlags, imageMemFlags, false, &texture->Image, &texture->ImageMemory
 	);
 
@@ -777,14 +777,17 @@ int VKContext::CreateTextureBuffer(VkFormat format, Texture* texture)
 	if (texture->Sampler == nullptr)
 		return -3;
 
-	texture->ImageView = this->createImageView(texture->Image, format, 1, false, VK_IMAGE_ASPECT_COLOR_BIT);
+	texture->ImageView = this->createImageView(texture->Image, imageFormat, 1, false, VK_IMAGE_ASPECT_COLOR_BIT);
+
+	if (texture->ImageView == nullptr)
+		return -4;
 
 	result = this->copyImage(
-		texture->Image, format, 1, false, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+		texture->Image, imageFormat, 1, false, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 	);
 
 	if (result < 0)
-		return -4;
+		return -5;
 
 	VkFramebufferCreateInfo framebufferInfo = {};
 
@@ -797,7 +800,7 @@ int VKContext::CreateTextureBuffer(VkFormat format, Texture* texture)
 	framebufferInfo.renderPass      = this->renderPasses[RENDER_PASS_FBO];
 
 	if (vkCreateFramebuffer(this->deviceContext, &framebufferInfo, nullptr, &texture->ColorBufferVK) != VK_SUCCESS)
-		return -5;
+		return -6;
 
 	return 0;
 }
@@ -2327,7 +2330,7 @@ bool VKContext::updateSwapChain(bool updateSupport)
 	if (this->renderPasses[RENDER_PASS_DEFAULT] == nullptr)
 		return false;
 
-	this->renderPasses[RENDER_PASS_FBO] = this->initRenderPass(VK_FORMAT_R8G8B8A8_UNORM, 1, 1);
+	this->renderPasses[RENDER_PASS_FBO] = this->initRenderPass(VK_FORMAT_R8G8B8A8_SRGB, 1, 1);
 
 	if (this->renderPasses[RENDER_PASS_FBO] == nullptr)
 		return false;

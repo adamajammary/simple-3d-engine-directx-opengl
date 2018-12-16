@@ -8,6 +8,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		this->flipY       = flipY;
 		this->repeat      = repeat;
 		this->Scale       = scale;
+		this->srgb        = false;
 		this->transparent = transparent;
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
@@ -43,7 +44,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 }
 
 // 2D TEXTURE FROM IMAGE FILE
-Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transparent, const glm::vec2 &scale)
+Texture::Texture(const wxString &imageFile, bool srgb, bool repeat, bool flipY, bool transparent, const glm::vec2 &scale)
 {
 	wxImage* image = nullptr;
 
@@ -56,6 +57,7 @@ Texture::Texture(const wxString &imageFile, bool repeat, bool flipY, bool transp
 		this->imageFiles  = { imageFile };
 		this->repeat      = repeat;
 		this->Scale       = scale;
+		this->srgb        = srgb;
 		this->transparent = transparent;
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
@@ -111,6 +113,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 		this->flipY       = flipY;
 		this->imageFiles  = imageFiles;
 		this->Scale       = scale;
+		this->srgb        = true;
 		this->transparent = transparent;
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
@@ -197,7 +200,7 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 }
 
 // 2D FRAMEBUFFER TEXTURE (VULKAN)
-Texture::Texture(VkFormat format, int width, int height)
+Texture::Texture(VkFormat imageFormat, int width, int height)
 {
 	this->repeat = true;
 	this->Scale  = glm::vec2(1.0f, 1.0f);
@@ -213,7 +216,7 @@ Texture::Texture(VkFormat format, int width, int height)
 	this->setFilteringVK(this->SamplerInfo);
 	this->setWrappingVK(this->SamplerInfo);
 
-	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(format, this);
+	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(imageFormat, this);
 
 	if (result < 0)
 		wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
@@ -365,13 +368,12 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 	{
 		wxImage image2 = (this->flipY ? image->Mirror(false) : *image);
 		images2.push_back(image2);
-		pixels2.push_back(Utils::ToRGBA(&image2));
+		pixels2.push_back(Utils::ToRGBA(image2));
 	}
 
 	if (!images2.empty())
 	{
-		int                result;
-		DXGI_FORMAT        format        = Utils::GetImageFormatDXGI(&images2[0]);
+		DXGI_FORMAT        format        = Utils::GetImageFormatDXGI(images2[0], this->srgb);
 		D3D11_SAMPLER_DESC samplerDesc11 = {};
 
 		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
@@ -387,9 +389,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX11(samplerDesc11);
 
-			result = RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this);
-
-			if (result < 0)
+			if (RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this) < 0)
 				wxMessageBox(("ERROR: Texture::loadTextureImagesDX11: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
@@ -401,9 +401,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX12(this->SamplerDesc12);
 
-			result = RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this);
-
-			if (result < 0)
+			if (RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this) < 0)
 				wxMessageBox(("ERROR: Texture::loadTextureImagesDX12: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
@@ -424,9 +422,10 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 {
-	wxImage  image2 = (this->flipY ? image->Mirror(false) : *image);
-	uint8_t* pixels = (image2.HasAlpha() ? Utils::ToRGBA(&image2) : image2.GetData());
-	GLenum   format = Utils::GetImageFormat(&image2);
+	wxImage  image2    = (this->flipY ? image->Mirror(false) : *image);
+	GLenum   formatIn  = Utils::GetImageFormat(image2, this->srgb, true);
+	GLenum   formatOut = Utils::GetImageFormat(image2, false, false);
+	uint8_t* pixels    = Utils::ToRGBA(image2);
 
 	glBindTexture(this->type, this->id);
 
@@ -443,8 +442,8 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  0);
 
 		glTexImage2D(
-			(GL_TEXTURE_CUBE_MAP_POSITIVE_X + index), 0, GL_RGBA8,
-			image2.GetWidth(), image2.GetHeight(), 0, format, GL_UNSIGNED_BYTE, pixels
+			(GL_TEXTURE_CUBE_MAP_POSITIVE_X + index), 0, formatIn,
+			image2.GetWidth(), image2.GetHeight(), 0, formatOut, GL_UNSIGNED_BYTE, pixels
 		);
 
 		this->setWrappingCubemapGL();
@@ -456,8 +455,8 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 		glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  this->mipLevels - 1);
 
 		// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
-		glTexStorage2D(this->type, this->mipLevels, GL_RGBA8, image2.GetWidth(), image2.GetHeight());
-		glTexSubImage2D(this->type, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), format, GL_UNSIGNED_BYTE, pixels);
+		glTexStorage2D(this->type, this->mipLevels, formatIn, image2.GetWidth(), image2.GetHeight());
+		glTexSubImage2D(this->type, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), formatOut, GL_UNSIGNED_BYTE, pixels);
 
 		glGenerateMipmap(this->type);
 
@@ -470,8 +469,7 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 
 	glBindTexture(this->type, 0);
 
-	if (image2.HasAlpha())
-		std::free(pixels);
+	std::free(pixels);
 
 	if (this->flipY)
 		image2.Destroy();
@@ -486,11 +484,13 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 	{
 		wxImage image2 = (this->flipY ? image->Mirror(false) : *image);
 		images2.push_back(image2);
-		pixels2.push_back(Utils::ToRGBA(&image2));
+		pixels2.push_back(Utils::ToRGBA(image2));
 	}
 
 	if (!images2.empty())
 	{
+		VkFormat format = Utils::GetImageFormatVK(images2[0], this->srgb);
+
 		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
 		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
 		this->transparent = (this->transparent && images2[0].HasAlpha());
@@ -502,9 +502,7 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 		else
 			this->setWrappingVK(this->SamplerInfo);
 
-		int result = RenderEngine::Canvas.VK->CreateTexture(pixels2, this);
-
-		if (result < 0)
+		if (RenderEngine::Canvas.VK->CreateTexture(pixels2, this, format) < 0)
 			wxMessageBox(("ERROR: Texture::loadTextureImagesVK: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 	}
 
@@ -648,6 +646,11 @@ void Texture::SetTransparent(bool newTransparent)
 wxSize Texture::Size()
 {
 	return this->size;
+}
+
+bool Texture::SRGB()
+{
+	return this->srgb;
 }
 
 bool Texture::Transparent()

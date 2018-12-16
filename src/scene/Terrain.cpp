@@ -103,7 +103,7 @@ void Terrain::create(int size, int octaves, float redistribution)
 
 		for (int i = 0; i < 5; i++)
 		{
-			texture        = new Texture(this->textureImageFiles[i], true);
+			texture        = new Texture(this->textureImageFiles[i], (i < 4), true);
 			texture->Scale = glm::vec2(size, size);
 
 			this->Children[0]->LoadTexture(texture, i);

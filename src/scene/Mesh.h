@@ -42,7 +42,7 @@ public:
 	bool            LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix);
 	//void            LoadTexture(Texture* texture, int index);
 	int             LoadTextureImage(const wxString &imageFile, int index);
-	void            MoveBy(const glm::vec3 &amount)     override;
+	void            MoveBy(const glm::vec3 &amount)      override;
 	void            MoveTo(const glm::vec3 &newPosition) override;
 	size_t          NrOfIndices();
 	size_t          NrOfVertices();
