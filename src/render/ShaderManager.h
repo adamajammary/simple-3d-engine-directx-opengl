@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_SHADERMANAGER_H
-#define GE3D_SHADERMANAGER_H
+#ifndef S3DE_SHADERMANAGER_H
+#define S3DE_SHADERMANAGER_H
 
 class ShaderManager
 {

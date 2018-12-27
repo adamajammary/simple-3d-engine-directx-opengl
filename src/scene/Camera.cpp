@@ -225,6 +225,11 @@ void Camera::updateRotation()
 	this->view = glm::lookAt(this->position, center, this->up);
 }
 
+glm::vec3 Camera::Up()
+{
+	return this->up;
+}
+
 glm::mat4 Camera::View(bool removeTranslation)
 {
 	return (removeTranslation ? glm::mat4(glm::mat3(this->view)) : this->view);

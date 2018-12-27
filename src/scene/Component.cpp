@@ -2,20 +2,20 @@
 
 Component::Component(const wxString &name, const glm::vec3 &position)
 {
-	this->AutoRotate           = false;
-	this->AutoRotation         = {};
-	this->isValid              = false;
-	this->LockToParentPosition = false;
-	this->LockToParentRotation = false;
-	this->LockToParentScale    = false;
-	this->ComponentMaterial    = {};
-	this->modelFile            = "";
-	this->Name                 = name;
-	this->Parent               = nullptr;
-	this->position             = position;
-	this->rotation             = {};
-	this->scale                = { 1.0f, 1.0f, 1.0f };
-	this->type                 = COMPONENT_UNKNOWN;
+	this->AutoRotate        = false;
+	this->AutoRotation      = {};
+	this->isValid           = false;
+	//this->LockToParentPosition = false;
+	//this->LockToParentRotation = false;
+	//this->LockToParentScale    = false;
+	this->ComponentMaterial = {};
+	this->modelFile         = "";
+	this->Name              = name;
+	this->Parent            = nullptr;
+	this->position          = position;
+	this->rotation          = {};
+	this->scale             = { 1.0f, 1.0f, 1.0f };
+	this->type              = COMPONENT_UNKNOWN;
 
 	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
@@ -180,11 +180,11 @@ void Component::updateRotation()
 			this->rotation[i] += fullRotation;
 	}
 
-	if (this->LockToParentRotation && (this->Parent != nullptr)) {
-		this->rotation[0] += this->Parent->rotation[0];
-		this->rotation[1] += this->Parent->rotation[1];
-		this->rotation[2] += this->Parent->rotation[2];
-	}
+	//if (this->LockToParentRotation && (this->Parent != nullptr)) {
+	//	this->rotation[0] += this->Parent->rotation[0];
+	//	this->rotation[1] += this->Parent->rotation[1];
+	//	this->rotation[2] += this->Parent->rotation[2];
+	//}
 
 	glm::mat4 rotateMatrixX = glm::rotate(this->rotation[0], glm::vec3(1.0f, 0.0f, 0.0f));
 	glm::mat4 rotateMatrixY = glm::rotate(this->rotation[1], glm::vec3(0.0f, 1.0f, 0.0f));
@@ -199,10 +199,10 @@ void Component::updateScale()
 {
 	glm::vec3 scaleVector;
 	
-	if (this->LockToParentScale && (this->Parent != nullptr))
-		scaleVector = (this->scale * this->Parent->scale);
-    else
-        scaleVector = this->scale;
+	//if (this->LockToParentScale && (this->Parent != nullptr))
+	//	scaleVector = (this->scale * this->Parent->scale);
+	//else
+    scaleVector = this->scale;
 
 	this->scaleMatrix = glm::scale(scaleVector);
 
@@ -213,10 +213,10 @@ void Component::updateTranslation()
 {
 	glm::vec3 positionVector;
 
-    if (this->LockToParentPosition && (this->Parent != nullptr))
-        positionVector = (this->position + this->Parent->position);
-    else
-        positionVector = this->position;
+    //if (this->LockToParentPosition && (this->Parent != nullptr))
+    //    positionVector = (this->position + this->Parent->position);
+    //else
+    positionVector = this->position;
 
 	this->translationMatrix = glm::translate(positionVector);
 

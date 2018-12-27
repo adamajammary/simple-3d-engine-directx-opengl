@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_CAMERA_H
-#define GE3D_CAMERA_H
+#ifndef S3DE_CAMERA_H
+#define S3DE_CAMERA_H
 
 #undef far
 #undef near
@@ -43,6 +43,7 @@ public:
 	glm::mat4  Projection();
 	void       SetFOV(const wxString &fov);
 	void       UpdateProjection();
+	glm::vec3  Up();
 	glm::mat4  View(bool removeTranslation = false);
 
 

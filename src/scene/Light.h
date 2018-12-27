@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_LIGHT_H
-#define GE3D_LIGHT_H
+#ifndef S3DE_LIGHT_H
+#define S3DE_LIGHT_H
 
 /*
 	http://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
@@ -37,6 +37,7 @@ struct Light
 {
 	Light(const glm::vec3 &pos, const Material &mat, const glm::vec3 &dir = {}, const Attenuation &att = {}, float innerAngle = 0, float outerAngle = 0);
 	Light();
+	~Light() {}
 
 	bool        active;
 	Attenuation attenuation;

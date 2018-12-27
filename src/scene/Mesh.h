@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_MESH_H
-#define GE3D_MESH_H
+#ifndef S3DE_MESH_H
+#define S3DE_MESH_H
 
 class Mesh : public Component
 {
@@ -49,6 +49,7 @@ public:
 	void            RemoveTexture(int index);
 	void            Select(bool selected);
 	void            SetBoundingVolume(BoundingVolumeType type);
+	void            UpdateBoundingVolume();
 
 protected:
 	bool loadModelData(aiMesh* mesh);

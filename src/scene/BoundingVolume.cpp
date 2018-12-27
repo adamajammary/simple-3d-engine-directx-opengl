@@ -47,10 +47,10 @@ bool BoundingVolume::loadModelFile(aiMesh* mesh, float scaleSize)
 	this->loadModelData(mesh);
 	this->setModelData();
 
-	this->scale                = glm::vec3(scaleSize, scaleSize, scaleSize);
-	this->LockToParentPosition = true;
-	this->LockToParentRotation = true;
-	this->LockToParentScale    = true;
+	this->scale = glm::vec3(scaleSize, scaleSize, scaleSize);
+	//this->LockToParentPosition = true;
+	//this->LockToParentRotation = true;
+	//this->LockToParentScale    = true;
 
 	this->updateModelData();
 
@@ -61,22 +61,38 @@ bool BoundingVolume::loadModelFile(aiMesh* mesh, float scaleSize)
 
 glm::vec3 BoundingVolume::MaxBoundaries()
 {
-	glm::vec3 parentPosition = this->Parent->Position();
-	glm::vec3 parentScale    = this->Parent->Scale();
-	float     maxScale       = (std::max(std::max(parentScale[0], parentScale[1]), parentScale[2]) + 0.01f);
-	glm::vec3 maxBoundaries  = glm::vec3((parentPosition[0] + maxScale), (parentPosition[1] + maxScale), (parentPosition[2] + maxScale));
+	glm::vec3 max = (this->position + this->scale);
 
-	return maxBoundaries;
+	max = glm::rotateX(max, this->rotation.x);
+	max = glm::rotateY(max, this->rotation.y);
+	max = glm::rotateZ(max, this->rotation.z);
+
+	return { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
 }
 
 glm::vec3 BoundingVolume::MinBoundaries()
 {
-	glm::vec3 parentPosition = this->Parent->Position();
-	glm::vec3 parentScale    = this->Parent->Scale();
-	float     maxScale       = (std::max(std::max(parentScale[0], parentScale[1]), parentScale[2]) + 0.01f);
-	glm::vec3 minBoundaries  = glm::vec3((parentPosition[0] - maxScale), (parentPosition[1] - maxScale), (parentPosition[2] - maxScale));
+	glm::vec3 min = (this->position - this->scale);
 
-	return minBoundaries;
+	min = glm::rotateX(min, this->rotation.x);
+	min = glm::rotateY(min, this->rotation.y);
+	min = glm::rotateZ(min, this->rotation.z);
+
+	return { -std::abs(min.x), -std::abs(min.y), -std::abs(min.z) };
+}
+
+void BoundingVolume::Update()
+{
+	// Align with parent
+	this->MoveTo(this->Parent->Position());
+	this->ScaleTo(this->Parent->Scale());
+	this->RotateTo(this->Parent->Rotation());
+
+	// Expand the bounding volume to fit the entire rotated mesh
+	this->ScaleTo(this->MaxBoundaries());
+
+	// Reset rotation of the bounding volume
+	this->RotateTo({});
 }
 
 BoundingVolumeType BoundingVolume::VolumeType()

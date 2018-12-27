@@ -1,4 +1,4 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "globals.h"
 #endif
 

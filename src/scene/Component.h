@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_COMPONENT_H
-#define GE3D_COMPONENT_H
+#ifndef S3DE_COMPONENT_H
+#define S3DE_COMPONENT_H
 
 class Component
 {
@@ -16,9 +16,9 @@ public:
 	glm::vec3               AutoRotation;
 	std::vector<Component*> Children;
 	Material                ComponentMaterial;
-	bool                    LockToParentPosition;
-	bool                    LockToParentRotation;
-	bool                    LockToParentScale;
+	//bool                    LockToParentPosition;
+	//bool                    LockToParentRotation;
+	//bool                    LockToParentScale;
 	wxString                Name;
 	Component*              Parent;
 	Texture*                Textures[MAX_TEXTURES];

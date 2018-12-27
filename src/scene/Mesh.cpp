@@ -322,6 +322,12 @@ bool Mesh::setModelData()
 	return true;
 }
 
+void Mesh::UpdateBoundingVolume()
+{
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->Update();
+}
+
 void Mesh::updateModelData()
 {
 	this->MoveTo(this->position);

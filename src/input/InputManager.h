@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_INPUTMANAGER_H
-#define GE3D_INPUTMANAGER_H
+#ifndef S3DE_INPUTMANAGER_H
+#define S3DE_INPUTMANAGER_H
 
 class InputManager : wxEvtHandler
 {
@@ -16,14 +16,14 @@ private:
 
 public:
 	static int  Init();
+	static void OnGraphicsMenu(wxCommandEvent         &event);
+	static void OnIcon(wxCommandEvent                 &event);
+	static void OnList(wxCommandEvent                 &event);
 	static void OnKeyboard(wxKeyEvent                 &event);
 	static void OnMouseDown(wxMouseEvent              &event);
 	static void OnMouseMove(wxMouseEvent              &event);
 	static void OnMouseScroll(wxMouseEvent            &event);
 	static void OnMouseUp(wxMouseEvent                &event);
-	static void OnGraphicsMenu(wxCommandEvent         &event);
-	static void OnIcon(wxCommandEvent                 &event);
-	static void OnList(wxCommandEvent                 &event);
 	static void OnPropertyChanged(wxPropertyGridEvent &event);
 	static void OnWindowResize(wxSizeEvent            &event);
 	static void Reset();

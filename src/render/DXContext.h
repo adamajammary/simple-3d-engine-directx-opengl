@@ -1,11 +1,11 @@
 #if defined _WINDOWS
 
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_DXCONTEXT_H
-#define GE3D_DXCONTEXT_H
+#ifndef S3DE_DXCONTEXT_H
+#define S3DE_DXCONTEXT_H
 
 class DXContext
 {
