@@ -197,6 +197,9 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	aiVector3D position, rotation, scale;
 	transformMatrix.Decompose(scale, rotation, position);
 
+	if (this->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE])
+		scale.z = 0.1f;
+
 	this->updateModelData(position, scale, rotation);
 	this->setMaxScale();
 	this->SetBoundingVolume(BOUNDING_VOLUME_BOX);
@@ -269,8 +272,10 @@ void Mesh::SetBoundingVolume(BoundingVolumeType type)
 	if (this->boundingVolume != nullptr)
 		_DELETEP(this->boundingVolume);
 
-	if (type != BOUNDING_VOLUME_NONE)
+	if (type != BOUNDING_VOLUME_NONE) {
 		this->boundingVolume = new BoundingVolume(this, type, (this->maxScale + 0.01f));
+		this->boundingVolume->Update();
+	}
 }
 
 void Mesh::setMaxScale()

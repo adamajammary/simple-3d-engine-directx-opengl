@@ -18,8 +18,8 @@ BoundingVolume::BoundingVolume() : Mesh(nullptr, "")
 
 void BoundingVolume::loadBoundingBox(float scaleSize)
 {
-	this->Name = "Bounding Box";
-	std::vector<AssImpMesh*> aiMeshes = Utils::LoadModelFile(Utils::RESOURCE_MODELS[ID_ICON_CUBE]);
+	this->Name    = "Bounding Box";
+	auto aiMeshes = Utils::LoadModelFile(Utils::RESOURCE_MODELS[ID_ICON_CUBE]);
 
 	if (!aiMeshes.empty()) {
 		this->loadModelFile(aiMeshes[0]->Mesh, scaleSize);
@@ -30,8 +30,8 @@ void BoundingVolume::loadBoundingBox(float scaleSize)
 
 void BoundingVolume::loadBoundingSphere(float scaleSize)
 {
-	this->Name = "Bounding Sphere";
-	std::vector<AssImpMesh*> aiMeshes = Utils::LoadModelFile(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE]);
+	this->Name    = "Bounding Sphere";
+	auto aiMeshes = Utils::LoadModelFile(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE]);
 
 	if (!aiMeshes.empty()) {
 		this->loadModelFile(aiMeshes[0]->Mesh, scaleSize);
@@ -61,24 +61,41 @@ bool BoundingVolume::loadModelFile(aiMesh* mesh, float scaleSize)
 
 glm::vec3 BoundingVolume::MaxBoundaries()
 {
-	glm::vec3 max = (this->position + this->scale);
+	auto isPlane = (this->Parent->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE]);
+	auto max     = this->scale;
 
-	max = glm::rotateX(max, this->rotation.x);
-	max = glm::rotateY(max, this->rotation.y);
-	max = glm::rotateZ(max, this->rotation.z);
+	if (std::abs(this->rotation.x) > 0.01f)
+	{
+		max = glm::rotateX(max, this->rotation.x);
+		max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
 
-	return { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
-}
+		if (isPlane)
+			max = { max.x, std::max(max.y, this->scale.z), std::max(max.z, this->scale.z) };
+		else
+			max = { max.x, std::max(std::max(max.y, max.z), this->scale.y), std::max(std::max(max.z, max.y), this->scale.z) };
+	}
 
-glm::vec3 BoundingVolume::MinBoundaries()
-{
-	glm::vec3 min = (this->position - this->scale);
+	if (std::abs(this->rotation.y) > 0.01f)
+	{
+		max = glm::rotateY(max, this->rotation.y);
+		max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
 
-	min = glm::rotateX(min, this->rotation.x);
-	min = glm::rotateY(min, this->rotation.y);
-	min = glm::rotateZ(min, this->rotation.z);
+		if (isPlane)
+			max = { std::max(max.x, this->scale.z), max.y, std::max(max.z, this->scale.z) };
+		else
+			max = { std::max(std::max(max.x, max.z), this->scale.x), max.y, std::max(std::max(max.z, max.x), this->scale.z) };
+	}
 
-	return { -std::abs(min.x), -std::abs(min.y), -std::abs(min.z) };
+	if (!isPlane)
+	{
+		if (std::abs(this->rotation.z) > 0.01f) {
+			max = glm::rotateZ(max, this->rotation.z);
+			max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
+			max = { std::max(std::max(max.x, max.y), this->scale.x), std::max(std::max(max.y, max.x), this->scale.y), max.z };
+		}
+	}
+
+	return max;
 }
 
 void BoundingVolume::Update()

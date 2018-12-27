@@ -17,7 +17,6 @@ private:
 
 public:
 	glm::vec3          MaxBoundaries();
-	glm::vec3          MinBoundaries();
 	void               Update();
 	BoundingVolumeType VolumeType();
 
