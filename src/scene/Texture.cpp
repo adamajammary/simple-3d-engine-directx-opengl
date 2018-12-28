@@ -21,6 +21,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		case GRAPHICS_API_OPENGL:
 			this->type = GL_TEXTURE_2D;
 
+			glEnable(this->type);
 			glCreateTextures(this->type, 1, &this->id);
 
 			if (this->id > 0)
@@ -70,6 +71,7 @@ Texture::Texture(const wxString &imageFile, bool srgb, bool repeat, bool flipY, 
 		case GRAPHICS_API_OPENGL:
 			this->type = GL_TEXTURE_2D;
 
+			glEnable(this->type);
 			glCreateTextures(this->type, 1, &this->id);
 
 			if (this->id > 0)
@@ -126,6 +128,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 		case GRAPHICS_API_OPENGL:
 			this->type = GL_TEXTURE_CUBE_MAP;
 
+			glEnable(this->type);
 			glCreateTextures(this->type, 1, &this->id);
 
 			if (this->id > 0) {
@@ -154,8 +157,11 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 	int                result;
 	D3D11_SAMPLER_DESC samplerDesc11 = {};
 
-	this->repeat = true;
-	this->Scale  = glm::vec2(1.0f, 1.0f);
+	this->repeat      = true;
+	this->Scale       = { 1.0f, 1.0f };
+	this->size        = { width, height };
+	this->srgb        = false;
+	this->transparent = false;
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
@@ -202,9 +208,11 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 // 2D FRAMEBUFFER TEXTURE (VULKAN)
 Texture::Texture(VkFormat imageFormat, int width, int height)
 {
-	this->repeat = true;
-	this->Scale  = glm::vec2(1.0f, 1.0f);
-	this->size   = { width, height };
+	this->repeat      = true;
+	this->Scale       = { 1.0f, 1.0f };
+	this->size        = { width, height };
+	this->srgb        = false;
+	this->transparent = false;
 
 	this->colorBufferViewPort.x        = 0.0f;
 	this->colorBufferViewPort.y        = 0.0f;
@@ -222,21 +230,60 @@ Texture::Texture(VkFormat imageFormat, int width, int height)
 		wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 }
 
-// 2D FRAMEBUFFER TEXTURE (OPENGL)
-Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height)
+// FRAMEBUFFER TEXTURE (OPENGL)
+Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height)
 {
-	this->repeat = true;
-	this->Scale  = glm::vec2(1.0f, 1.0f);
-	this->type   = GL_TEXTURE_2D;
+	this->repeat      = true;
+	this->Scale       = { 1.0f, 1.0f };
+	this->size        = { width, height };
+	this->type        = textureType;
+	this->srgb        = false;
+	this->transparent = false;
 
+	glEnable(this->type);
 	glCreateTextures(this->type, 1, &this->id);
 	glBindTexture(this->type, this->id);
 
-	this->setFilteringGL(false);
-	this->setWrappingGL();
+	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(this->type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glTexImage2D(this->type, 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, this->type, this->id, 0);
+	switch (this->type) {
+	case GL_TEXTURE_2D:
+		if (attachment == GL_DEPTH_ATTACHMENT)
+		{
+			glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+			glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+			// SET BORDER VALUES FOR CLAMP WRAPPING
+			GLfloat borderValues[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+			glTexParameterfv(this->type, GL_TEXTURE_BORDER_COLOR, borderValues);
+
+			glTexImage2D(this->type, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, dataType, nullptr);
+		}
+		else
+		{
+			glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+			glTexImage2D(this->type, 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
+		}
+
+		break;
+	case GL_TEXTURE_CUBE_MAP:
+		this->setWrappingCubemapGL();
+
+		for (GLenum i = 0; i < 6; i++)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, attachment, width, height, 0, attachment, dataType, nullptr);
+
+		break;
+	default:
+		throw;
+	}
+
+	// ATTACH THE TEXTURE TO THE FRAME BUFFER (MAKING THE FRAME BUFFER RENDER TO THE TEXTURE)
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, this->type, this->id, 0);
+	glFramebufferTexture(GL_FRAMEBUFFER, attachment, this->id, 0);
+
 	glBindTexture(this->type, 0);
 }
 
@@ -260,6 +307,8 @@ Texture::Texture()
 	case GRAPHICS_API_OPENGL:
 		this->id   = 0;
 		this->type = GL_TEXTURE_2D;
+
+		glEnable(this->type);
 
 		break;
 	case GRAPHICS_API_VULKAN:

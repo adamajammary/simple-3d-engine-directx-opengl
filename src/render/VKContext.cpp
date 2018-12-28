@@ -45,7 +45,7 @@ void VKContext::Clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCo
 
 	if ((fbo != nullptr) && (commandBuffer != nullptr))
 	{
-		Texture* texture = fbo->ColorTexture();
+		Texture* texture = fbo->GetTexture();
 
 		if (texture != nullptr)
 		{

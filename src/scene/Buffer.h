@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 #include "../globals.h"
 #endif
 
-#ifndef GE3D_BUFFER_H
-#define GE3D_BUFFER_H
+#ifndef S3DE_BUFFER_H
+#define S3DE_BUFFER_H
 
 /**
 * Constant Buffers
@@ -11,22 +11,27 @@
 
 struct CBLight
 {
-	CBLight(const Light &light);
+	CBLight(LightSource* lightSource);
 	CBLight() {}
 
-	glm::vec4 Active      = {};
-	glm::vec4 Ambient     = {};
-	glm::vec4 Angles      = {};
-	glm::vec4 Attenuation = {};
-	glm::vec4 Diffuse     = {};
-	glm::vec4 Direction   = {};
-	glm::vec4 Position    = {};
-	glm::vec4 Specular    = {};
+	glm::vec4 Active         = {};
+	glm::vec4 Ambient        = {};
+	glm::vec4 Angles         = {};
+	glm::vec4 Attenuation    = {};
+	glm::vec4 Diffuse        = {};
+	glm::vec4 Direction      = {};
+	glm::vec4 Position       = {};
+	glm::vec4 Specular       = {};
+	glm::mat4 ViewProjection = {};
+
+	//sampler2D   DepthMapTexture2D;
+	//samplerCube DepthMapTextureCube;
 };
 
 struct CBMatrix
 {
 	CBMatrix(Component* mesh, bool removeTranslation);
+	CBMatrix(LightSource* lightSource, Component* mesh);
 	CBMatrix() {}
 
 	glm::mat4 Model      = {};
@@ -90,18 +95,19 @@ struct CBWater
 
 struct CBLightDX
 {
-	CBLightDX(const Light   &light);
+	CBLightDX(LightSource* lightSource);
 	CBLightDX(const CBLight &light);
 	CBLightDX() {}
 
-	DirectX::XMFLOAT4 Active      = {};
-	DirectX::XMFLOAT4 Ambient     = {};
-	DirectX::XMFLOAT4 Angles      = {};
-	DirectX::XMFLOAT4 Attenuation = {};
-	DirectX::XMFLOAT4 Diffuse     = {};
-	DirectX::XMFLOAT4 Direction   = {};
-	DirectX::XMFLOAT4 Position    = {};
-	DirectX::XMFLOAT4 Specular    = {};
+	DirectX::XMFLOAT4 Active         = {};
+	DirectX::XMFLOAT4 Ambient        = {};
+	DirectX::XMFLOAT4 Angles         = {};
+	DirectX::XMFLOAT4 Attenuation    = {};
+	DirectX::XMFLOAT4 Diffuse        = {};
+	DirectX::XMFLOAT4 Direction      = {};
+	DirectX::XMFLOAT4 Position       = {};
+	DirectX::XMFLOAT4 Specular       = {};
+	DirectX::XMMATRIX ViewProjection = {};
 };
 
 struct CBMatrixDX

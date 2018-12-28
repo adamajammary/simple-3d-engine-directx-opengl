@@ -7,7 +7,7 @@
 	precision mediump float;
 #endif
 
-const int MAX_LIGHT_SOURCES = 16;
+const int MAX_LIGHT_SOURCES = 13;
 const int MAX_TEXTURES      = 6;
 
 struct CBLight
@@ -20,6 +20,7 @@ struct CBLight
     vec4 Direction;
     vec4 Position;
     vec4 Specular;
+	mat4 ViewProjection;
 };
 
 struct CBDefault
@@ -95,19 +96,22 @@ void main()
 	vec3  fromSurfaceToCamera = (wb.DB.CameraPosition.xyz - FragmentPosition.xyz);
 	vec3  viewVector          = normalize(fromSurfaceToCamera);
 	float refractionFactor    = clamp(pow(dot(viewVector, normal), 10.0), 0.0, 1.0);	// higher power => less reflective (transparent)
-	GL_FragColor              = vec4(0);
+	GL_FragColor              = vec4(0.0, 0.0, 0.0, 1.0);
 
+	// SPECULAR HIGHLIGHTS
 	for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
 	{
         if ((wb.DB.LightSources[i].Active.x < 0.1) || (wb.DB.LightSources[i].Angles.x > 0.1) || (wb.DB.LightSources[i].Attenuation.r > 0.1))
 			continue;
 
-		vec3  fromLightToSurface = (FragmentPosition.xyz - wb.DB.LightSources[i].Position.xyz);
-		vec3  reflectedLight     = reflect(normalize(fromLightToSurface), normal);
-		float specular           = pow(max(0.0, dot(reflectedLight, viewVector)), wb.DB.LightSources[i].Specular.r);
-		vec3  specularHighlights = (wb.DB.LightSources[i].Diffuse.rgb * specular * wb.DB.LightSources[i].Specular.a);
+		//vec3  fromLightToSurface = (FragmentPosition.xyz - vec3(10.0f, 50.0f, 100.0f));
+		vec3  fromLightToSurface = (FragmentPosition.xyz - (wb.DB.LightSources[i].Position.xyz * 10.0));
 
-		GL_FragColor += (mix(reflectionColor, refractionColor, refractionFactor) + vec4(specularHighlights, 0.0));
+		vec3  reflectedLight     = reflect(normalize(fromLightToSurface), normal);
+		float specularFactor     = pow(max(0.0, dot(reflectedLight, viewVector)), wb.DB.LightSources[i].Specular.r);
+		vec3  specularHighlights = (wb.DB.LightSources[i].Diffuse.rgb * specularFactor * wb.DB.LightSources[i].Specular.a);
+
+		GL_FragColor.rgb += (mix(reflectionColor, refractionColor, refractionFactor).rgb + specularHighlights);
 	}
 
 	// sRGB GAMMA CORRECTION

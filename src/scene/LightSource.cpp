@@ -4,42 +4,14 @@ LightSource::LightSource(const wxString &modelFile, IconType type) : Component("
 {
 	RenderEngine::Canvas.Window->SetStatusText("Loading the light source ...");
 
-	this->modelFile  = modelFile;
-	this->sourceType = type;
-	this->light      = {};
-	this->type       = COMPONENT_LIGHTSOURCE;
+	this->modelFile   = modelFile;
+	this->sourceType  = type;
+	this->type        = COMPONENT_LIGHTSOURCE;
+	this->depthMapFBO = this->initDepthMap();
+	this->light       = this->initLight();
 
-	switch (type) {
-	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->light.direction        = { -0.1f, -0.5f, -1.0f };
-		this->light.position         = { 10.0f, 50.0f, 100.0f };
-		this->light.material.diffuse = { 0.4f, 0.4f, 0.4f, 1.0f };
-
-		break;
-	case ID_ICON_LIGHT_POINT:
-		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
-		this->light.position         = { 0, 5.0f, 0 };
-		this->light.material.diffuse = { 1.0f, 1.0f, 0, 1.0f };
-
-		break;
-	case ID_ICON_LIGHT_SPOT:
-		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
-		this->light.direction        = { 0, -1.0f, 0 };
-		this->light.position         = { 0, 5.0f, 0 };
-		this->light.innerAngle       = glm::radians(12.5f);
-		this->light.outerAngle       = glm::radians(17.5f);
-		this->light.material.diffuse = { 1.0f, 1.0f, 0, 1.0f };
-
-		break;
-	default:
-		throw;
-	}
-
-	this->light.material.ambient            = { 0.2f, 0.2f, 0.2f };
-	this->light.material.specular.intensity = { 0.6f, 0.6f, 0.6f };
-	this->light.material.specular.shininess = 20.0f;
-
-	this->color = this->light.material.diffuse;
+	this->updateProjection();
+	this->updateView();
 
 	this->Children = Utils::LoadModelFile(modelFile, this);
 	this->isValid  = !this->Children.empty();
@@ -67,14 +39,97 @@ LightSource::LightSource(const wxString &modelFile, IconType type) : Component("
 
 LightSource::LightSource()
 {
-	this->sourceType = ID_ICON_UNKNOWN;
-	this->light      = {};
-	this->type       = COMPONENT_LIGHTSOURCE;
+	this->depthMapFBO = nullptr;
+	this->light       = {};
+	this->sourceType  = ID_ICON_UNKNOWN;
+	this->type        = COMPONENT_LIGHTSOURCE;
+}
+
+FrameBuffer* LightSource::initDepthMap()
+{
+	_DELETEP(this->depthMapFBO);
+
+	switch (this->sourceType) {
+	case ID_ICON_LIGHT_DIRECTIONAL:
+		this->depthMapFBO = new FrameBuffer(wxSize(1024, 1024), FBO_DEPTH, TEXTURE_2D);
+		break;
+	case ID_ICON_LIGHT_POINT:
+		//this->depthMapFBO = new DepthMap(wxSize(1024, 1024), TEXTURE_CUBEMAP);
+		break;
+	case ID_ICON_LIGHT_SPOT:
+		//this->depthMapFBO = new DepthMap(wxSize(1024, 1024), TEXTURE_CUBEMAP);
+		break;
+	default:
+		throw;
+	}
+
+	return this->depthMapFBO;
+}
+
+Light LightSource::initLight()
+{
+	this->light = {};
+
+	switch (this->sourceType) {
+	case ID_ICON_LIGHT_DIRECTIONAL:
+		//this->light.direction        = { 0.2f, -1.0f, -0.3f };
+		//this->light.position         = { -2.0f, 4.0f, -1.0f };
+		this->light.direction        = { 0.5f, -1.0f, -0.2f };
+		this->light.position         = { -2.0f, 3.0f, 3.0f };
+		this->light.material.diffuse = { 0.4f, 0.4f, 0.4f, 1.0f };
+
+		break;
+	case ID_ICON_LIGHT_POINT:
+		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
+		this->light.position         = { 0.0f, 5.0f, 0.0f };
+		this->light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+		break;
+	case ID_ICON_LIGHT_SPOT:
+		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
+		this->light.direction        = { 0.0f, -1.0f, 0.0f };
+		this->light.position         = { 0.0f, 5.0f,  0.0f };
+		this->light.innerAngle       = glm::radians(12.5f);
+		this->light.outerAngle       = glm::radians(17.5f);
+		this->light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
+
+		break;
+	default:
+		throw;
+	}
+
+	this->light.material.ambient            = { 0.2f, 0.2f, 0.2f };
+	this->light.material.specular.intensity = { 0.6f, 0.6f, 0.6f };
+	this->light.material.specular.shininess = 20.0f;
+
+	this->color = this->light.material.diffuse;
+
+	return this->light;
+}
+
+LightSource::~LightSource()
+{
+	_DELETEP(this->depthMapFBO);
 }
 
 bool LightSource::Active()
 {
 	return this->light.active;
+}
+
+float LightSource::ConeInnerAngle()
+{
+	return this->light.innerAngle;
+}
+
+float LightSource::ConeOuterAngle()
+{
+	return this->light.outerAngle;
+}
+
+FrameBuffer* LightSource::DepthMapFBO()
+{
+	return this->depthMapFBO;
 }
 
 glm::vec3 LightSource::Direction()
@@ -87,24 +142,14 @@ Attenuation LightSource::GetAttenuation()
 	return this->light.attenuation;
 }
 
-float LightSource::GetConeInnerAngle()
+Light LightSource::GetLight()
 {
-	return this->light.innerAngle;
-}
-
-float LightSource::GetConeOuterAngle()
-{
-	return this->light.outerAngle;
+	return this->light;
 }
 
 Material LightSource::GetMaterial()
 {
 	return this->light.material;
-}
-
-Light LightSource::GetLight()
-{
-	return this->light;
 }
 
 void LightSource::MoveBy(const glm::vec3 &amount)
@@ -113,6 +158,8 @@ void LightSource::MoveBy(const glm::vec3 &amount)
 
 	if (!this->Children.empty())
 		this->Children[0]->MoveBy(amount);
+
+	this->updateView();
 }
 
 void LightSource::MoveTo(const glm::vec3 &newPosition)
@@ -121,6 +168,18 @@ void LightSource::MoveTo(const glm::vec3 &newPosition)
 
 	if (!this->Children.empty())
 		this->Children[0]->MoveTo(newPosition);
+
+	this->updateView();
+}
+
+glm::mat4 LightSource::MVP(Component* model)
+{
+	return (this->projection * this->view * model->Matrix());
+}
+
+glm::mat4 LightSource::Projection()
+{
+	return this->projection;
 }
 
 void LightSource::SetActive(bool active)
@@ -128,7 +187,7 @@ void LightSource::SetActive(bool active)
 	this->light.active = active;
 
 	if (!this->Children.empty())
-		this->Children[0]->ComponentMaterial.diffuse = (!active ? glm::vec4(0, 0, 0, 1.0f) : this->color);
+		this->Children[0]->ComponentMaterial.diffuse = (!active ? glm::vec4(0.0f, 0.0f, 0.0f, 1.0f) : this->color);
 }
 
 void LightSource::SetAmbient(const glm::vec3 &ambient)
@@ -168,6 +227,8 @@ void LightSource::SetConeOuterAngle(float angleRad)
 void LightSource::SetDirection(const glm::vec3 &direction)
 {
 	this->light.direction = direction;
+
+	this->updateView();
 }
 
 void LightSource::SetSpecularIntensity(const glm::vec3 &intensity)
@@ -183,4 +244,23 @@ void LightSource::SetSpecularShininess(float shininess)
 IconType LightSource::SourceType()
 {
 	return this->sourceType;
+}
+
+void LightSource::updateProjection()
+{
+	this->projection = glm::ortho(
+		-10.0f, 10.0f, -10.0f, 10.0f,
+		RenderEngine::CameraMain->Near(), RenderEngine::CameraMain->Far()
+	);
+}
+
+void LightSource::updateView()
+{
+	this->view = glm::lookAt(this->light.position, (this->light.position + this->light.direction), RenderEngine::CameraMain->Up());
+	//this->view = glm::lookAt(this->light.position, glm::vec3(0.0f), RenderEngine::CameraMain->Up());
+}
+
+glm::mat4 LightSource::View()
+{
+	return this->view;
 }

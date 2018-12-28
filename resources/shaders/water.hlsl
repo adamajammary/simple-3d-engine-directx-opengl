@@ -1,4 +1,4 @@
-static const int MAX_LIGHT_SOURCES = 16;
+static const int MAX_LIGHT_SOURCES = 13;
 static const int MAX_TEXTURES      = 6;
 
 struct CBLight
@@ -11,6 +11,7 @@ struct CBLight
     float4 Direction;
     float4 Position;
     float4 Specular;
+    matrix ViewProjection;
 };
 
 struct CBMatrix

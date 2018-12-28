@@ -213,6 +213,7 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 	{ "resources/shaders/color.hlsl",   "color",     "" },
 	{ "resources/shaders/default.hlsl", "default",   "" },
+	{ "resources/shaders/depth.hlsl",   "depth",     "" },
 	{ "resources/shaders/hud.hlsl",     "hud",       "" },
 	{ "resources/shaders/skybox.hlsl",  "skybox",    "" },
 	{ "resources/shaders/terrain.hlsl", "terrain",   "" },
@@ -225,6 +226,8 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
 	{ "resources/shaders/color.fs.glsl",   "color_fs",     "" },
 	{ "resources/shaders/default.vs.glsl", "default_vs",   "" },
 	{ "resources/shaders/default.fs.glsl", "default_fs",   "" },
+	{ "resources/shaders/depth.vs.glsl",   "depth_vs",     "" },
+	{ "resources/shaders/depth.fs.glsl",   "depth_fs",     "" },
 	{ "resources/shaders/hud.vs.glsl",     "hud_vs",       "" },
 	{ "resources/shaders/hud.fs.glsl",     "hud_fs",       "" },
 	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",    "" },

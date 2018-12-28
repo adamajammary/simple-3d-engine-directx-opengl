@@ -7,7 +7,7 @@
 	precision mediump float;
 #endif
 
-const int MAX_LIGHT_SOURCES = 16;
+const int MAX_LIGHT_SOURCES = 13;
 const int MAX_TEXTURES      = 6;
 
 struct CBLight
@@ -20,6 +20,7 @@ struct CBLight
     vec4 Direction;
     vec4 Position;
     vec4 Specular;
+	mat4 ViewProjection;
 };
 
 layout(location = 0) in vec3 FragmentNormal;
@@ -74,6 +75,7 @@ void main()
 
 	for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
 	{
+    	// Only use directional lights
         if ((tb.LightSources[i].Active.x < 0.1) || (tb.LightSources[i].Angles.x > 0.1) || (tb.LightSources[i].Attenuation.r > 0.1))
 			continue;
 

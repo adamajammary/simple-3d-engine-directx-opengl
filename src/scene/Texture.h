@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_TEXTURE_H
-#define GE3D_TEXTURE_H
+#ifndef S3DE_TEXTURE_H
+#define S3DE_TEXTURE_H
 
 class Texture
 {
@@ -12,7 +12,7 @@ public:
 	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture::Texture(VkFormat imageFormat, int width, int height);
-	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height);
+	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height);
 	Texture();
 	~Texture();
 

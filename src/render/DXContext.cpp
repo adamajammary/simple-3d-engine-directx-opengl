@@ -76,7 +76,7 @@ void DXContext::Clear11(float r, float g, float b, float a, FrameBuffer* fbo)
 	if (fbo == nullptr)
 		this->Clear11(r, g, b, a);
 	else
-		this->deviceContext->ClearRenderTargetView(fbo->ColorTexture()->ColorBuffer11, color);
+		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->ColorBuffer11, color);
 }
 
 void DXContext::Clear12(float r, float g, float b, float a)
@@ -105,7 +105,7 @@ void DXContext::Clear12(float r, float g, float b, float a, FrameBuffer* fbo)
 		this->Clear12(r, g, b, a);
 	} else {
 		FLOAT                         color[] = { r, g, b, a };
-		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->ColorTexture()->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->GetTexture()->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
 		this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	}
@@ -194,6 +194,7 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 
 	bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
 	bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
 	bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
 	bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
 	bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);
@@ -271,6 +272,7 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 
 		bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
 		bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
 		bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
 		bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
 		bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);

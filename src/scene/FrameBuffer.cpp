@@ -1,31 +1,111 @@
 #include "FrameBuffer.h"
 
-FrameBuffer::FrameBuffer(int width, int height)
+FrameBuffer::FrameBuffer(const wxSize &size, FBOType fboType, TextureType textureType)
 {
-	this->colorTexture = nullptr;
-	this->size         = wxSize(width, height);
+	this->size    = size;
+	this->texture = nullptr;
+	this->type    = fboType;
 
-	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-		glCreateFramebuffers(1, &this->colorBuffer);
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
+	case GRAPHICS_API_DIRECTX11:
+	case GRAPHICS_API_DIRECTX12:
+		this->createTextureDX(textureType);
+		break;
+	#endif
+	case GRAPHICS_API_OPENGL:
+		this->createTextureGL(textureType);
+		break;
+	case GRAPHICS_API_VULKAN:
+		this->createTextureVK(textureType);
+		break;
+	default:
+		throw;
+	}
 }
 
 FrameBuffer::FrameBuffer()
 {
-	this->colorTexture = nullptr;
-	this->colorBuffer  = 0;
-	this->size         = wxSize(0, 0);
+	this->fbo     = 0;
+	this->size    = {};
+	this->texture = nullptr;
+	this->type    = FBO_UNKNOWN;
 }
 
 FrameBuffer::~FrameBuffer()
 {
-	this->size = wxSize(0, 0);
+	this->size = {};
 
-	_DELETEP(this->colorTexture);
+	_DELETEP(this->texture);
 
-	if (this->colorBuffer > 0) {
-		glDeleteFramebuffers(1, &this->colorBuffer);
-		this->colorBuffer = 0;
+	if (this->fbo > 0) {
+		glDeleteFramebuffers(1, &this->fbo);
+		this->fbo = 0;
 	}
+}
+
+void FrameBuffer::createTextureDX(TextureType texType)
+{
+	this->texture = new Texture(
+		(this->type == FBO_COLOR ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM),
+		this->size.GetWidth(), this->size.GetHeight()
+	);
+}
+
+void FrameBuffer::createTextureGL(TextureType texType)
+{
+	glCreateFramebuffers(1, &this->fbo);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		wxMessageBox("ERROR! Failed to create a frame buffer for the depth map", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		throw;
+	}
+
+	this->Bind();
+
+	GLenum buffers[1];
+	GLenum textureType;
+
+	switch (texType) {
+		case TEXTURE_2D:      textureType = GL_TEXTURE_2D;       break;
+		case TEXTURE_CUBEMAP: textureType = GL_TEXTURE_CUBE_MAP; break;
+		default: throw;
+	}
+
+	switch (this->type) {
+	case FBO_COLOR:
+		this->texture = new Texture(
+			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, textureType, GL_COLOR_ATTACHMENT0,
+			this->size.GetWidth(), this->size.GetHeight()
+		);
+
+		buffers[0] = GL_COLOR_ATTACHMENT0;
+		glDrawBuffers(1, buffers);
+
+		break;
+	case FBO_DEPTH:
+		this->texture = new Texture(
+			GL_RGB8, GL_RGB, GL_FLOAT, textureType, GL_DEPTH_ATTACHMENT,
+			this->size.GetWidth(), this->size.GetHeight()
+		);
+
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+
+		break;
+	default:
+		throw;
+	}
+
+	this->Unbind();
+}
+
+void FrameBuffer::createTextureVK(TextureType texType)
+{
+	this->texture = new Texture(
+		(this->type == FBO_COLOR ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM),
+		this->size.GetWidth(), this->size.GetHeight()
+	);
 }
 
 void FrameBuffer::Bind()
@@ -39,25 +119,30 @@ void FrameBuffer::Bind()
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Bind11(
-			this->colorTexture->ColorBuffer11, nullptr, this->colorTexture->ColorBufferViewPort11()
+			this->texture->ColorBuffer11, nullptr, this->texture->ColorBufferViewPort11()
 		);
+
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		viewPort       = this->colorTexture->ColorBufferViewPort12();
+		viewPort       = this->texture->ColorBufferViewPort12();
 		scissor.right  = (LONG)viewPort.Width;
 		scissor.bottom = (LONG)viewPort.Height;
 
 		RenderEngine::Canvas.DX->Bind12(
-			this->colorTexture->Resource12,
-			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->colorTexture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart()),
+			this->texture->Resource12,
+			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart()),
 			nullptr, viewPort, scissor
 		);
+
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, this->colorBuffer);
+		glBindTexture(GL_TEXTURE_2D,       0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
 		glViewport(0, 0, this->size.GetWidth(), this->size.GetHeight());
+		glBindFramebuffer(GL_FRAMEBUFFER,  this->fbo);
+
 		break;
 	case GRAPHICS_API_VULKAN:
 		break;
@@ -74,11 +159,14 @@ void FrameBuffer::Unbind()
 		RenderEngine::Canvas.DX->Unbind11();
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->Unbind12(this->colorTexture->Resource12);
+		RenderEngine::Canvas.DX->Unbind12(this->texture->Resource12);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glBindTexture(GL_TEXTURE_2D,       0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER,  0);
+
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 		break;
 	case GRAPHICS_API_VULKAN:
@@ -88,47 +176,14 @@ void FrameBuffer::Unbind()
 	}
 }
 
-void FrameBuffer::CreateColorTexture()
+GLuint FrameBuffer::FBO()
 {
-	GLenum buffers[1];
-
-	switch (RenderEngine::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight());
-		break;
-	case GRAPHICS_API_DIRECTX12:
-		this->colorTexture = new Texture(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight());
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		this->Bind();
-
-		buffers[0] = GL_COLOR_ATTACHMENT0;
-		glDrawBuffers(1, buffers);
-
-		this->colorTexture = new Texture(
-			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, GL_COLOR_ATTACHMENT0, this->size.GetWidth(), this->size.GetHeight()
-		);
-
-		this->Unbind();
-		break;
-	case GRAPHICS_API_VULKAN:
-		this->colorTexture = new Texture(VK_FORMAT_R8G8B8A8_SRGB, this->size.GetWidth(), this->size.GetHeight());
-		break;
-	default:
-		throw;
-	}
+    return this->fbo;
 }
 
-Texture* FrameBuffer::ColorTexture()
+Texture* FrameBuffer::GetTexture()
 {
-	return this->colorTexture;
-}
-
-GLuint FrameBuffer::ColorBuffer()
-{
-    return this->colorBuffer;
+	return this->texture;
 }
 
 wxSize FrameBuffer::Size()

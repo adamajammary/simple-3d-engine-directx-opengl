@@ -10,18 +10,18 @@ layout(location = 1) out vec4 FragmentPosition;
 layout(location = 2) out vec2 FragmentTextureCoords;
 
 layout(binding = 0) uniform MatrixBuffer {
-	mat4 MatrixModel;
-	mat4 MatrixView;
-	mat4 MatrixProjection;
-	mat4 MatrixMVP;
+	mat4 Model;
+	mat4 View;
+	mat4 Projection;
+	mat4 MVP;
 } mb;
 
 void main()
 {
 	// TODO: Calculate the normal matrix on the CPU and send it to the shaders via a uniform before drawing
 	//FragmentNormal        = (transpose(inverse(mat3(mb.MatrixModel))) * VertexNormal).xyz;
-    FragmentNormal        = (mb.MatrixModel * vec4(VertexNormal, 0.0)).xyz;
+    FragmentNormal        = (mb.Model * vec4(VertexNormal, 0.0)).xyz;
     FragmentTextureCoords = VertexTextureCoords;
-    FragmentPosition      = (mb.MatrixModel * vec4(VertexPosition, 1.0));
-    gl_Position           = (mb.MatrixMVP   * vec4(VertexPosition, 1.0));
+    FragmentPosition      = (mb.Model * vec4(VertexPosition, 1.0));
+    gl_Position           = (mb.MVP   * vec4(VertexPosition, 1.0));
 }

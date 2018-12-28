@@ -608,8 +608,8 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "direction",      Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->Direction()) },
 				{ "att_linear",     dynamic_cast<LightSource*>(component)->GetAttenuation().linear },
 				{ "att_quadratic",  dynamic_cast<LightSource*>(component)->GetAttenuation().quadratic },
-				{ "inner_angle",    dynamic_cast<LightSource*>(component)->GetConeInnerAngle() },
-				{ "outer_angle",    dynamic_cast<LightSource*>(component)->GetConeOuterAngle() },
+				{ "inner_angle",    dynamic_cast<LightSource*>(component)->ConeInnerAngle() },
+				{ "outer_angle",    dynamic_cast<LightSource*>(component)->ConeOuterAngle() },
 				{ "children",       childrenJSON }
 			};
 

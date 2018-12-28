@@ -1,7 +1,9 @@
 #include "Buffer.h"
 
-CBLight::CBLight(const Light &light)
+CBLight::CBLight(LightSource* lightSource)
 {
+	Light light = lightSource->GetLight();
+
 	this->Active      = Utils::ToVec4Float(light.active);
 	this->Ambient     = glm::vec4(light.material.ambient, 0.0f);
 	this->Attenuation = glm::vec4(light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f);
@@ -12,6 +14,8 @@ CBLight::CBLight(const Light &light)
 
 	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
 		this->Angles = glm::vec4(glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f);
+
+	this->ViewProjection = (lightSource->Projection() * lightSource->View());
 }
 
 CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
@@ -20,6 +24,14 @@ CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
 	this->MVP        = RenderEngine::CameraMain->MVP(mesh->Matrix(), removeTranslation);
 	this->Projection = RenderEngine::CameraMain->Projection();
 	this->View       = RenderEngine::CameraMain->View(removeTranslation);
+}
+
+CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
+{
+	this->Model      = mesh->Matrix();
+	this->MVP        = lightSource->MVP(mesh);
+	this->Projection = lightSource->Projection();
+	this->View       = lightSource->View();
 }
 
 CBColor::CBColor(const glm::vec4 &color)
@@ -36,7 +48,7 @@ CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
 		if (SceneManager::LightSources[i] != nullptr)
-			this->LightSources[i] = CBLight(SceneManager::LightSources[i]->GetLight());
+			this->LightSources[i] = CBLight(SceneManager::LightSources[i]);
 	}
 
 	this->ClipMax        = glm::vec4(properties.ClipMax, 0.0f);
@@ -68,8 +80,10 @@ CBWater::CBWater(const CBDefault &default, float moveFactor, float waveStrength)
 
 #if defined _WINDOWS
 
-CBLightDX::CBLightDX(const Light &light)
+CBLightDX::CBLightDX(LightSource* lightSource)
 {
+	Light light = lightSource->GetLight();
+
 	this->Active      = Utils::ToXMFLOAT4(light.active);
 	this->Ambient     = Utils::ToXMFLOAT4(light.material.ambient, 0.0f);
 	this->Attenuation = { light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f };
@@ -80,18 +94,21 @@ CBLightDX::CBLightDX(const Light &light)
 
 	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
 		this->Angles = { glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f };
+
+	this->ViewProjection = Utils::ToXMMATRIX(lightSource->Projection() * lightSource->View());
 }
 
 CBLightDX::CBLightDX(const CBLight &light)
 {
-	this->Active      = Utils::ToXMFLOAT4(light.Active);
-	this->Ambient     = Utils::ToXMFLOAT4(light.Ambient);
-	this->Angles      = Utils::ToXMFLOAT4(light.Angles);
-	this->Attenuation = Utils::ToXMFLOAT4(light.Attenuation);
-	this->Diffuse     = Utils::ToXMFLOAT4(light.Diffuse);
-	this->Direction   = Utils::ToXMFLOAT4(light.Direction);
-	this->Position    = Utils::ToXMFLOAT4(light.Position);
-	this->Specular    = Utils::ToXMFLOAT4(light.Specular);
+	this->Active         = Utils::ToXMFLOAT4(light.Active);
+	this->Ambient        = Utils::ToXMFLOAT4(light.Ambient);
+	this->Angles         = Utils::ToXMFLOAT4(light.Angles);
+	this->Attenuation    = Utils::ToXMFLOAT4(light.Attenuation);
+	this->Diffuse        = Utils::ToXMFLOAT4(light.Diffuse);
+	this->Direction      = Utils::ToXMFLOAT4(light.Direction);
+	this->Position       = Utils::ToXMFLOAT4(light.Position);
+	this->Specular       = Utils::ToXMFLOAT4(light.Specular);
+	this->ViewProjection = Utils::ToXMMATRIX(light.ViewProjection);
 }
 
 CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
@@ -119,7 +136,7 @@ CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::v
 
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
 		if (SceneManager::LightSources[i] != nullptr)
-			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]->GetLight());
+			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]);
 	}
 
 	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);

@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_WINDOWFRAME_H
-#define GE3D_WINDOWFRAME_H
+#ifndef S3DE_WINDOWFRAME_H
+#define S3DE_WINDOWFRAME_H
 
 class WindowFrame : public wxFrame
 {
@@ -12,18 +12,18 @@ public:
 
 public:
 	Window*     Parent;
-	wxCheckBox* sRGBEnable;
+	wxCheckBox* SRGBEnable;
 	wchar_t     Title[BUFFER_SIZE];
 	wxCheckBox* VSyncEnable;
 
 private:
-	wxChoice*       dropDownDrawModes;
-	wxChoice*       dropDownGraphicsAPIs;
-	wxListBox*      listBoxComponents;
-	wxListBox*      listBoxChildren;
-	wxPropertyGrid* propertyGrid;
+	wxChoice*       drawModes;
+	wxChoice*       graphicsAPIs;
+	wxListBox*      components;
+	wxListBox*      children;
+	wxPropertyGrid* properties;
 	wxBoxSizer*     sizerMiddle;
-	wxBoxSizer*     sizerSceneProperties;
+	wxBoxSizer*     sizerProperties;
 
 public:
 	void     AddListComponent(Component* component);

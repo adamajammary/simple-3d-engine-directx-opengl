@@ -81,6 +81,7 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		bufferValues = &vertexBuffer->ConstantBufferHUD;
 
 		break;
+	case SHADER_ID_DEPTH:
 	case SHADER_ID_SKYBOX:
 		vertexBuffer->ConstantBufferSkybox = CBSkyboxDX(matrices);
 
@@ -114,6 +115,8 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_COLOR;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEFAULT].Name)
 		return SHADER_ID_DEFAULT;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEPTH].Name)
+		return SHADER_ID_DEPTH;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_HUD].Name)
 		return SHADER_ID_HUD;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
@@ -350,9 +353,17 @@ void ShaderProgram::setUniformsGL()
 	this->Uniforms[UBO_GL_WATER] = glGetUniformBlockIndex(this->program, "WaterBuffer");
 	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WATER]);
 
-	// BIND TEXTURES
+	// MESH TEXTURES
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
+	
+	// DEPTH MAP 2D TEXTURES
+	for (int i = MAX_TEXTURES; i < (MAX_TEXTURES + MAX_LIGHT_SOURCES); i++)
+		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("DepthMapTextures2D[" + std::to_string(i - MAX_TEXTURES) + "]").c_str());
+	
+	// DEPTH MAP CUBE TEXTURES
+	for (int i = (MAX_TEXTURES + MAX_LIGHT_SOURCES); i < MAX_TEXTURE_SLOTS; i++)
+		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("DepthMapTexturesCube[" + std::to_string(i - MAX_TEXTURES - MAX_LIGHT_SOURCES) + "]").c_str());
 
 	glUseProgram(0);
 }
@@ -382,11 +393,13 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 	if (mesh == nullptr)
 		return -1;
 
+	ShaderID shaderID = this->ID();
+
 	// MATRIX BUFFER
 	GLint id = this->Uniforms[UBO_GL_MATRIX];
 
 	if (id >= 0) {
-		CBMatrix mb = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+		CBMatrix mb = (shaderID == SHADER_ID_DEPTH ? CBMatrix(properties.Light, mesh) : CBMatrix(mesh, (shaderID == SHADER_ID_SKYBOX)));
 		this->updateUniformGL(id, UBO_GL_MATRIX, &mb, sizeof(mb));
 	}
 
@@ -436,16 +449,48 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_WATER, &wb, sizeof(wb));
 	}
 
-    // BIND TEXTURES
-    for (int i = 0; i < MAX_TEXTURES; i++)
-    {
-        if (mesh->Textures[i] == nullptr)
-			continue;
+    // BIND MESH TEXTURES
+	switch (shaderID) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_HUD:
+	case SHADER_ID_SKYBOX:
+	case SHADER_ID_TERRAIN:
+	case SHADER_ID_WATER:
+		for (int i = 0; i < MAX_TEXTURES; i++)
+		{
+			glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
+			glActiveTexture(GL_TEXTURE0 + i);
+			glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
+		}
+		break;
+	default:
+		break;
+	}
 
-        glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
-        glActiveTexture(GL_TEXTURE0 + i);
-        glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
-    }
+	// BIND DEPTH MAP TEXTURES
+	if (shaderID == SHADER_ID_DEFAULT)
+	{
+		for (int n = 0; n < 2; n++) {				// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
+		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)	// Light sources
+		{
+			LightSource* lightSource = SceneManager::LightSources[i];
+
+			if ((lightSource == nullptr) || (lightSource->DepthMapFBO() == nullptr))
+				continue;
+
+			Texture* texture = lightSource->DepthMapFBO()->GetTexture();
+
+			if (((n == 0) && (texture->Type() != GL_TEXTURE_2D)) || ((n == 1) && (texture->Type() != GL_TEXTURE_CUBE_MAP)))
+				continue;
+
+			int j = (MAX_TEXTURES + (n * MAX_LIGHT_SOURCES) + i);	// Texture slot: GL_TEXTURE0 -> GL_TEXTURE31
+
+			glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + j], j);
+			glActiveTexture(GL_TEXTURE0 + j);
+			glBindTexture(texture->Type(), texture->ID());
+		}
+		}
+	}
 
 	return 0;
 }
@@ -459,11 +504,13 @@ void ShaderProgram::updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* 
 
 int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, const VKUniform &uniform, const DrawProperties &properties)
 {
-	CBColor         cbColor;
-	CBDefault       cbDefault;
-	CBHUD           cbHUD;
-	CBWater         cbWater;
-	CBMatrix        cbMatrices  = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+	// MATRIX UNIFORM BUFFER
+	CBMatrix cbMatrices;
+	
+	if (this->ID() == SHADER_ID_DEPTH)
+		cbMatrices = CBMatrix(properties.Light, mesh);
+	else
+		cbMatrices = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
 
 	int result = ShaderProgram::updateUniformsVK(
 		UBO_VK_MATRIX, UBO_BINDING_MATRIX, uniform, &cbMatrices, sizeof(cbMatrices), deviceContext, mesh
@@ -471,6 +518,12 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 
 	if (result < 0)
 		return -1;
+
+	// UNIFORM BUFFERS
+	CBColor   cbColor;
+	CBDefault cbDefault;
+	CBHUD     cbHUD;
+	CBWater   cbWater;
 
 	switch (this->ID()) {
 	case SHADER_ID_COLOR:
@@ -643,8 +696,16 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	if (vertexBuffer == nullptr)
 		return -2;
 
-	size_t   bufferSize = 0;
-	CBMatrix matrices   = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+	// MATRIX UNIFORM BUFFER
+	CBMatrix matrices;
+
+	if (this->ID() == SHADER_ID_DEPTH)
+		matrices = CBMatrix(properties.Light, mesh);
+	else
+		matrices = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+
+	// UNIFORM BUFFERS
+	size_t bufferSize = 0;
 
 	*constBufferValues = ShaderProgram::getBufferValues(matrices, mesh, properties, bufferSize);
 	*constBuffer       = vertexBuffer->ConstantBuffersDX11[this->ID()];

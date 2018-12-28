@@ -1,5 +1,5 @@
-#ifndef GE3D_GLOBALS_H
-#define GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
+#define S3DE_GLOBALS_H
 
 #define _CRT_SECURE_NO_WARNINGS
 #define UNICODE
@@ -89,41 +89,28 @@
 #include <wx/webview.h>
 
 struct CBMatrix;
-struct Material;
 
 class BoundingVolume;
 class Buffer;
-class Camera;
 class Component;
+class LightSource;
 class DXContext;
-class HUD;
-class InputManager;
 class Mesh;
-class Model;
-class Noise;
-class PhysicsEngine;
-class RayCast;
-class RenderEngine;
-class SceneManager;
-class ShaderManager;
 class ShaderProgram;
 class Skybox;
 class Terrain;
 class Texture;
-class TimeManager;
-class Utils;
 class VKContext;
 class Water;
-class WaterFBO;
-class Window;
 class WindowFrame;
 
 static const uint32_t BUFFER_SIZE           = 1024;
 static const uint32_t LZMA_OFFSET_ID        = 8;
 static const uint32_t LZMA_OFFSET_SIZE      = 8;
 static const uint32_t MAX_CONCURRENT_FRAMES = 2;
-static const uint32_t MAX_LIGHT_SOURCES     = 16;
+static const uint32_t MAX_LIGHT_SOURCES     = 13;
 static const uint32_t MAX_TEXTURES          = 6;
+static const uint32_t MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES + MAX_LIGHT_SOURCES);
 static const uint32_t NR_OF_FRAMEBUFFERS    = 2;
 
 #if defined _WINDOWS
@@ -159,6 +146,11 @@ enum ComponentType
 enum DrawModeType
 {
 	DRAW_MODE_UNKNOWN = -1, DRAW_MODE_FILLED, DRAW_MODE_WIREFRAME, NR_OF_DRAW_MODES
+};
+
+enum FBOType
+{
+	FBO_UNKNOWN = -1, FBO_COLOR, FBO_DEPTH, NR_OF_FBO_TYPES
 };
 
 enum GraphicsAPI
@@ -274,12 +266,18 @@ enum ShaderID
 	SHADER_ID_UNKNOWN = -1,
 	SHADER_ID_COLOR,
 	SHADER_ID_DEFAULT,
+	SHADER_ID_DEPTH,
 	SHADER_ID_HUD,
 	SHADER_ID_SKYBOX,
 	SHADER_ID_TERRAIN,
 	SHADER_ID_WATER,
 	SHADER_ID_WIREFRAME,
 	NR_OF_SHADERS
+};
+
+enum TextureType
+{
+	TEXTURE_UNKNOWN = -1, TEXTURE_2D, TEXTURE_CUBEMAP, NR_OF_TEXTURE_TYPES
 };
 
 enum UniformBufferTypeGL
@@ -290,12 +288,12 @@ enum UniformBufferTypeGL
 	UBO_GL_HUD,
 	UBO_GL_TERRAIN,
 	UBO_GL_WATER,
-	UBO_GL_TEXTURES0,
-	UBO_GL_TEXTURES1,
-	UBO_GL_TEXTURES2,
-	UBO_GL_TEXTURES3,
-	UBO_GL_TEXTURES4,
-	UBO_GL_TEXTURES5,
+	UBO_GL_TEXTURES0,  UBO_GL_TEXTURES1,  UBO_GL_TEXTURES2,  UBO_GL_TEXTURES3,  UBO_GL_TEXTURES4,  UBO_GL_TEXTURES5,
+	UBO_GL_TEXTURES6,  UBO_GL_TEXTURES7,  UBO_GL_TEXTURES8,  UBO_GL_TEXTURES9,  UBO_GL_TEXTURES10, UBO_GL_TEXTURES11,
+	UBO_GL_TEXTURES12, UBO_GL_TEXTURES13, UBO_GL_TEXTURES14, UBO_GL_TEXTURES15, UBO_GL_TEXTURES16, UBO_GL_TEXTURES17,
+	UBO_GL_TEXTURES18, UBO_GL_TEXTURES19, UBO_GL_TEXTURES20, UBO_GL_TEXTURES21, UBO_GL_TEXTURES22, UBO_GL_TEXTURES23,
+	UBO_GL_TEXTURES24, UBO_GL_TEXTURES25, UBO_GL_TEXTURES26, UBO_GL_TEXTURES27, UBO_GL_TEXTURES28, UBO_GL_TEXTURES29,
+	UBO_GL_TEXTURES30, UBO_GL_TEXTURES31,
 	NR_OF_UBOS_GL
 };
 
@@ -317,12 +315,15 @@ enum UniformBufferTypeVK
 
 struct DrawProperties
 {
-	bool      DrawBoundingVolume = false;
-	bool      DrawSelected       = false;
-	bool      EnableClipping     = false;
-	bool      FBO                = false;
-	glm::vec3 ClipMax            = {};
-	glm::vec3 ClipMin            = {};
+	glm::vec3       ClipMax            = {};
+	glm::vec3       ClipMin            = {};
+	bool            DrawBoundingVolume = false;
+	bool            DrawSelected       = false;
+	bool            EnableClipping     = false;
+	bool            FBO                = false;
+	LightSource*    Light              = nullptr;
+	ShaderID        Shader             = SHADER_ID_UNKNOWN;
+	VkCommandBuffer VKCommandBuffer    = nullptr;
 };
 
 struct GPUDescription
@@ -401,107 +402,107 @@ struct GLCanvas
 	#define _RELEASEP(x) if (x != nullptr) { x->Release(); x = nullptr; }
 #endif
 
-#ifndef GE3D_MATERIAL_H
+#ifndef S3DE_MATERIAL_H
 	#include "scene/Material.h"
 #endif
-#ifndef GE3D_LIGHT_H
+#ifndef S3DE_LIGHT_H
 	#include "scene/Light.h"
 #endif
-#ifndef GE3D_UTILS_H
+#ifndef S3DE_UTILS_H
 	#include "system/Utils.h"
 #endif
-#ifndef GE3D_NOISE_H
+#ifndef S3DE_NOISE_H
 	#include "system/Noise.h"
 #endif
-#ifndef GE3D_INPUTMANAGER_H
+#ifndef S3DE_INPUTMANAGER_H
 	#include "input/InputManager.h"
 #endif
-#ifndef GE3D_RAYCAST_H
+#ifndef S3DE_RAYCAST_H
 	#include "physics/RayCast.h"
 #endif
-#ifndef GE3D_PHYSICSENGINE_H
+#ifndef S3DE_PHYSICSENGINE_H
 	#include "physics/PhysicsEngine.h"
 #endif
 
-#ifndef GE3D_FRAMEBUFFER_H
+#ifndef S3DE_FRAMEBUFFER_H
 	#include "scene/FrameBuffer.h"
 #endif
-//#ifndef GE3D_MATERIAL_H
+//#ifndef S3DE_MATERIAL_H
 //	#include "scene/Material.h"
 //#endif
-//#ifndef GE3D_LIGHT_H
+//#ifndef S3DE_LIGHT_H
 //	#include "scene/Light.h"
 //#endif
-#ifndef GE3D_DXCONTEXT_H
+#ifndef S3DE_DXCONTEXT_H
 	#include "render/DXContext.h"
 #endif
-#ifndef GE3D_VKCONTEXT_H
+#ifndef S3DE_VKCONTEXT_H
 	#include "render/VKContext.h"
 #endif
-#ifndef GE3D_COMPONENT_H
+#ifndef S3DE_COMPONENT_H
 	#include "scene/Component.h"
 #endif
-#ifndef GE3D_CAMERA_H
+#ifndef S3DE_CAMERA_H
 	#include "scene/Camera.h"
 #endif
-#ifndef GE3D_RENDERENGINE_H
+#ifndef S3DE_RENDERENGINE_H
 	#include "render/RenderEngine.h"
 #endif
-#ifndef GE3D_SHADERMANAGER_H
+#ifndef S3DE_SHADERMANAGER_H
 	#include "render/ShaderManager.h"
 #endif
-#ifndef GE3D_SHADERPROGRAM_H
+#ifndef S3DE_SHADERPROGRAM_H
 	#include "render/ShaderProgram.h"
 #endif
-#ifndef GE3D_BUFFER_H
+#ifndef S3DE_BUFFER_H
 	#include "scene/Buffer.h"
 #endif
-//#ifndef GE3D_COMPONENT_H
+//#ifndef S3DE_COMPONENT_H
 //	#include "scene/Component.h"
 //#endif
-#ifndef GE3D_MESH_H
+#ifndef S3DE_MESH_H
 	#include "scene/Mesh.h"
 #endif
-#ifndef GE3D_BOUNDINGVOLUME_H
+#ifndef S3DE_BOUNDINGVOLUME_H
 	#include "scene/BoundingVolume.h"
 #endif
-//#ifndef GE3D_CAMERA_H
+//#ifndef S3DE_CAMERA_H
 //	#include "scene/Camera.h"
 //#endif
-#ifndef GE3D_HUD_H
+#ifndef S3DE_HUD_H
 	#include "scene/HUD.h"
 #endif
-#ifndef GE3D_MODEL_H
+#ifndef S3DE_MODEL_H
 	#include "scene/Model.h"
 #endif
-#ifndef GE3D_LIGHTSOURCE_H
+#ifndef S3DE_LIGHTSOURCE_H
 	#include "scene/LightSource.h"
 #endif
-#ifndef GE3D_SCENEMANAGER_H
+#ifndef S3DE_SCENEMANAGER_H
 	#include "scene/SceneManager.h"
 #endif
-#ifndef GE3D_SKYBOX_H
+#ifndef S3DE_SKYBOX_H
 	#include "scene/Skybox.h"
 #endif
-#ifndef GE3D_TERRAIN_H
+#ifndef S3DE_TERRAIN_H
 	#include "scene/Terrain.h"
 #endif
-#ifndef GE3D_TEXTURE_H
+#ifndef S3DE_TEXTURE_H
 	#include "scene/Texture.h"
 #endif
-#ifndef GE3D_WATERFBO_H
+#ifndef S3DE_WATERFBO_H
 	#include "scene/WaterFBO.h"
 #endif
-#ifndef GE3D_WATER_H
+#ifndef S3DE_WATER_H
 	#include "scene/Water.h"
 #endif
-#ifndef GE3D_TIMEMANAGER_H
+#ifndef S3DE_TIMEMANAGER_H
 	#include "time/TimeManager.h"
 #endif
-#ifndef GE3D_WINDOW_H
+#ifndef S3DE_WINDOW_H
 	#include "ui/Window.h"
 #endif
-#ifndef GE3D_WINDOWFRAME_H
+#ifndef S3DE_WINDOWFRAME_H
 	#include "ui/WindowFrame.h"
 #endif
 

@@ -2,25 +2,28 @@
 
 void PhysicsEngine::CheckRayCasts(wxMouseEvent &event)
 {
-	RayCast* ray      = new RayCast(event.GetX(), event.GetY());
-	bool     selected = false;
+	auto ray      = new RayCast(event.GetX(), event.GetY());
+	auto selected = false;
 
 	for (auto mesh : RenderEngine::Renderables)
 	{
 		if (mesh == nullptr)
 			continue;
 
-		BoundingVolume* volume = dynamic_cast<Mesh*>(mesh)->GetBoundingVolume();
+		auto volume = dynamic_cast<Mesh*>(mesh)->GetBoundingVolume();
 
 		if (volume == nullptr)
 			continue;
 
+		auto min = (volume->Position() - volume->MaxBoundaries());
+		auto max = (volume->Position() + volume->MaxBoundaries());
+
 		switch (volume->VolumeType()) {
 		case BOUNDING_VOLUME_BOX:
-			selected = ray->RayIntersectAABB(volume->MinBoundaries(), volume->MaxBoundaries());
+			selected = ray->RayIntersectAABB(min, max);
 			break;
 		case BOUNDING_VOLUME_SPHERE:
-			selected = ray->RayIntersectSphere(volume->MinBoundaries(), volume->MaxBoundaries());
+			selected = ray->RayIntersectSphere(min, max);
 			break;
 		default:
 			throw;

@@ -274,6 +274,12 @@
     <None Include="resources\shaders\color.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
+    <None Include="resources\shaders\depth.vs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="resources\shaders\depth.fs.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\default.hlsl">
@@ -292,6 +298,9 @@
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
     <FxCompile Include="resources\shaders\color.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\depth.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

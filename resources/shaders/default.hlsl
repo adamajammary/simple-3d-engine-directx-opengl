@@ -1,4 +1,4 @@
-static const int MAX_LIGHT_SOURCES = 16;
+static const int MAX_LIGHT_SOURCES = 13;
 static const int MAX_TEXTURES      = 6;
 
 struct CBLight
@@ -11,6 +11,7 @@ struct CBLight
     float4 Direction;
     float4 Position;
     float4 Specular;
+    matrix ViewProjection;
 };
 
 struct CBMatrix
@@ -44,6 +45,12 @@ cbuffer DefaultBuffer : register(b0)
 
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
 SamplerState TextureSamplers[MAX_TEXTURES] : register(s0);
+
+Texture2D    DepthMapTextures2D[MAX_LIGHT_SOURCES]         : register(t1);
+SamplerState DepthMapTextures2DSamplers[MAX_LIGHT_SOURCES] : register(s1);
+
+TextureCube  DepthMapTexturesCube[MAX_LIGHT_SOURCES]         : register(t2);
+SamplerState DepthMapTexturesCubeSamplers[MAX_LIGHT_SOURCES] : register(s2);
 
 struct VS_INPUT
 {

@@ -7,13 +7,7 @@
 	precision mediump float;
 #endif
 
-layout(location = 0) out vec4 GL_FragColor;
-
-layout(binding = 1) uniform ColorBuffer {
-	vec4 Color;
-} cb;
-
 void main()
 {
-	GL_FragColor = cb.Color;
+	//gl_FragDepth = gl_FragCoord.z;
 }
