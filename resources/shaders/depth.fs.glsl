@@ -7,7 +7,11 @@
 	precision mediump float;
 #endif
 
+//layout(location = 0) in float FragmentPosition;
+
 void main()
 {
+	//gl_FragDepth = 0.1;
+	//gl_FragDepth = FragmentPosition;
 	//gl_FragDepth = gl_FragCoord.z;
 }

@@ -82,10 +82,13 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	vec3 shadowMapCoordinates = vec3(positionLightSpace.xyz / positionLightSpace.w);	// Perspective projection divide
 	shadowMapCoordinates      = ((shadowMapCoordinates * 0.5) + 0.5);					// Convert coordinate range from [-1,1] to [0,1]
 	
+	// TODO: DEBUG VULKAN
+	//return min(texture(depthMapTexture, FragmentTextureCoords).r, 0.75);
+
 	// Get shadow map depth coordinates
 	//float closestDepth = texture(depthMapTexture, shadowMapCoordinates.xy).r;	// Closest depth value from light's perspective
 	float currentDepth = shadowMapCoordinates.z;	// Depth of current fragment from light's perspective
-	
+
 	// POBLEM:   Large dark region at the far end of the light source's frustum.
 	// REASON:   Coordinates outside the far plane of the light's orthographic frustum.
 	// SOLUTION: Force shadow values larger than 1.0 to 0 (not in shadow).

@@ -87,7 +87,7 @@ void RenderEngine::createDepthFBO()
 		// DRAW
 		DrawProperties drawProperties = {};
 
-		drawProperties.FBO             = true;
+		drawProperties.FboType         = FBO_DEPTH;
 		drawProperties.Light           = lightSource;
 		drawProperties.Shader          = SHADER_ID_DEPTH;
 		drawProperties.VKCommandBuffer = cmdBuffer;
@@ -132,7 +132,7 @@ void RenderEngine::createWaterFBOs()
 		DrawProperties drawProperties = {};
 
 		drawProperties.EnableClipping  = true;
-		drawProperties.FBO             = true;
+		drawProperties.FboType         = FBO_COLOR;
 		drawProperties.ClipMax         = glm::vec3(scale.x, scale.y, scale.z);
 		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
 		drawProperties.VKCommandBuffer = cmdBuffer;
@@ -269,6 +269,8 @@ int RenderEngine::drawRenderables(DrawProperties &properties)
 
 	RenderEngine::drawMeshes(RenderEngine::Renderables, properties);
 
+	properties.Shader = SHADER_ID_UNKNOWN;
+
 	return 0;
 }
 
@@ -306,6 +308,8 @@ int RenderEngine::drawSkybox(DrawProperties &properties)
 
 	RenderEngine::drawMeshes({ RenderEngine::Skybox }, properties);
 
+	properties.Shader = SHADER_ID_UNKNOWN;
+
 	return 0;
 }
 
@@ -321,6 +325,8 @@ int RenderEngine::drawTerrains(DrawProperties &properties)
 		properties.Shader = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_TERRAIN : SHADER_ID_WIREFRAME);
 
 	RenderEngine::drawMeshes(RenderEngine::Terrains, properties);
+
+	properties.Shader = SHADER_ID_UNKNOWN;
 
 	return 0;
 }

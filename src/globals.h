@@ -258,7 +258,7 @@ enum PropertyID
 
 enum RenderPass
 {
-	RENDER_PASS_DEFAULT, RENDER_PASS_FBO, NR_OF_RENDER_PASSES
+	RENDER_PASS_DEFAULT, RENDER_PASS_FBO_COLOR, RENDER_PASS_FBO_DEPTH, NR_OF_RENDER_PASSES
 };
 
 enum ShaderID
@@ -299,7 +299,7 @@ enum UniformBufferTypeGL
 
 enum UniformBinding
 {
-	UBO_BINDING_MATRIX, UBO_BINDING_DEFAULT, UBO_BINDING_TEXTURES, NR_OF_UBO_BINDINGS
+	UBO_BINDING_MATRIX, UBO_BINDING_DEFAULT, UBO_BINDING_TEXTURES, UBO_BINDING_DEPTH_2D, UBO_BINDING_DEPTH_CUBEMAPS, NR_OF_UBO_BINDINGS
 };
 
 enum UniformBufferTypeVK
@@ -320,7 +320,7 @@ struct DrawProperties
 	bool            DrawBoundingVolume = false;
 	bool            DrawSelected       = false;
 	bool            EnableClipping     = false;
-	bool            FBO                = false;
+	FBOType         FboType            = FBO_UNKNOWN;
 	LightSource*    Light              = nullptr;
 	ShaderID        Shader             = SHADER_ID_UNKNOWN;
 	VkCommandBuffer VKCommandBuffer    = nullptr;
@@ -370,7 +370,8 @@ struct VKPipeline
 {
 	VkPipelineLayout Layout;
 	VkPipeline       Pipelines[NR_OF_SHADERS];
-	VkPipeline       PipelinesFBO[NR_OF_SHADERS];
+	VkPipeline       PipelinesColorFBO[NR_OF_SHADERS];
+	//VkPipeline       PipelinesDepthFBO[NR_OF_SHADERS];
 };
 
 struct VKUniform

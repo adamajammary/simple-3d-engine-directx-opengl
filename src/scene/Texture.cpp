@@ -9,6 +9,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		this->repeat      = repeat;
 		this->Scale       = scale;
 		this->srgb        = false;
+		this->textureType = TEXTURE_2D;
 		this->transparent = transparent;
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
@@ -59,6 +60,7 @@ Texture::Texture(const wxString &imageFile, bool srgb, bool repeat, bool flipY, 
 		this->repeat      = repeat;
 		this->Scale       = scale;
 		this->srgb        = srgb;
+		this->textureType = TEXTURE_2D;
 		this->transparent = transparent;
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
@@ -102,47 +104,48 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 	wxImage*              image;
 	std::vector<wxImage*> images;
 
-	if ((int)imageFiles.size() == MAX_TEXTURES)
-	{
-		for (int i = 0; i < MAX_TEXTURES; i++) {
-			if ((image = Utils::LoadImageFile(imageFiles[i])) != nullptr)
-				images.push_back(image);
-		}
+	if ((int)imageFiles.size() != MAX_TEXTURES)
+		throw;
+
+	for (int i = 0; i < MAX_TEXTURES; i++) {
+		if ((image = Utils::LoadImageFile(imageFiles[i])) != nullptr)
+			images.push_back(image);
 	}
 
-	if ((int)images.size() == MAX_TEXTURES)
-	{
-		this->flipY       = flipY;
-		this->imageFiles  = imageFiles;
-		this->Scale       = scale;
-		this->srgb        = true;
-		this->transparent = transparent;
+	if ((int)images.size() != MAX_TEXTURES)
+		throw;
 
-		switch (RenderEngine::SelectedGraphicsAPI) {
-		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11:
-		case GRAPHICS_API_DIRECTX12:
-			this->loadTextureImagesDX(images);
-			break;
-		#endif
-		case GRAPHICS_API_OPENGL:
-			this->type = GL_TEXTURE_CUBE_MAP;
+	this->flipY       = flipY;
+	this->imageFiles  = imageFiles;
+	this->Scale       = scale;
+	this->srgb        = true;
+	this->textureType = TEXTURE_CUBEMAP;
+	this->transparent = transparent;
 
-			glEnable(this->type);
-			glCreateTextures(this->type, 1, &this->id);
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	#if defined _WINDOWS
+	case GRAPHICS_API_DIRECTX11:
+	case GRAPHICS_API_DIRECTX12:
+		this->loadTextureImagesDX(images);
+		break;
+	#endif
+	case GRAPHICS_API_OPENGL:
+		this->type = GL_TEXTURE_CUBE_MAP;
 
-			if (this->id > 0) {
-				for (int i = 0; i < MAX_TEXTURES; i++)
-					this->loadTextureImageGL(images[i], true, i);
-			}
+		glEnable(this->type);
+		glCreateTextures(this->type, 1, &this->id);
 
-			break;
-		case GRAPHICS_API_VULKAN:
-			this->loadTextureImagesVK(images);
-			break;
-		default:
-			throw;
+		if (this->id > 0) {
+			for (int i = 0; i < MAX_TEXTURES; i++)
+				this->loadTextureImageGL(images[i], true, i);
 		}
+
+		break;
+	case GRAPHICS_API_VULKAN:
+		this->loadTextureImagesVK(images);
+		break;
+	default:
+		throw;
 	}
 
 	for (auto img : images) {
@@ -151,7 +154,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 	}
 }
 
-// 2D FRAMEBUFFER TEXTURE (DIRECTX)
+// FRAMEBUFFER TEXTURE (DIRECTX)
 Texture::Texture(DXGI_FORMAT format, int width, int height)
 {
 	int                result;
@@ -161,17 +164,19 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = { width, height };
 	this->srgb        = false;
+	//this->textureType = TEXTURE_2D;
+	//this->textureType = TEXTURE_CUBEMAP;
 	this->transparent = false;
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		this->colorBufferViewPort11.TopLeftX = 0.0f;
-		this->colorBufferViewPort11.TopLeftY = 0.0f;
-		this->colorBufferViewPort11.Width    = (FLOAT)width;
-		this->colorBufferViewPort11.Height   = (FLOAT)height;
-		this->colorBufferViewPort11.MinDepth = 0.0f;
-		this->colorBufferViewPort11.MaxDepth = 1.0f;
+		this->bufferViewPort11.TopLeftX = 0.0f;
+		this->bufferViewPort11.TopLeftY = 0.0f;
+		this->bufferViewPort11.Width    = (FLOAT)width;
+		this->bufferViewPort11.Height   = (FLOAT)height;
+		this->bufferViewPort11.MinDepth = 0.0f;
+		this->bufferViewPort11.MaxDepth = 1.0f;
 
 		this->setFilteringDX11(samplerDesc11);
 		this->setWrappingDX11(samplerDesc11);
@@ -183,12 +188,12 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		this->colorBufferViewPort12.TopLeftX = 0.0f;
-		this->colorBufferViewPort12.TopLeftY = 0.0f;
-		this->colorBufferViewPort12.Width    = (FLOAT)width;
-		this->colorBufferViewPort12.Height   = (FLOAT)height;
-		this->colorBufferViewPort12.MinDepth = 0.0f;
-		this->colorBufferViewPort12.MaxDepth = 1.0f;
+		this->bufferViewPort12.TopLeftX = 0.0f;
+		this->bufferViewPort12.TopLeftY = 0.0f;
+		this->bufferViewPort12.Width    = (FLOAT)width;
+		this->bufferViewPort12.Height   = (FLOAT)height;
+		this->bufferViewPort12.MinDepth = 0.0f;
+		this->bufferViewPort12.MaxDepth = 1.0f;
 
 		this->setFilteringDX12(this->SamplerDesc12);
 		this->setWrappingDX12(this->SamplerDesc12);
@@ -205,26 +210,57 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 	}
 }
 
-// 2D FRAMEBUFFER TEXTURE (VULKAN)
-Texture::Texture(VkFormat imageFormat, int width, int height)
+// FRAMEBUFFER TEXTURE (VULKAN)
+Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, int width, int height)
 {
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = { width, height };
 	this->srgb        = false;
+	this->textureType = textureType;
 	this->transparent = false;
 
-	this->colorBufferViewPort.x        = 0.0f;
-	this->colorBufferViewPort.y        = 0.0f;
-	this->colorBufferViewPort.width    = (float)width;
-	this->colorBufferViewPort.height   = (float)height;
-	this->colorBufferViewPort.minDepth = 0.0f;
-	this->colorBufferViewPort.maxDepth = 1.0f;
+	this->bufferViewPort.x        = 0.0f;
+	this->bufferViewPort.y        = 0.0f;
+	this->bufferViewPort.width    = (float)width;
+	this->bufferViewPort.height   = (float)height;
+	this->bufferViewPort.minDepth = 0.0f;
+	this->bufferViewPort.maxDepth = 1.0f;
 
-	this->setFilteringVK(this->SamplerInfo);
-	this->setWrappingVK(this->SamplerInfo);
+	this->SamplerInfo.magFilter = VK_FILTER_NEAREST;
+	this->SamplerInfo.minFilter = VK_FILTER_NEAREST;
 
-	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(imageFormat, this);
+	switch (textureType) {
+	case TEXTURE_2D:
+		switch (fboType) {
+		case FBO_COLOR:
+			this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			break;
+		case FBO_DEPTH:
+			this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+			this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+
+			// SET BORDER VALUES FOR CLAMP WRAPPING
+			this->SamplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+			break;
+		}
+
+		break;
+	case TEXTURE_CUBEMAP:
+		this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		this->SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
+		break;
+	default:
+		throw;
+	}
+
+	//this->setFilteringVK(this->SamplerInfo);
+	//this->setWrappingVK(this->SamplerInfo);
+
+	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(fboType, textureType, imageFormat, this);
 
 	if (result < 0)
 		wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
@@ -236,9 +272,10 @@ Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textu
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = { width, height };
-	this->type        = textureType;
+	this->textureType = (textureType == GL_TEXTURE_2D ? TEXTURE_2D : TEXTURE_CUBEMAP);
 	this->srgb        = false;
 	this->transparent = false;
+	this->type        = textureType;
 
 	glEnable(this->type);
 	glCreateTextures(this->type, 1, &this->id);
@@ -270,7 +307,9 @@ Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textu
 
 		break;
 	case GL_TEXTURE_CUBE_MAP:
-		this->setWrappingCubemapGL();
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 		for (GLenum i = 0; i < 6; i++)
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, attachment, width, height, 0, attachment, dataType, nullptr);
@@ -289,18 +328,20 @@ Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textu
 
 Texture::Texture()
 {
+	this->textureType = TEXTURE_2D;
+
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		this->ColorBuffer11  = nullptr;
+		this->Buffer11       = nullptr;
 		this->Resource11     = nullptr;
 		this->samplerState11 = nullptr;
 		this->SRV11          = nullptr;
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		this->ColorBuffer12 = nullptr;
-		this->Resource12    = nullptr;
+		this->Buffer12   = nullptr;
+		this->Resource12 = nullptr;
 
 		break;
 	#endif
@@ -327,49 +368,54 @@ Texture::Texture()
 Texture::~Texture()
 {
 	#if defined _WINDOWS
-		_RELEASEP(this->ColorBuffer11);
+		_RELEASEP(this->Buffer11);
 		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
 
-		_RELEASEP(this->ColorBuffer12);
+		_RELEASEP(this->Buffer12);
 		_RELEASEP(this->Resource12);
 	#endif
 
 	if (this->id > 0)
-	{
+	//{
 		glDeleteTextures(1, &this->id);
 
-		this->id   = 0;
-		this->type = GL_TEXTURE_2D;
-	}
+	//	this->id   = 0;
+	//	this->type = GL_TEXTURE_2D;
+	//}
 
 	RenderEngine::Canvas.VK->DestroyTexture(&this->Image, &this->ImageMemory, &this->ImageView, &this->Sampler);
-	RenderEngine::Canvas.VK->DestroyFramebuffer(&this->ColorBufferVK);
+	RenderEngine::Canvas.VK->DestroyFramebuffer(&this->BufferVK);
 
 	this->imageFiles.clear();
 }
 
-VkViewport Texture::ColorBufferViewPort()
+VkViewport Texture::BufferViewPort()
 {
-	return this->colorBufferViewPort;
+	return this->bufferViewPort;
 }
 
 #if defined _WINDOWS
-D3D11_VIEWPORT Texture::ColorBufferViewPort11()
+D3D11_VIEWPORT Texture::BufferViewPort11()
 {
-	return this->colorBufferViewPort11;
+	return this->bufferViewPort11;
 }
 
-D3D12_VIEWPORT Texture::ColorBufferViewPort12()
+D3D12_VIEWPORT Texture::BufferViewPort12()
 {
-	return this->colorBufferViewPort12;
+	return this->bufferViewPort12;
 }
 #endif
 
 bool Texture::FlipY()
 {
 	return this->flipY;
+}
+
+TextureType Texture::GetTextureType()
+{
+	return this->textureType;
 }
 
 GLuint Texture::ID()

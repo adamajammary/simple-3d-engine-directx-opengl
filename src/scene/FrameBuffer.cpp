@@ -44,7 +44,7 @@ FrameBuffer::~FrameBuffer()
 	}
 }
 
-void FrameBuffer::createTextureDX(TextureType texType)
+void FrameBuffer::createTextureDX(TextureType textureType)
 {
 	this->texture = new Texture(
 		(this->type == FBO_COLOR ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM),
@@ -52,7 +52,7 @@ void FrameBuffer::createTextureDX(TextureType texType)
 	);
 }
 
-void FrameBuffer::createTextureGL(TextureType texType)
+void FrameBuffer::createTextureGL(TextureType textureType)
 {
 	glCreateFramebuffers(1, &this->fbo);
 
@@ -64,18 +64,18 @@ void FrameBuffer::createTextureGL(TextureType texType)
 	this->Bind();
 
 	GLenum buffers[1];
-	GLenum textureType;
+	GLenum texType;
 
-	switch (texType) {
-		case TEXTURE_2D:      textureType = GL_TEXTURE_2D;       break;
-		case TEXTURE_CUBEMAP: textureType = GL_TEXTURE_CUBE_MAP; break;
+	switch (textureType) {
+		case TEXTURE_2D:      texType = GL_TEXTURE_2D;       break;
+		case TEXTURE_CUBEMAP: texType = GL_TEXTURE_CUBE_MAP; break;
 		default: throw;
 	}
 
 	switch (this->type) {
 	case FBO_COLOR:
 		this->texture = new Texture(
-			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, textureType, GL_COLOR_ATTACHMENT0,
+			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, texType, GL_COLOR_ATTACHMENT0,
 			this->size.GetWidth(), this->size.GetHeight()
 		);
 
@@ -85,7 +85,7 @@ void FrameBuffer::createTextureGL(TextureType texType)
 		break;
 	case FBO_DEPTH:
 		this->texture = new Texture(
-			GL_RGB8, GL_RGB, GL_FLOAT, textureType, GL_DEPTH_ATTACHMENT,
+			GL_RGB8, GL_RGB, GL_FLOAT, texType, GL_DEPTH_ATTACHMENT,
 			this->size.GetWidth(), this->size.GetHeight()
 		);
 
@@ -100,12 +100,22 @@ void FrameBuffer::createTextureGL(TextureType texType)
 	this->Unbind();
 }
 
-void FrameBuffer::createTextureVK(TextureType texType)
+void FrameBuffer::createTextureVK(TextureType textureType)
 {
-	this->texture = new Texture(
-		(this->type == FBO_COLOR ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM),
-		this->size.GetWidth(), this->size.GetHeight()
-	);
+	switch (this->type) {
+	case FBO_COLOR:
+		this->texture = new Texture(
+			this->type, textureType, VK_FORMAT_R8G8B8A8_SRGB, this->size.GetWidth(), this->size.GetHeight()
+		);
+		break;
+	case FBO_DEPTH:
+		this->texture = new Texture(
+			this->type, textureType, VK_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight()
+		);
+		break;
+	default:
+		throw;
+	}
 }
 
 void FrameBuffer::Bind()
@@ -119,18 +129,18 @@ void FrameBuffer::Bind()
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		RenderEngine::Canvas.DX->Bind11(
-			this->texture->ColorBuffer11, nullptr, this->texture->ColorBufferViewPort11()
+			this->texture->Buffer11, nullptr, this->texture->BufferViewPort11()
 		);
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		viewPort       = this->texture->ColorBufferViewPort12();
+		viewPort       = this->texture->BufferViewPort12();
 		scissor.right  = (LONG)viewPort.Width;
 		scissor.bottom = (LONG)viewPort.Height;
 
 		RenderEngine::Canvas.DX->Bind12(
 			this->texture->Resource12,
-			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart()),
+			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->texture->Buffer12->GetCPUDescriptorHandleForHeapStart()),
 			nullptr, viewPort, scissor
 		);
 
@@ -189,4 +199,9 @@ Texture* FrameBuffer::GetTexture()
 wxSize FrameBuffer::Size()
 {
 	return this->size;
+}
+
+FBOType FrameBuffer::Type()
+{
+	return this->type;
 }

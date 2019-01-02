@@ -49,23 +49,34 @@ void VKContext::Clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCo
 
 		if (texture != nullptr)
 		{
-			VkClearValue          clearValue     = {};
+			VkClearValue          clearValues[1] = {};
 			VkRenderPassBeginInfo renderPassInfo = {};
 			wxSize                textureSize    = texture->Size();
 
-			clearValue.color = { r, g, b, a };
-
 			// START RENDER PASS
 			renderPassInfo.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			renderPassInfo.clearValueCount   = 1;
-			renderPassInfo.pClearValues      = &clearValue;
-			renderPassInfo.framebuffer       = texture->ColorBufferVK;
-			renderPassInfo.renderPass        = this->renderPasses[RENDER_PASS_FBO];
+			renderPassInfo.framebuffer       = texture->BufferVK;
 			renderPassInfo.renderArea.extent = { (uint32_t)textureSize.GetWidth(), (uint32_t)textureSize.GetHeight() };
+
+			switch (fbo->Type()) {
+			case FBO_COLOR:
+				clearValues[0].color      = { r, g, b, a };
+				renderPassInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_COLOR];
+				break;
+			case FBO_DEPTH:
+				clearValues[0].depthStencil = { 1.0f, 0 };
+				renderPassInfo.renderPass   = this->renderPasses[RENDER_PASS_FBO_DEPTH];
+				break;
+			default:
+				throw;
+			}
+
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues    = clearValues;
 
 			vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-			viewport = texture->ColorBufferViewPort();
+			viewport = texture->BufferViewPort();
 		}
 	}
 	else
@@ -197,7 +208,7 @@ int VKContext::copyBufferToImage(VkBuffer buffer, VkImage image, int colorCompon
 	return 0;
 }
 
-int VKContext::copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageLayout oldLayout, VkImageLayout newLayout)
+int VKContext::copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, TextureType textureType, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
 	VkCommandBuffer cmdBuffer = this->CommandBufferBegin();
 
@@ -215,7 +226,7 @@ int VKContext::copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels
 	imageMemBarrier.dstQueueFamilyIndex         = VK_QUEUE_FAMILY_IGNORED;
 	imageMemBarrier.image                       = image;
 	imageMemBarrier.subresourceRange.levelCount = mipLevels;
-	imageMemBarrier.subresourceRange.layerCount = (cubeMap ? 6 : 1);
+	imageMemBarrier.subresourceRange.layerCount = (textureType == TEXTURE_CUBEMAP ? MAX_TEXTURES : 1);
 	//imageMemBarrier.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
 	//imageMemBarrier.srcAccessMask                   = 0;
 	//imageMemBarrier.dstAccessMask                   = 0;
@@ -258,6 +269,8 @@ int VKContext::copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels
 
 		pipelineStageSrcFlags  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 		pipelineStageDestFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		//pipelineStageSrcFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		//pipelineStageDestFlags = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	}
 	// TO COLOR BUFFER
 	else if ((oldLayout == VK_IMAGE_LAYOUT_UNDEFINED) && (newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL))
@@ -271,7 +284,7 @@ int VKContext::copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels
 	// UNKNOWN TRANSITION
 	else
 	{
-		return -2;
+		throw;
 	}
 
 	vkCmdPipelineBarrier(cmdBuffer, pipelineStageSrcFlags, pipelineStageDestFlags, 0, 0, nullptr, 0, nullptr, 1, &imageMemBarrier);
@@ -329,7 +342,7 @@ int VKContext::createImage(
 	VkImageTiling         tiling,
 	VkImageUsageFlags     useFlags,
 	VkMemoryPropertyFlags memoryFlags,
-	bool                  cubeMap,
+	TextureType           textureType,
 	VkImage*              image,
 	VkDeviceMemory*       imageMemory
 )
@@ -339,18 +352,30 @@ int VKContext::createImage(
 	VkMemoryRequirements  imageMemReq    = {};
 
 	imageInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.arrayLayers   = (cubeMap ? 6 : 1);
 	imageInfo.extent        = { width, height, 1 };
-	imageInfo.flags         = (cubeMap ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0);
 	imageInfo.format        = format;
 	imageInfo.imageType     = VK_IMAGE_TYPE_2D;
 	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.mipLevels     = (cubeMap ? 1 : mipLevels);
 	imageInfo.samples       = (VkSampleCountFlagBits)sampleCount;
 	imageInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
 	imageInfo.tiling        = tiling;
 	imageInfo.usage         = useFlags;
 	//imageInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+
+	switch (textureType) {
+	case TEXTURE_2D:
+		imageInfo.arrayLayers = 1;
+		imageInfo.flags       = 0;
+		imageInfo.mipLevels   = mipLevels;
+		break;
+	case TEXTURE_CUBEMAP:
+		imageInfo.arrayLayers = MAX_TEXTURES;
+		imageInfo.flags       = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+		imageInfo.mipLevels   = 1;
+		break;
+	default:
+		throw;
+	}
 
 	if (vkCreateImage(this->deviceContext, &imageInfo, nullptr, image) != VK_SUCCESS)
 		return -2;
@@ -373,23 +398,24 @@ int VKContext::createImage(
 	return 0;
 }
 
-VkSampler VKContext::createImageSampler(float mipLevels, float sampleCount, bool cubeMap, VkSamplerCreateInfo &samplerInfo)
+VkSampler VKContext::createImageSampler(float mipLevels, float sampleCount, VkSamplerCreateInfo &samplerInfo)
 {
 	VkSampler imageSampler = nullptr;
 
 	samplerInfo.sType            = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 	samplerInfo.anisotropyEnable = VK_TRUE;
 	samplerInfo.maxAnisotropy    = sampleCount;
-	//samplerInfo.borderColor      = (cubeMap ? VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE : VK_BORDER_COLOR_INT_OPAQUE_BLACK);
-	samplerInfo.borderColor      = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 	samplerInfo.maxLod           = mipLevels;
 	samplerInfo.mipmapMode       = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-	//samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 	//samplerInfo.compareEnable = VK_FALSE;
-	//samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+	//samplerInfo.compareOp     = VK_COMPARE_OP_ALWAYS;
 	//samplerInfo.mipLodBias = 0.0f;
 	//samplerInfo.minLod = 0.0f;
 	//samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+	if (samplerInfo.borderColor == 0)
+		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+		//samplerInfo.borderColor      = (cubeMap ? VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE : VK_BORDER_COLOR_INT_OPAQUE_BLACK);
 
 	if (vkCreateSampler(this->deviceContext, &samplerInfo, nullptr, &imageSampler) != VK_SUCCESS)
 		return nullptr;
@@ -397,7 +423,7 @@ VkSampler VKContext::createImageSampler(float mipLevels, float sampleCount, bool
 	return imageSampler;
 }
 
-VkImageView VKContext::createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageAspectFlags aspectFlags)
+VkImageView VKContext::createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, TextureType textureType, VkImageAspectFlags aspectFlags)
 {
 	VkImageViewCreateInfo imageViewInfo = {};
 	VkImageView           imageView     = nullptr;
@@ -408,12 +434,23 @@ VkImageView VKContext::createImageView(VkImage image, VkFormat imageFormat, uint
 	imageViewInfo.image                       = image;
 	imageViewInfo.subresourceRange.aspectMask = aspectFlags;
 	imageViewInfo.subresourceRange.levelCount = mipLevels;
-	imageViewInfo.subresourceRange.layerCount = (cubeMap ? 6 : 1);
-	imageViewInfo.viewType                    = (cubeMap ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D);
 	//imageViewInfo.flags                       = 0;
 	//imageViewInfo.subresourceRange = { aspectFlags, 0, mipLevels, 0, (cubeMap ? 6 : 1) };
 	//imageViewInfo.subresourceRange.baseMipLevel   = 0;
 	//imageViewInfo.subresourceRange.baseArrayLayer = 0;
+
+	switch (textureType) {
+	case TEXTURE_2D:
+		imageViewInfo.subresourceRange.layerCount = 1;
+		imageViewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+		break;
+	case TEXTURE_CUBEMAP:
+		imageViewInfo.subresourceRange.layerCount = MAX_TEXTURES;
+		imageViewInfo.viewType                    = VK_IMAGE_VIEW_TYPE_CUBE;
+		break;
+	default:
+		throw;
+	}
 
 	if (vkCreateImageView(this->deviceContext, &imageViewInfo, nullptr, &imageView) != VK_SUCCESS)
 		return nullptr;
@@ -529,7 +566,7 @@ int VKContext::createPipeline(
 	ShaderProgram*   shaderProgram,
 	VkPipeline*      pipeline,
 	VkPipelineLayout pipelineLayout,
-	bool             fbo,
+	FBOType          fboType,
 	const std::vector<VkVertexInputAttributeDescription> &attribsDescs,
 	const VkVertexInputBindingDescription                &attribsBindingDesc
 )
@@ -552,18 +589,10 @@ int VKContext::createPipeline(
 	fsStageInfo.pName  = "main";
 	//fsStageInfo.pSpecializationInfo = nullptr;
 
-	VkPipelineColorBlendAttachmentState    colorBlendAttachment = {};
-	VkPipelineColorBlendStateCreateInfo    colorBlendInfo       = {};
-	VkPipelineDepthStencilStateCreateInfo  depthStencilInfo     = {};
-	VkPipelineDynamicStateCreateInfo       dynamicState         = {};
-	VkDynamicState                         dynamicStates[]      = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-	VkPipelineInputAssemblyStateCreateInfo inputAssembly        = {};
-	VkPipelineMultisampleStateCreateInfo   multisampleInfo      = this->initMultisampling(fbo ? 1 : this->multiSampleCount);
-	VkGraphicsPipelineCreateInfo           pipelineInfo         = {};
-	VkPipelineShaderStageCreateInfo        shaderStages[]       = { vsStageInfo, fsStageInfo };
-	VkPipelineRasterizationStateCreateInfo rasterizationInfo    = {};
-	VkPipelineVertexInputStateCreateInfo   vertexInput          = {};
-	VkPipelineViewportStateCreateInfo      viewportInfo         = this->initViewport();
+	VkPipelineDynamicStateCreateInfo       dynamicState    = {};
+	VkDynamicState                         dynamicStates[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+	VkPipelineInputAssemblyStateCreateInfo inputAssembly   = {};
+	VkPipelineVertexInputStateCreateInfo   vertexInput     = {};
 
 	dynamicState.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicState.dynamicStateCount = 2;
@@ -581,6 +610,31 @@ int VKContext::createPipeline(
 	vertexInput.vertexBindingDescriptionCount   = 1;
 	vertexInput.pVertexBindingDescriptions      = &attribsBindingDesc;
 
+	VkPipelineColorBlendAttachmentState    colorBlendAttachment = {};
+	VkPipelineColorBlendStateCreateInfo    colorBlendInfo       = {};
+	VkPipelineDepthStencilStateCreateInfo  depthStencilInfo     = {};
+	VkPipelineMultisampleStateCreateInfo   multisampleInfo;
+	VkGraphicsPipelineCreateInfo           pipelineInfo         = {};
+	VkPipelineRasterizationStateCreateInfo rasterizationInfo    = {};
+	ShaderID                               shaderID             = shaderProgram->ID();
+	VkPipelineShaderStageCreateInfo        shaderStages[]       = { vsStageInfo, fsStageInfo };
+	VkPipelineViewportStateCreateInfo      viewportInfo         = this->initViewport();
+
+	switch (fboType) {
+	case FBO_COLOR:
+	case FBO_DEPTH:
+		multisampleInfo         = this->initMultisampling(1);
+		pipelineInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_COLOR];
+		break;
+	default:
+		multisampleInfo         = this->initMultisampling(this->multiSampleCount);
+		pipelineInfo.renderPass = this->renderPasses[RENDER_PASS_DEFAULT];
+		break;
+	}
+
+	if (shaderID == SHADER_ID_DEPTH)
+		pipelineInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_DEPTH];
+
 	pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineInfo.stageCount          = 2;
 	pipelineInfo.pStages             = shaderStages;
@@ -591,11 +645,10 @@ int VKContext::createPipeline(
 	pipelineInfo.pViewportState      = &viewportInfo;
 	pipelineInfo.basePipelineIndex   = -1;
 	pipelineInfo.layout              = pipelineLayout;
-	pipelineInfo.renderPass          = this->renderPasses[fbo ? RENDER_PASS_FBO : RENDER_PASS_DEFAULT];
 	//pipelineInfo.basePipelineHandle  = VK_NULL_HANDLE;
 	//pipelineInfo.subpass             = 0;
 
-	switch(shaderProgram->ID()) {
+	switch(shaderID) {
 	case SHADER_ID_HUD:
 		colorBlendInfo    = this->initColorBlending(colorBlendAttachment, VK_TRUE);
 		depthStencilInfo  = this->initDepthStencilBuffer(VK_FALSE);
@@ -613,9 +666,16 @@ int VKContext::createPipeline(
 		break;
 	}
 
-	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+	switch (shaderID) {
+	case SHADER_ID_WIREFRAME:
 		inputAssembly.topology        = VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
 		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
+		break;
+	case SHADER_ID_DEPTH:
+		colorBlendInfo.attachmentCount = 0;
+		break;
+	default:
+		break;
 	}
 
 	pipelineInfo.pColorBlendState    = &colorBlendInfo;
@@ -683,14 +743,15 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 
 	VkBufferUsageFlags    bufferUseFlags      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags bufferMemFlags      = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	bool                  cubeMap             = (imagePixels.size() > 1);
+	//bool                  cubeMap             = (imagePixels.size() > 1);
+	TextureType           textureType         = (imagePixels.size() > 1 ? TEXTURE_CUBEMAP : TEXTURE_2D);
 	void*                 imageMemData        = nullptr;
 	VkMemoryPropertyFlags imageUseFlags       = (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	VkMemoryPropertyFlags imageMemFlags       = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	wxSize                textureSize         = texture->Size();
 	int                   colorComponents     = ((imageFormat == VK_FORMAT_R8G8B8A8_UNORM || imageFormat == VK_FORMAT_R8G8B8A8_SRGB) ? 4 : 3);
 	VkDeviceSize          imageSize           = (textureSize.GetWidth() * textureSize.GetHeight() * colorComponents);
-	uint32_t              mipLevels           = (cubeMap ? 1 : texture->MipLevels());
+	uint32_t              mipLevels           = (textureType == TEXTURE_CUBEMAP ? 1 : texture->MipLevels());
 	VkBuffer              stagingBuffer       = nullptr;
 	VkDeviceMemory        stagingBufferMemory = nullptr;
 
@@ -710,7 +771,7 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	int result = this->createImage(
 		(uint32_t)textureSize.GetWidth(), (uint32_t)textureSize.GetHeight(),
 		mipLevels, VK_SAMPLE_COUNT_1_BIT, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-		imageUseFlags, imageMemFlags, cubeMap, &texture->Image, &texture->ImageMemory
+		imageUseFlags, imageMemFlags, textureType, &texture->Image, &texture->ImageMemory
 	);
 
 	if (result < 0)
@@ -719,7 +780,7 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	for (size_t i = 0; i < imagePixels.size(); i++)
 	{
 		// TRANSITION IMAGE LAYOUT TO DESTINATION
-		if (this->copyImage(texture->Image, imageFormat, mipLevels, cubeMap, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) < 0)
+		if (this->copyImage(texture->Image, imageFormat, mipLevels, textureType, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) < 0)
 			return -4;
 
 		// COPY DATA FROM STAGING BUFFER TO IMAGE (DEVICE LOCAL)
@@ -727,8 +788,8 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 			return -5;
 
 		// TRANSITION IMAGE LAYOUT TO SHADER
-		if (cubeMap)
-			result = this->copyImage(texture->Image, imageFormat, mipLevels, cubeMap, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		if (textureType == TEXTURE_CUBEMAP)
+			result = this->copyImage(texture->Image, imageFormat, mipLevels, textureType, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		else
 			result = this->createMipMaps(texture->Image, imageFormat, textureSize.GetWidth(), textureSize.GetHeight(), mipLevels);
 
@@ -740,13 +801,13 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	vkDestroyBuffer(this->deviceContext, stagingBuffer,       nullptr);
 
 	// SAMPLER
-	texture->Sampler = this->createImageSampler((float)mipLevels, (float)this->multiSampleCount, cubeMap, texture->SamplerInfo);
+	texture->Sampler = this->createImageSampler((float)mipLevels, (float)this->multiSampleCount, texture->SamplerInfo);
 
 	if (texture->Sampler == nullptr)
 		return -7;
 
 	// IMAGE VIEW
-	texture->ImageView = this->createImageView(texture->Image, imageFormat, mipLevels, cubeMap, VK_IMAGE_ASPECT_COLOR_BIT);
+	texture->ImageView = this->createImageView(texture->Image, imageFormat, mipLevels, textureType, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	if (texture->ImageView == nullptr)
 		return -8;
@@ -754,42 +815,64 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	return 0;
 }
 
-int VKContext::CreateTextureBuffer(VkFormat imageFormat, Texture* texture)
+int VKContext::CreateTextureBuffer(FBOType fboType, TextureType textureType, VkFormat imageFormat, Texture* texture)
 {
 	if (texture == nullptr)
 		return -1;
 
-	VkMemoryPropertyFlags imageUseFlags = (VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-	VkMemoryPropertyFlags imageMemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-	wxSize                textureSize   = texture->Size();
+	VkImageAspectFlags      imageAspectFlags;
+	VkImageLayout           imageLayout;
+	VkMemoryPropertyFlags   imageUseFlags   = VK_IMAGE_USAGE_SAMPLED_BIT;
+	VkMemoryPropertyFlags   imageMemFlags   = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	VkFramebufferCreateInfo framebufferInfo = {};
+	wxSize                  textureSize     = texture->Size();
+
+	switch (fboType) {
+	case FBO_COLOR:
+		imageAspectFlags = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageLayout      = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		imageUseFlags   |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+		framebufferInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_COLOR];
+
+		break;
+	case FBO_DEPTH:
+		imageAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
+		imageLayout      = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		imageUseFlags   |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+		imageFormat = this->getDepthBufferFormat();
+
+		framebufferInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_DEPTH];
+
+		break;
+	default:
+		throw;
+	}
 
 	int result = this->createImage(
 		textureSize.GetWidth(), textureSize.GetHeight(), 1, 1, imageFormat, VK_IMAGE_TILING_OPTIMAL,
-		imageUseFlags, imageMemFlags, false, &texture->Image, &texture->ImageMemory
+		imageUseFlags, imageMemFlags, textureType, &texture->Image, &texture->ImageMemory
 	);
 
 	if (result < 0)
 		return -2;
 
 	// SAMPLER
-	texture->Sampler = this->createImageSampler(1.0f, 1.0f, false, texture->SamplerInfo);
+	texture->Sampler = this->createImageSampler(1.0f, 1.0f, texture->SamplerInfo);
 
 	if (texture->Sampler == nullptr)
 		return -3;
 
-	texture->ImageView = this->createImageView(texture->Image, imageFormat, 1, false, VK_IMAGE_ASPECT_COLOR_BIT);
+	texture->ImageView = this->createImageView(texture->Image, imageFormat, 1, textureType, imageAspectFlags);
 
 	if (texture->ImageView == nullptr)
 		return -4;
 
-	result = this->copyImage(
-		texture->Image, imageFormat, 1, false, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-	);
+	result = this->copyImage(texture->Image, imageFormat, 1, textureType, VK_IMAGE_LAYOUT_UNDEFINED, imageLayout);
 
 	if (result < 0)
 		return -5;
-
-	VkFramebufferCreateInfo framebufferInfo = {};
 
 	framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebufferInfo.attachmentCount = 1;
@@ -797,9 +880,8 @@ int VKContext::CreateTextureBuffer(VkFormat imageFormat, Texture* texture)
 	framebufferInfo.width           = textureSize.GetWidth();
 	framebufferInfo.height          = textureSize.GetHeight();
 	framebufferInfo.layers          = 1;
-	framebufferInfo.renderPass      = this->renderPasses[RENDER_PASS_FBO];
 
-	if (vkCreateFramebuffer(this->deviceContext, &framebufferInfo, nullptr, &texture->ColorBufferVK) != VK_SUCCESS)
+	if (vkCreateFramebuffer(this->deviceContext, &framebufferInfo, nullptr, &texture->BufferVK) != VK_SUCCESS)
 		return -6;
 
 	return 0;
@@ -857,6 +939,18 @@ int VKContext::createUniformLayout(VkDescriptorSetLayout* uniformLayout)
 	uniformLayoutBindings[UBO_BINDING_TEXTURES].binding         = UBO_BINDING_TEXTURES;
 	uniformLayoutBindings[UBO_BINDING_TEXTURES].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+	// DEPTH SAMPLER - 2D
+	uniformLayoutBindings[UBO_BINDING_DEPTH_2D].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_2D].descriptorCount = MAX_LIGHT_SOURCES;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_2D].binding         = UBO_BINDING_DEPTH_2D;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_2D].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+	// DEPTH SAMPLER - CUBE MAP
+	uniformLayoutBindings[UBO_BINDING_DEPTH_CUBEMAPS].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_CUBEMAPS].descriptorCount = MAX_LIGHT_SOURCES;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_CUBEMAPS].binding         = UBO_BINDING_DEPTH_CUBEMAPS;
+	uniformLayoutBindings[UBO_BINDING_DEPTH_CUBEMAPS].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 	uniformLayoutInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	uniformLayoutInfo.bindingCount = NR_OF_UBO_BINDINGS;
 	uniformLayoutInfo.pBindings    = uniformLayoutBindings;
@@ -872,17 +966,23 @@ int VKContext::createUniformPool(VkDescriptorPool* uniformPool)
 	if (this->deviceContext == nullptr)
 		return -1;
 
-	VkDescriptorPoolCreateInfo uniformPoolInfo     = {};
-	VkDescriptorPoolSize       uniformPoolSizes[2] = {};
+	VkDescriptorPoolCreateInfo uniformPoolInfo = {};
+	VkDescriptorPoolSize       uniformPoolSizes[NR_OF_UBO_BINDINGS - 1] = {};
 
-	uniformPoolSizes[0].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uniformPoolSizes[0].descriptorCount = NR_OF_UBO_BINDINGS - 1;
+	uniformPoolSizes[UBO_BINDING_DEFAULT - 1].type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uniformPoolSizes[UBO_BINDING_DEFAULT - 1].descriptorCount = 2; // matrix + default
 
-	uniformPoolSizes[1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	uniformPoolSizes[1].descriptorCount = MAX_TEXTURES;
+	uniformPoolSizes[UBO_BINDING_TEXTURES - 1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformPoolSizes[UBO_BINDING_TEXTURES - 1].descriptorCount = MAX_TEXTURES;
+
+	uniformPoolSizes[UBO_BINDING_DEPTH_2D - 1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformPoolSizes[UBO_BINDING_DEPTH_2D - 1].descriptorCount = MAX_LIGHT_SOURCES;
+
+	uniformPoolSizes[UBO_BINDING_DEPTH_CUBEMAPS - 1].type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	uniformPoolSizes[UBO_BINDING_DEPTH_CUBEMAPS - 1].descriptorCount = MAX_LIGHT_SOURCES;
 
 	uniformPoolInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	uniformPoolInfo.poolSizeCount = 2;
+	uniformPoolInfo.poolSizeCount = NR_OF_UBO_BINDINGS - 1;
 	uniformPoolInfo.pPoolSizes    = uniformPoolSizes;
 	uniformPoolInfo.maxSets       = 1;	// maximum number of descriptor sets that can be allocated from the pool
 
@@ -1079,7 +1179,7 @@ bool VKContext::deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysical
 	return supported;
 }
 
-int VKContext::Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int VKContext::Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
 {
 	if ((RenderEngine::CameraMain == nullptr) || (mesh == nullptr) || (shaderProgram == nullptr))
 		return -1;
@@ -1096,30 +1196,39 @@ int VKContext::Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawPro
 	if (shaderProgram->UpdateUniformsVK(this->deviceContext, mesh, vertexBuffer->Uniform, properties) < 0)
 		return -3;
 
-	VkCommandBuffer commandBuffer = (cmdBuffer != nullptr ? cmdBuffer : this->commandBuffers[this->imageIndex]);
+	VkPipeline      pipeline;
+	VkCommandBuffer cmdBuffer = (properties.VKCommandBuffer != nullptr ? properties.VKCommandBuffer : this->commandBuffers[this->imageIndex]);
 
 	// BIND SHADER TO PIPELINE
-	if (properties.FBO)
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.PipelinesFBO[shaderID]);
-	else
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.Pipelines[shaderID]);
+	switch (properties.FboType) {
+	case FBO_COLOR:
+	case FBO_DEPTH:
+		pipeline = vertexBuffer->Pipeline.PipelinesColorFBO[shaderID];
+		//pipeline = vertexBuffer->Pipeline.PipelinesDepthFBO[shaderID];
+		break;
+	default:
+		pipeline = vertexBuffer->Pipeline.Pipelines[shaderID];
+		break;
+	}
+
+	vkCmdBindPipeline(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 	// BIND INDEX AND VERTEX BUFFERS
 	if (indexBuffer != nullptr)
-		vkCmdBindIndexBuffer(commandBuffer, indexBuffer->IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(cmdBuffer, indexBuffer->IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 	VkDeviceSize offsets[] = { 0 };
-	vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+	vkCmdBindVertexBuffers(cmdBuffer, 0, 1, vertexBuffers, offsets);
 	
 	// TODO: SLOW
 	// BIND UNIFORMS
-	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.Layout, 0, 1, &vertexBuffer->Uniform.Set, 0, nullptr);
+	vkCmdBindDescriptorSets(cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vertexBuffer->Pipeline.Layout, 0, 1, &vertexBuffer->Uniform.Set, 0, nullptr);
 
 	// DRAW
 	if (indexBuffer != nullptr)
-		vkCmdDrawIndexed(commandBuffer, dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 1, 0, 0, 0);
+		vkCmdDrawIndexed(cmdBuffer, dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 1, 0, 0, 0);
 	else
-		vkCmdDraw(commandBuffer, dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 1, 0, 0);
+		vkCmdDraw(cmdBuffer, dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 1, 0, 0);
 
 	return 0;
 }
@@ -1453,10 +1562,11 @@ int VKContext::initColorImages()
 	{
 		int result = this->createImage(
 			this->swapChain->Size.width, this->swapChain->Size.height,
-			1, this->multiSampleCount, colorFormat, VK_IMAGE_TILING_OPTIMAL,
+			1, this->multiSampleCount,
+			colorFormat, VK_IMAGE_TILING_OPTIMAL,
 			(VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT),
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			false,
+			TEXTURE_2D,
 			&this->colorImages[i], &this->colorImageMemories[i]
 		);
 
@@ -1464,11 +1574,11 @@ int VKContext::initColorImages()
 			return -2;
 
 		this->colorImageViews[i] = this->createImageView(
-			this->colorImages[i], colorFormat, 1, false, VK_IMAGE_ASPECT_COLOR_BIT
+			this->colorImages[i], colorFormat, 1, TEXTURE_2D, VK_IMAGE_ASPECT_COLOR_BIT
 		);
 
 		result = this->copyImage(
-			this->colorImages[i], colorFormat, 1, false,
+			this->colorImages[i], colorFormat, 1, TEXTURE_2D,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 		);
 
@@ -1520,12 +1630,13 @@ VkPipelineDepthStencilStateCreateInfo VKContext::initDepthStencilBuffer(VkBool32
 	depthStencilInfo.depthWriteEnable = enableDepth;
 	depthStencilInfo.depthCompareOp   = compareOperation;
 
-	//depthStencilBuffer->stencilTestEnable = VK_FALSE;
-	//depthStencilBuffer->front = {};
-	//depthStencilBuffer->back = {};
-	//depthStencilBuffer->depthBoundsTestEnable = VK_FALSE;
-	//depthStencilBuffer->minDepthBounds = 0.0f;
-	//depthStencilBuffer->maxDepthBounds = 1.0f;
+	//depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+	//depthStencilInfo.minDepthBounds = 0.0f;
+	//depthStencilInfo.maxDepthBounds = 1.0f;
+
+	//depthStencilInfo.stencilTestEnable = VK_FALSE;
+	//depthStencilInfo.front = {};
+	//depthStencilInfo.back = {};
 
 	return depthStencilInfo;
 }
@@ -1550,7 +1661,7 @@ int VKContext::initDepthStencilImages()
 			1, this->multiSampleCount,
 			depthFormat, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			false,
+			TEXTURE_2D,
 			&this->depthBufferImages[i], &this->depthBufferImageMemories[i]
 		);
 
@@ -1558,11 +1669,11 @@ int VKContext::initDepthStencilImages()
 			return -2;
 
 		this->depthBufferImageViews[i] = this->createImageView(
-			this->depthBufferImages[i], depthFormat, 1, false, VK_IMAGE_ASPECT_DEPTH_BIT
+			this->depthBufferImages[i], depthFormat, 1, TEXTURE_2D, VK_IMAGE_ASPECT_DEPTH_BIT
 		);
 
 		result = this->copyImage(
-			this->depthBufferImages[i], depthFormat, 1, false,
+			this->depthBufferImages[i], depthFormat, 1, TEXTURE_2D,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 		);
 
@@ -1796,11 +1907,14 @@ int VKContext::InitPipelines(Buffer* buffer)
 	// RENDER PIPELINES
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
-		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.Pipelines[i], buffer->Pipeline.Layout, false, attribsDescs, attribsBindingDesc) < 0)
+		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.Pipelines[i], buffer->Pipeline.Layout, FBO_UNKNOWN, attribsDescs, attribsBindingDesc) < 0)
 			return -3;
 
-		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.PipelinesFBO[i], buffer->Pipeline.Layout, true, attribsDescs, attribsBindingDesc) < 0)
+		if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.PipelinesColorFBO[i], buffer->Pipeline.Layout, FBO_COLOR, attribsDescs, attribsBindingDesc) < 0)
 			return -4;
+
+		//if (this->createPipeline(ShaderManager::Programs[i], &buffer->Pipeline.PipelinesDepthFBO[i], buffer->Pipeline.Layout, FBO_DEPTH, attribsDescs, attribsBindingDesc) < 0)
+		//	return -5;
 	}
 
 	return 0;
@@ -1827,99 +1941,114 @@ VkPipelineRasterizationStateCreateInfo VKContext::initRasterizer(VkCullModeFlags
 	return rasterizationInfo;
 }
 
-VkRenderPass VKContext::initRenderPass(VkFormat format, uint32_t sampleCount, size_t attachmentCount)
+VkRenderPass VKContext::initRenderPass(VkFormat format, uint32_t sampleCount, VKAttachmentDesc attachmentDesc)
 {
-	std::vector<VkAttachmentDescription> attachments(attachmentCount);
-	std::vector<VkAttachmentReference>   attachmentRefs(attachmentCount);
-	VkRenderPassCreateInfo               renderPassInfo    = {};
 	VkSubpassDescription                 subpass           = {};
 	VkSubpassDependency                  subPassDependency = {};
-	VkRenderPass                         renderPass        = nullptr;
+	const size_t                         ATTACHMENT_COUNT  = (attachmentDesc == NR_OF_VK_ATTACHMENTS ? NR_OF_VK_ATTACHMENTS : 1);
+	const VkSampleCountFlagBits          SAMPLE_COUNT      = (attachmentDesc == NR_OF_VK_ATTACHMENTS ? (VkSampleCountFlagBits)sampleCount : VK_SAMPLE_COUNT_1_BIT);
+	int                                  attachmentIndex;
+	std::vector<VkAttachmentDescription> attachments(ATTACHMENT_COUNT);
+	std::vector<VkAttachmentReference>   attachmentRefs(ATTACHMENT_COUNT);
+
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
 	// COLOR BUFFER
-	if (attachmentCount > VK_COLOR_ATTACHMENT)
+	if ((attachmentDesc == VK_COLOR_ATTACHMENT) || (attachmentDesc == NR_OF_VK_ATTACHMENTS))
 	{
-		attachments[VK_COLOR_ATTACHMENT]                = {};
-		attachments[VK_COLOR_ATTACHMENT].format         = format;
-		attachments[VK_COLOR_ATTACHMENT].samples        = (VkSampleCountFlagBits)sampleCount;
-		attachments[VK_COLOR_ATTACHMENT].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[VK_COLOR_ATTACHMENT].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[VK_COLOR_ATTACHMENT].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[VK_COLOR_ATTACHMENT].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
-		attachments[VK_COLOR_ATTACHMENT].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachmentIndex = (attachmentDesc == NR_OF_VK_ATTACHMENTS ? VK_COLOR_ATTACHMENT : 0);
 
-		if ((attachmentCount == 1) && (sampleCount == 1))
-			attachments[VK_COLOR_ATTACHMENT].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		attachments[attachmentIndex]                = {};
+		attachments[attachmentIndex].format         = format;
+		attachments[attachmentIndex].samples        = SAMPLE_COUNT;
+		attachments[attachmentIndex].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[attachmentIndex].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[attachmentIndex].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[attachmentIndex].stencilStoreOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[attachmentIndex].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		if (attachmentDesc == VK_COLOR_ATTACHMENT)
+			attachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		else
-			attachments[VK_COLOR_ATTACHMENT].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+			attachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		//attachments[VK_COLOR_ATTACHMENT].loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		//attachments[VK_COLOR_ATTACHMENT].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachmentRefs[attachmentIndex].attachment = attachmentIndex;
+		attachmentRefs[attachmentIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		attachmentRefs[VK_COLOR_ATTACHMENT].attachment = VK_COLOR_ATTACHMENT;
-		attachmentRefs[VK_COLOR_ATTACHMENT].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments    = &attachmentRefs[attachmentIndex];
+
+		subPassDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+		subPassDependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subPassDependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		subPassDependency.dstAccessMask = (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+		//subPassDependency.dstSubpass    = 0;
+		//subPassDependency.srcAccessMask = 0;
 	}
 
 	// DEPTH BUFFER
-	if (attachmentCount > VK_DEPTH_STENCIL_ATTACHMENT)
+	if ((attachmentDesc == VK_DEPTH_STENCIL_ATTACHMENT) || (attachmentDesc == NR_OF_VK_ATTACHMENTS))
 	{
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT]                = {};
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].format         = this->getDepthBufferFormat();
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].samples        = (VkSampleCountFlagBits)sampleCount;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[VK_DEPTH_STENCIL_ATTACHMENT].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachmentIndex = (attachmentDesc == NR_OF_VK_ATTACHMENTS ? VK_DEPTH_STENCIL_ATTACHMENT : 0);
 
-		attachmentRefs[VK_DEPTH_STENCIL_ATTACHMENT].attachment = VK_DEPTH_STENCIL_ATTACHMENT;
-		attachmentRefs[VK_DEPTH_STENCIL_ATTACHMENT].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[attachmentIndex]                = {};
+		attachments[attachmentIndex].format         = this->getDepthBufferFormat();
+		attachments[attachmentIndex].samples        = SAMPLE_COUNT;
+		attachments[attachmentIndex].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		//attachments[attachmentIndex].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[attachmentIndex].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[attachmentIndex].stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[attachmentIndex].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[attachmentIndex].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		if (attachmentDesc == VK_DEPTH_STENCIL_ATTACHMENT)
+			attachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		else
+			attachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			//attachments[attachmentIndex].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+		attachmentRefs[attachmentIndex].attachment = attachmentIndex;
+		attachmentRefs[attachmentIndex].layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		subpass.pDepthStencilAttachment = &attachmentRefs[attachmentIndex];
+
+		//subPassDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+		//subPassDependency.srcStageMask  = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		//subPassDependency.dstStageMask  = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		//subPassDependency.dstAccessMask = (VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
 	}
 
 	// MSAA
-	if (attachmentCount > VK_RESOLVE_ATTACHMENT)
+	if ((attachmentDesc == VK_RESOLVE_ATTACHMENT) || (attachmentDesc == NR_OF_VK_ATTACHMENTS))
 	{
-		attachments[VK_RESOLVE_ATTACHMENT]                = {};
-		attachments[VK_RESOLVE_ATTACHMENT].format         = attachments[VK_COLOR_ATTACHMENT].format;
-		attachments[VK_RESOLVE_ATTACHMENT].samples        = VK_SAMPLE_COUNT_1_BIT;
-		attachments[VK_RESOLVE_ATTACHMENT].loadOp         = attachments[VK_COLOR_ATTACHMENT].stencilLoadOp;
-		attachments[VK_RESOLVE_ATTACHMENT].storeOp        = attachments[VK_COLOR_ATTACHMENT].storeOp;
-		attachments[VK_RESOLVE_ATTACHMENT].stencilLoadOp  = attachments[VK_COLOR_ATTACHMENT].stencilLoadOp;
-		attachments[VK_RESOLVE_ATTACHMENT].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		attachments[VK_RESOLVE_ATTACHMENT].initialLayout  = attachments[VK_COLOR_ATTACHMENT].initialLayout;
-		attachments[VK_RESOLVE_ATTACHMENT].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachmentIndex = VK_RESOLVE_ATTACHMENT;
 
-		attachmentRefs[VK_RESOLVE_ATTACHMENT].attachment = VK_RESOLVE_ATTACHMENT;
-		attachmentRefs[VK_RESOLVE_ATTACHMENT].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		attachments[attachmentIndex]                = {};
+		attachments[attachmentIndex].format         = attachments[VK_COLOR_ATTACHMENT].format;
+		attachments[attachmentIndex].samples        = VK_SAMPLE_COUNT_1_BIT;
+		attachments[attachmentIndex].loadOp         = attachments[VK_COLOR_ATTACHMENT].stencilLoadOp;
+		attachments[attachmentIndex].storeOp        = attachments[VK_COLOR_ATTACHMENT].storeOp;
+		attachments[attachmentIndex].stencilLoadOp  = attachments[VK_COLOR_ATTACHMENT].stencilLoadOp;
+		attachments[attachmentIndex].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[attachmentIndex].initialLayout  = attachments[VK_COLOR_ATTACHMENT].initialLayout;
+		attachments[attachmentIndex].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		attachmentRefs[attachmentIndex].attachment = attachmentIndex;
+		attachmentRefs[attachmentIndex].layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		subpass.pResolveAttachments = &attachmentRefs[attachmentIndex];
 	}
 
 	// RENDER PASS
-	subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-
-	if (attachmentCount > VK_COLOR_ATTACHMENT)
-		subpass.pColorAttachments = &attachmentRefs[VK_COLOR_ATTACHMENT];
-
-	if (attachmentCount > VK_DEPTH_STENCIL_ATTACHMENT)
-		subpass.pDepthStencilAttachment = &attachmentRefs[VK_DEPTH_STENCIL_ATTACHMENT];
-
-	if (attachmentCount > VK_RESOLVE_ATTACHMENT)
-		subpass.pResolveAttachments = &attachmentRefs[VK_RESOLVE_ATTACHMENT];
-
-	subPassDependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	subPassDependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
-	subPassDependency.dstAccessMask = (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
-	subPassDependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	//subPassDependency.dstSubpass    = 0;
-	//subPassDependency.srcAccessMask = 0;
+	VkRenderPassCreateInfo renderPassInfo    = {};
+	VkRenderPass           renderPass        = nullptr;
 
 	renderPassInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = attachmentCount;
+	renderPassInfo.attachmentCount = ATTACHMENT_COUNT;
 	renderPassInfo.pAttachments    = attachments.data();
 	renderPassInfo.subpassCount    = 1;
 	renderPassInfo.pSubpasses      = &subpass;
-	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.dependencyCount = ((attachmentDesc == VK_COLOR_ATTACHMENT) || (attachmentDesc == NR_OF_VK_ATTACHMENTS) ? 1 : 0);
 	renderPassInfo.pDependencies   = &subPassDependency;
 
 	if (vkCreateRenderPass(this->deviceContext, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
@@ -2020,7 +2149,7 @@ VKSwapchain* VKContext::initSwapChain()
 	swapChain->ImageViews.resize(swapChain->Images.size());
 
 	for (int i = 0; i < (int)swapChain->Images.size(); i++)
-		swapChain->ImageViews[i] = this->createImageView(swapChain->Images[i], swapChain->SurfaceFormat.format, 1, false, VK_IMAGE_ASPECT_COLOR_BIT);
+		swapChain->ImageViews[i] = this->createImageView(swapChain->Images[i], swapChain->SurfaceFormat.format, 1, TEXTURE_2D, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	return swapChain;
 }
@@ -2323,17 +2452,14 @@ bool VKContext::updateSwapChain(bool updateSupport)
 	if (this->swapChain == nullptr)
 		return false;
 
-	this->renderPasses[RENDER_PASS_DEFAULT] = this->initRenderPass(
-		this->swapChain->SurfaceFormat.format, this->multiSampleCount, NR_OF_VK_ATTACHMENTS
-	);
+	this->renderPasses[RENDER_PASS_DEFAULT]   = this->initRenderPass(this->swapChain->SurfaceFormat.format, this->multiSampleCount, NR_OF_VK_ATTACHMENTS);
+	this->renderPasses[RENDER_PASS_FBO_COLOR] = this->initRenderPass(VK_FORMAT_R8G8B8A8_SRGB,      1, VK_COLOR_ATTACHMENT);
+	this->renderPasses[RENDER_PASS_FBO_DEPTH] = this->initRenderPass(this->getDepthBufferFormat(), 1, VK_DEPTH_STENCIL_ATTACHMENT);
 
-	if (this->renderPasses[RENDER_PASS_DEFAULT] == nullptr)
-		return false;
-
-	this->renderPasses[RENDER_PASS_FBO] = this->initRenderPass(VK_FORMAT_R8G8B8A8_SRGB, 1, 1);
-
-	if (this->renderPasses[RENDER_PASS_FBO] == nullptr)
-		return false;
+	for (int i = 0; i < NR_OF_RENDER_PASSES; i++) {
+		if (this->renderPasses[i] == nullptr)
+			return false;
+	}
 
 	if (this->initColorImages() < 0)
 		return false;

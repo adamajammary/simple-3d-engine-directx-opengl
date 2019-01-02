@@ -76,7 +76,7 @@ void DXContext::Clear11(float r, float g, float b, float a, FrameBuffer* fbo)
 	if (fbo == nullptr)
 		this->Clear11(r, g, b, a);
 	else
-		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->ColorBuffer11, color);
+		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->Buffer11, color);
 }
 
 void DXContext::Clear12(float r, float g, float b, float a)
@@ -105,7 +105,7 @@ void DXContext::Clear12(float r, float g, float b, float a, FrameBuffer* fbo)
 		this->Clear12(r, g, b, a);
 	} else {
 		FLOAT                         color[] = { r, g, b, a };
-		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->GetTexture()->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
+		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->GetTexture()->Buffer12->GetCPUDescriptorHandleForHeapStart());
 
 		this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
 	}
@@ -566,7 +566,7 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 	if ((textureDesc.Width == 0) || (textureDesc.Height == 0))
 	{
-		D3D11_VIEWPORT bufferViewPort = texture->ColorBufferViewPort11();
+		D3D11_VIEWPORT bufferViewPort = texture->BufferViewPort11();
 
 		textureDesc.Width  = (UINT)bufferViewPort.Width;
 		textureDesc.Height = (UINT)bufferViewPort.Height;
@@ -639,7 +639,7 @@ int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &sam
 	colorBufferDesc.Format        = format;
 	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
 
-	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &texture->ColorBuffer11);
+	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &texture->Buffer11);
 
 	if (FAILED(result))
 		return -3;
@@ -669,7 +669,7 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 
 	if ((textureResourceDesc.Width == 0) || (textureResourceDesc.Height == 0))
 	{
-		D3D12_VIEWPORT bufferViewPort = texture->ColorBufferViewPort12();
+		D3D12_VIEWPORT bufferViewPort = texture->BufferViewPort12();
 
 		textureResourceDesc.Width  = (UINT64)bufferViewPort.Width;
 		textureResourceDesc.Height = (UINT64)bufferViewPort.Height;
@@ -760,13 +760,13 @@ int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
 	colorBufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	//colorBufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 
-	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(&texture->ColorBuffer12));
+	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(&texture->Buffer12));
 
 	if (FAILED(result))
 		return -2;
 
 	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION HANDLE
-	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
+	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->Buffer12->GetCPUDescriptorHandleForHeapStart());
 
 	// COLOR BUFFER (RENDER TARGET VIEW)
 	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
@@ -980,10 +980,15 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 		if (result < 0)
 			return -3;
 
-		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
+		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesColorFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
 
 		if (result < 0)
 			return -4;
+
+		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesDepthFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
+
+		if (result < 0)
+			return -5;
 	}
 
 	return 0;
@@ -1127,10 +1132,11 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	this->commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 	this->commandList->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
-	if (properties.FBO)
-		this->commandList->SetPipelineState(vertexBuffer->PipelineStatesFBODX12[shaderID]);
-	else
-		this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);
+	switch (properties.FboType) {
+		case FBO_COLOR: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesColorFBODX12[shaderID]); break;
+		case FBO_DEPTH: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDepthFBODX12[shaderID]); break;
+		default:        this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);         break;
+	}
 
 	if (indexBuffer != nullptr)
 		this->commandList->DrawIndexedInstanced((UINT)dynamic_cast<Mesh*>(mesh)->NrOfIndices(), 1, 0, 0, 0);

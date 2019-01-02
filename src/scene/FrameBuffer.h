@@ -24,6 +24,7 @@ public:
 	GLuint   FBO();
 	Texture* GetTexture();
 	wxSize   Size();
+	FBOType  Type();
 
 private:
 	void createTextureDX(TextureType textureType);
