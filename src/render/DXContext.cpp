@@ -21,8 +21,10 @@ DXContext::~DXContext()
 
 void DXContext::Bind11(ID3D11RenderTargetView* colorBuffer, ID3D11DepthStencilView* depthStencilBuffer, D3D11_VIEWPORT &viewPort)
 {
-	this->deviceContext->RSSetViewports(1,     &viewPort);
-	this->deviceContext->OMSetRenderTargets(1, &colorBuffer, depthStencilBuffer);
+	const UINT NR_OF_RENDER_TARGETS = (colorBuffer != nullptr ? 1 : 0);
+
+	this->deviceContext->RSSetViewports(1, &viewPort);
+	this->deviceContext->OMSetRenderTargets(NR_OF_RENDER_TARGETS, &colorBuffer, depthStencilBuffer);
 }
 
 void DXContext::Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle, D3D12_VIEWPORT &viewPort, D3D12_RECT &scissorRect)
@@ -75,8 +77,11 @@ void DXContext::Clear11(float r, float g, float b, float a, FrameBuffer* fbo)
 
 	if (fbo == nullptr)
 		this->Clear11(r, g, b, a);
-	else
-		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->Buffer11, color);
+	else if (fbo->Type() == FBO_COLOR)
+		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->ColorBuffer11, color);
+	else if (fbo->Type() == FBO_DEPTH)
+		this->deviceContext->ClearDepthStencilView(fbo->GetTexture()->DepthBuffer11, D3D11_CLEAR_DEPTH, 1.0f, 0);
+		//this->deviceContext->ClearDepthStencilView(fbo->GetTexture()->DepthBuffer11, (D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL), 1.0f, 0);
 }
 
 void DXContext::Clear12(float r, float g, float b, float a)
@@ -157,6 +162,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 		#if defined _DEBUG
 		if (error != nullptr) {
 			wxMessageBox((char*)error->GetBufferPointer());
+			wxLogDebug("%s\n", (char*)error->GetBufferPointer());
 			_RELEASEP(error);
 		}
 		#endif
@@ -171,6 +177,7 @@ int DXContext::compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs)
 		#if defined _DEBUG
 		if (error != nullptr) {
 			wxMessageBox((char*)error->GetBufferPointer());
+			wxLogDebug("%s\n", (char*)error->GetBufferPointer());
 			_RELEASEP(error);
 		}
 		#endif
@@ -545,21 +552,47 @@ int DXContext::CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs
 	return this->compileShader(file, vs, fs);
 }
 
-int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
+int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
 {
 	if (texture == nullptr)
 		return -1;
 
-	std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
-	D3D11_SHADER_RESOURCE_VIEW_DESC     srvDesc     = {};
-	D3D11_TEXTURE2D_DESC                textureDesc = {};
-	wxSize                              textureSize = texture->Size();
+	size_t      dataCount;
+	UINT        flags;
+	UINT        mipLevels;
+	UINT        arraySize   = (fboType == FBO_UNKNOWN ? (UINT)pixels.size() : 1);
+	UINT        bindFlags   = D3D11_BIND_SHADER_RESOURCE;
+	TextureType textureType = texture->GetTextureType();
 
-	textureDesc.ArraySize        = (!pixels.empty() ? pixels.size() : 1);
-	textureDesc.BindFlags        = (D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET);
+	switch (fboType) {
+		case FBO_DEPTH: bindFlags |= D3D11_BIND_DEPTH_STENCIL; break;
+		default:        bindFlags |= D3D11_BIND_RENDER_TARGET; break;
+	}
+
+	switch (textureType) {
+	case TEXTURE_2D:
+		dataCount = (fboType == FBO_UNKNOWN ? texture->MipLevels()              : 1);
+		flags     = (fboType == FBO_UNKNOWN ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0);
+		mipLevels = dataCount;
+		break;
+	case TEXTURE_CUBEMAP:
+		dataCount = pixels.size();
+		flags     = D3D11_RESOURCE_MISC_TEXTURECUBE;
+		mipLevels = 1;
+		break;
+	default:
+		throw;
+	}
+
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	wxSize               textureSize = texture->Size();
+
+	textureDesc.ArraySize        = arraySize;
+	textureDesc.BindFlags        = bindFlags;
+	//textureDesc.Format           = (fboType == FBO_DEPTH ? DXGI_FORMAT_R24G8_TYPELESS : format);
 	textureDesc.Format           = format;
-	textureDesc.MipLevels        = (pixels.size() == 1 ? texture->MipLevels() : 1);
-	textureDesc.MiscFlags        = (pixels.size() > 1 ? D3D11_RESOURCE_MISC_TEXTURECUBE : (pixels.size() == 1 ? D3D11_RESOURCE_MISC_GENERATE_MIPS : 0));
+	textureDesc.MipLevels        = mipLevels;
+	textureDesc.MiscFlags        = flags;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.Width            = (UINT)textureSize.GetWidth();
 	textureDesc.Height           = (UINT)textureSize.GetHeight();
@@ -572,6 +605,8 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		textureDesc.Height = (UINT)bufferViewPort.Height;
 	}
 
+	std::vector<D3D11_SUBRESOURCE_DATA> textureData(dataCount);
+
 	for (size_t i = 0; i < pixels.size(); i++)
 	{
 		for (uint32_t j = 0; j < textureDesc.MipLevels; j++)
@@ -583,21 +618,31 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	}
 
 	HRESULT result = this->renderDevice11->CreateTexture2D(
-		&textureDesc, (!pixels.empty() ? textureData.data() : nullptr), &texture->Resource11
+		&textureDesc, (fboType == FBO_UNKNOWN ? textureData.data() : nullptr), &texture->Resource11
 	);
 
 	if (FAILED(result))
 		return -2;
 
-	srvDesc.Format = textureDesc.Format;
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 
-	if (pixels.size() > 1) {
+	//srvDesc.Format = (fboType == FBO_DEPTH ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : textureDesc.Format);
+	srvDesc.Format = (fboType == FBO_DEPTH ? DXGI_FORMAT_R32_FLOAT : textureDesc.Format);
+
+	switch (textureType) {
+	case TEXTURE_2D:
+		srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = (fboType == FBO_UNKNOWN ? -1 : 1);
+
+		break;
+	case TEXTURE_CUBEMAP:
 		srvDesc.ViewDimension         = D3D11_SRV_DIMENSION_TEXTURECUBE;
 		srvDesc.TextureCube.MipLevels = 1;
 		//srvDesc.TextureCube.MostDetailedMip = 0;
-	} else {
-		srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = -1;
+
+		break;
+	default:
+		throw;
 	}
 
 	result = this->renderDevice11->CreateShaderResourceView(texture->Resource11, &srvDesc, &texture->SRV11);
@@ -605,7 +650,7 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	if (FAILED(result))
 		return -3;
 
-	if (pixels.size() == 1)
+	if ((textureType == TEXTURE_2D) && (fboType == FBO_UNKNOWN))
 		this->deviceContext->GenerateMips(texture->SRV11);
 
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
@@ -621,25 +666,39 @@ int DXContext::CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 	return 0;
 }
 
-int DXContext::CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
+int DXContext::CreateTextureBuffer11(FBOType fboType, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture)
 {
 	if (texture == nullptr)
 		return -1;
 
 	std::vector<BYTE*> pixels;
-
-	HRESULT result = this->CreateTexture11(pixels, format, samplerDesc, texture);
+	HRESULT            result = this->CreateTexture11(fboType, pixels, format, samplerDesc, texture);
 
 	if (FAILED(result))
 		return -2;
 
-	// COLOR BUFFER (RENDER TARGET VIEW)
+	// FRAME BUFFER
 	D3D11_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+	D3D11_DEPTH_STENCIL_VIEW_DESC depthBufferDesc = {};
 
-	colorBufferDesc.Format        = format;
-	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D11_RTV_DIMENSION_TEXTURE2DMS : D3D11_RTV_DIMENSION_TEXTURE2D);
+	switch (fboType) {
+	case FBO_COLOR:
+		colorBufferDesc.Format        = format;
+		colorBufferDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
-	result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &texture->Buffer11);
+		result = this->renderDevice11->CreateRenderTargetView(texture->Resource11, &colorBufferDesc, &texture->ColorBuffer11);
+
+		break;
+	case FBO_DEPTH:
+		depthBufferDesc.Format        = DXGI_FORMAT_D32_FLOAT;
+		depthBufferDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+
+		result = this->renderDevice11->CreateDepthStencilView(texture->Resource11, &depthBufferDesc, &texture->DepthBuffer11);
+
+		break;
+	default:
+		throw;
+	}
 
 	if (FAILED(result))
 		return -3;
@@ -838,7 +897,9 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 		if (FAILED(result))
 			return -4;
 
-		switch((ShaderID)i) {
+		ShaderID shaderID = (ShaderID)i;
+
+		switch(shaderID) {
 		case SHADER_ID_HUD:
 			blendDesc        = this->initColorBlending11(TRUE);
 			depthStencilDesc = this->initDepthStencilBuffer11(FALSE);
@@ -856,8 +917,17 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 			break;
 		}
 
-		if ((ShaderID)i == SHADER_ID_WIREFRAME)
+		switch (shaderID) {
+		case SHADER_ID_WIREFRAME:
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
+			break;
+		case SHADER_ID_DEPTH:
+			rasterizerDesc.DepthClipEnable = FALSE;
+			rasterizerDesc.CullMode        = D3D11_CULL_FRONT;
+			break;
+		default:
+			break;
+		}
 
 		if (FAILED(this->renderDevice11->CreateRasterizerState(&rasterizerDesc, &buffer->RasterizerStatesDX11[i])))
 			return -5;
@@ -1008,6 +1078,7 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	if ((vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -2;
 
+	// CONSTANT BUFFER
 	ID3D11Buffer* constantBuffer       = nullptr;
 	const void*   constantBufferValues = nullptr;
 
@@ -1018,35 +1089,103 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 
 	this->deviceContext->UpdateSubresource(constantBuffer, 0, nullptr, constantBufferValues, 0, 0);
 
-	ID3D11SamplerState*       samplers[MAX_TEXTURES] = {};
-	ID3D11ShaderResourceView* srvs[MAX_TEXTURES]     = {};
-	ID3D11Buffer*             vertexBufferData       = vertexBuffer->VertexBufferDX11;
-	UINT                      vertexBufferStride     = vertexBuffer->BufferStride;
-	UINT                      vertexBufferOffset     = 0;
-
+	// INDEX BUFFER
 	if (indexBuffer != nullptr)
 		this->deviceContext->IASetIndexBuffer(indexBuffer->VertexBufferDX11, DXGI_FORMAT_R32_UINT, 0);
 
+	// VERTEX BUFFER
+	ID3D11Buffer* vertexBufferData   = vertexBuffer->VertexBufferDX11;
+	UINT          vertexBufferStride = vertexBuffer->BufferStride;
+	UINT          vertexBufferOffset = 0;
+
 	this->deviceContext->IASetInputLayout(vertexBuffer->InputLayoutsDX11[shaderID]);
 	this->deviceContext->IASetVertexBuffers(0, 1, &vertexBufferData, &vertexBufferStride, &vertexBufferOffset);
+	
+	// DRAW MODE
 	this->deviceContext->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
 	// VERTEX SHADER
 	this->deviceContext->VSSetShader(vertexShader, nullptr, 0);
 	this->deviceContext->VSSetConstantBuffers(0, 1, &constantBuffer);
 
-	// PIXEL SHADER
+	// PIXEL (FRAGMENT) SHADER
 	this->deviceContext->PSSetShader(fragmentShader, nullptr, 0);
 	this->deviceContext->PSSetConstantBuffers(0, 1, &constantBuffer);
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
-		srvs[i]     = mesh->Textures[i]->SRV11;
-		samplers[i] = mesh->Textures[i]->SamplerState11;
+	// TEXTURES
+	ID3D11ShaderResourceView* meshTextureSRVs[MAX_TEXTURES]     = {};
+	ID3D11SamplerState*       meshTextureSamplers[MAX_TEXTURES] = {};
+
+	// MESH TEXTURES
+	switch (shaderID) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_HUD:
+	case SHADER_ID_SKYBOX:
+	case SHADER_ID_TERRAIN:
+	case SHADER_ID_WATER:
+		for (int i = 0; i < MAX_TEXTURES; i++) {
+			meshTextureSRVs[i]     = mesh->Textures[i]->SRV11;
+			meshTextureSamplers[i] = mesh->Textures[i]->SamplerState11;
+		}
+
+		this->deviceContext->PSSetShaderResources(0, MAX_TEXTURES, meshTextureSRVs);
+		this->deviceContext->PSSetSamplers(0,        MAX_TEXTURES, meshTextureSamplers);
+
+		break;
+	default:
+		break;
 	}
 
-	this->deviceContext->PSSetShaderResources(0, MAX_TEXTURES, srvs);
-	this->deviceContext->PSSetSamplers(0,        MAX_TEXTURES, samplers);
+	// BIND DEPTH MAP TEXTURES
+	if (shaderID == SHADER_ID_DEFAULT)
+	{
+		const int NR_OF_SAMPLES = 2;
 
+		ID3D11SamplerState* depthTextureSamplers[NR_OF_SAMPLES] = {
+			SceneManager::EmptyTexture->SamplerState11,
+			SceneManager::EmptyCubemap->SamplerState11
+		};
+
+		// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
+		for (int n = 0; n < NR_OF_SAMPLES; n++)
+		{
+			ID3D11ShaderResourceView* depthTextureSRVs[MAX_LIGHT_SOURCES] = {};
+
+			// LIGHT SOURCES
+			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			{
+				Texture*     texture;
+				LightSource* lightSource = SceneManager::LightSources[i];
+
+				if ((lightSource != nullptr) && (lightSource->DepthMapFBO() != nullptr)) {
+					texture                 = lightSource->DepthMapFBO()->GetTexture();
+					depthTextureSamplers[n] = texture->SamplerState11;
+				} else {
+					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
+				}
+				
+				if ((n == 0) && (texture->GetTextureType() != TEXTURE_2D)) {
+					texture                 = SceneManager::EmptyTexture;
+					depthTextureSamplers[n] = texture->SamplerState11;
+				}
+
+				if ((n == 1) && (texture->GetTextureType() != TEXTURE_CUBEMAP)) {
+					texture                 = SceneManager::EmptyCubemap;
+					depthTextureSamplers[n] = texture->SamplerState11;
+				}
+
+				depthTextureSRVs[i] = texture->SRV11;
+			}
+
+			const UINT START_SLOT_SRV     = (MAX_TEXTURES + (n * MAX_LIGHT_SOURCES));
+			const UINT START_SLOT_SAMPLER = (MAX_TEXTURES + n);
+
+			this->deviceContext->PSSetShaderResources(START_SLOT_SRV, MAX_LIGHT_SOURCES, depthTextureSRVs);
+			this->deviceContext->PSSetSamplers(START_SLOT_SAMPLER, 1, &depthTextureSamplers[n]);
+		}
+	}
+
+	// DRAW
 	this->deviceContext->RSSetState(vertexBuffer->RasterizerStatesDX11[shaderID]);
 
 	float blendFactor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -1060,13 +1199,16 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	else
 		this->deviceContext->Draw(dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 0);
 
-	ID3D11ShaderResourceView* nullSRV     = nullptr;
-	ID3D11SamplerState*       nullSampler = nullptr;
+	ID3D11ShaderResourceView* nullSRV[MAX_LIGHT_SOURCES]     = {};
+	ID3D11SamplerState*       nullSampler[MAX_LIGHT_SOURCES] = {};
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
-		this->deviceContext->PSSetShaderResources(i, 1, &nullSRV);
-		this->deviceContext->PSSetSamplers(i,        1, &nullSampler);
-	}
+	this->deviceContext->PSSetShaderResources(0, MAX_TEXTURES, nullSRV);
+	this->deviceContext->PSSetSamplers(0,        MAX_TEXTURES, nullSampler);
+
+	for (int n = 0; n < 2; n++)
+		this->deviceContext->PSSetShaderResources(MAX_TEXTURES + (n * MAX_LIGHT_SOURCES), MAX_LIGHT_SOURCES, nullSRV);
+
+	this->deviceContext->PSSetSamplers(MAX_TEXTURES, 2, nullSampler);
 
 	return 0;
 }
@@ -1564,7 +1706,6 @@ D3D11_BLEND_DESC DXContext::initColorBlending11(BOOL enableBlend)
 {
 	D3D11_BLEND_DESC colorBlendInfo = {};
 
-
 	colorBlendInfo.AlphaToCoverageEnable  = FALSE;
 	colorBlendInfo.IndependentBlendEnable = FALSE;
 
@@ -1669,9 +1810,9 @@ D3D11_RASTERIZER_DESC DXContext::initRasterizer11(D3D11_CULL_MODE cullMode, D3D1
 	rasterizationInfo.ScissorEnable         = FALSE;
 
 	rasterizationInfo.DepthClipEnable      = TRUE;
-	rasterizationInfo.DepthBias            = 0;
-	rasterizationInfo.DepthBiasClamp       = 0.0f;
-	rasterizationInfo.SlopeScaledDepthBias = 0.0f;
+	//rasterizationInfo.DepthBias            = 0;
+	//rasterizationInfo.DepthBiasClamp       = 0.0f;
+	//rasterizationInfo.SlopeScaledDepthBias = 0.0f;
 
 	return rasterizationInfo;
 }

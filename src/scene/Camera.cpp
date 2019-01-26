@@ -198,7 +198,7 @@ void Camera::UpdateProjection()
 
 	// Flip Y-axis on Vulkan
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
-		this->projection[1][1] *= -1;
+		this->projection[1][1] *= -1.0f;
 }
 
 void Camera::updatePosition()

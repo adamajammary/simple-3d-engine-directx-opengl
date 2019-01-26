@@ -34,6 +34,7 @@ struct CBMatrix
 	CBMatrix(LightSource* lightSource, Component* mesh);
 	CBMatrix() {}
 
+	glm::mat4 Normal     = {};
 	glm::mat4 Model      = {};
 	glm::mat4 View       = {};
 	glm::mat4 Projection = {};
@@ -115,6 +116,7 @@ struct CBMatrixDX
 	CBMatrixDX(const CBMatrix &matrices);
 	CBMatrixDX() {}
 
+	DirectX::XMMATRIX Normal     = {};
 	DirectX::XMMATRIX Model      = {};
 	DirectX::XMMATRIX View       = {};
 	DirectX::XMMATRIX Projection = {};

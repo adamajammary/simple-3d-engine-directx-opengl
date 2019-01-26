@@ -46,10 +46,22 @@ FrameBuffer::~FrameBuffer()
 
 void FrameBuffer::createTextureDX(TextureType textureType)
 {
-	this->texture = new Texture(
-		(this->type == FBO_COLOR ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM),
-		this->size.GetWidth(), this->size.GetHeight()
-	);
+	switch (this->type) {
+	case FBO_COLOR:
+		this->texture = new Texture(
+			this->type, textureType, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight()
+		);
+		break;
+	case FBO_DEPTH:
+		//DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_D32_FLOAT_S8X24_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT
+		this->texture = new Texture(
+			//this->type, textureType, DXGI_FORMAT_D24_UNORM_S8_UINT, this->size.GetWidth(), this->size.GetHeight()
+			this->type, textureType, DXGI_FORMAT_R32_TYPELESS, this->size.GetWidth(), this->size.GetHeight()
+		);
+		break;
+	default:
+		throw;
+	}
 }
 
 void FrameBuffer::createTextureGL(TextureType textureType)
@@ -128,9 +140,16 @@ void FrameBuffer::Bind()
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->Bind11(
-			this->texture->Buffer11, nullptr, this->texture->BufferViewPort11()
-		);
+		switch (this->type) {
+		case FBO_COLOR:
+			RenderEngine::Canvas.DX->Bind11(this->texture->ColorBuffer11, nullptr, this->texture->BufferViewPort11());
+			break;
+		case FBO_DEPTH:
+			RenderEngine::Canvas.DX->Bind11(nullptr, this->texture->DepthBuffer11, this->texture->BufferViewPort11());
+			break;
+		default:
+			throw;
+		}
 
 		break;
 	case GRAPHICS_API_DIRECTX12:

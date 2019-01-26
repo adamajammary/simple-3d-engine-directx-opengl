@@ -47,17 +47,19 @@ LightSource::LightSource()
 
 FrameBuffer* LightSource::initDepthMap()
 {
+	const int TEXTURE_SIZE = 2048;
+
 	_DELETEP(this->depthMapFBO);
 
 	switch (this->sourceType) {
 	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->depthMapFBO = new FrameBuffer(wxSize(1024, 1024), FBO_DEPTH, TEXTURE_2D);
+		this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D);
 		break;
 	case ID_ICON_LIGHT_POINT:
-		//this->depthMapFBO = new DepthMap(wxSize(1024, 1024), TEXTURE_CUBEMAP);
+		//this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), TEXTURE_CUBEMAP);
 		break;
 	case ID_ICON_LIGHT_SPOT:
-		//this->depthMapFBO = new DepthMap(wxSize(1024, 1024), TEXTURE_CUBEMAP);
+		//this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), TEXTURE_CUBEMAP);
 		break;
 	default:
 		throw;
@@ -248,16 +250,21 @@ IconType LightSource::SourceType()
 
 void LightSource::updateProjection()
 {
+	const float PROJECTION_SIZE = 30.0f;
+
 	this->projection = glm::ortho(
-		-10.0f, 10.0f, -10.0f, 10.0f,
-		RenderEngine::CameraMain->Near(), RenderEngine::CameraMain->Far()
+		-PROJECTION_SIZE, PROJECTION_SIZE, -PROJECTION_SIZE, PROJECTION_SIZE,
+		1.0f, PROJECTION_SIZE
 	);
 }
 
 void LightSource::updateView()
 {
-	this->view = glm::lookAt(this->light.position, (this->light.position + this->light.direction), RenderEngine::CameraMain->Up());
-	//this->view = glm::lookAt(this->light.position, glm::vec3(0.0f), RenderEngine::CameraMain->Up());
+	glm::vec3 lightPosition  = { this->light.position.x,  this->light.position.y,  this->light.position.z  };
+	glm::vec3 lightDirection = { this->light.direction.x, this->light.direction.y, this->light.direction.z };
+
+	//this->view = glm::lookAt(lightPosition, glm::vec3(0.0f), RenderEngine::CameraMain->Up());
+	this->view = glm::lookAt(lightPosition, (lightPosition + lightDirection), RenderEngine::CameraMain->Up());
 }
 
 glm::mat4 LightSource::View()

@@ -16,6 +16,7 @@ struct CBLight
 
 struct CBMatrix
 {
+    matrix Normal;
     matrix Model;
     matrix View;
     matrix Projection;
@@ -66,7 +67,9 @@ FS_INPUT VS(VS_INPUT input)
 {
     FS_INPUT output;
 
-	output.FragmentNormal        = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
+	//output.FragmentNormal        = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
+    //output.FragmentNormal        = (float3)mul(float4(input.VertexNormal, 0.0), MB.Normal);
+    output.FragmentNormal        = mul(input.VertexNormal, (float3x3)MB.Normal);
 	output.FragmentTextureCoords = input.VertexTextureCoords;
 	output.FragmentPosition      = mul(float4(input.VertexPosition, 1.0), MB.Model);
 	output.GL_Position           = mul(float4(input.VertexPosition, 1.0), MB.MVP);

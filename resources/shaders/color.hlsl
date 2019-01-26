@@ -1,5 +1,6 @@
 struct CBMatrix
 {
+    matrix Normal;
     matrix Model;
     matrix View;
     matrix Projection;

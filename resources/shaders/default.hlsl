@@ -16,6 +16,7 @@ struct CBLight
 
 struct CBMatrix
 {
+    matrix Normal;
     matrix Model;
     matrix View;
     matrix Projection;
@@ -46,11 +47,11 @@ cbuffer DefaultBuffer : register(b0)
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
 SamplerState TextureSamplers[MAX_TEXTURES] : register(s0);
 
-Texture2D    DepthMapTextures2D[MAX_LIGHT_SOURCES]         : register(t1);
-SamplerState DepthMapTextures2DSamplers[MAX_LIGHT_SOURCES] : register(s1);
+Texture2D    DepthMapTextures2D[MAX_LIGHT_SOURCES] : register(t6);
+SamplerState DepthMapTextures2DSampler             : register(s6);
 
-TextureCube  DepthMapTexturesCube[MAX_LIGHT_SOURCES]         : register(t2);
-SamplerState DepthMapTexturesCubeSamplers[MAX_LIGHT_SOURCES] : register(s2);
+TextureCube  DepthMapTexturesCube[MAX_LIGHT_SOURCES] : register(t19);
+SamplerState DepthMapTexturesCubeSampler             : register(s7);
 
 struct VS_INPUT
 {
@@ -90,6 +91,66 @@ float GetDiffuseFactor(float3 normal, float3 lightDirection)
 	return max(dot(normal, lightDirection), 0.0);
 }
 
+// Shadow - the impact of the light on the the fragment from the perspective of the directional light
+float GetShadowFactor(float3 lightDirection, float3 normal, Texture2D depthMapTexture, SamplerState depthMapTextureSampler, float4 positionLightSpace)
+{
+	// Convert shadow map UV and Depth coordinates
+    float3 shadowMapCoordinates = float3(positionLightSpace.xyz / positionLightSpace.w);    // Perspective projection divide
+	shadowMapCoordinates        = ((shadowMapCoordinates * 0.5) + 0.5);					    // Convert coordinate range from [-1,1] to [0,1]
+
+	// Get shadow map depth coordinates
+	//float closestDepth = texture(depthMapTexture, shadowMapCoordinates.xy).r;	// Closest depth value from light's perspective
+	float currentDepth = shadowMapCoordinates.z;	// Depth of current fragment from light's perspective
+
+	// POBLEM:   Large dark region at the far end of the light source's frustum.
+	// REASON:   Coordinates outside the far plane of the light's orthographic frustum.
+	// SOLUTION: Force shadow values larger than 1.0 to 0 (not in shadow).
+	if (currentDepth > 1.0)
+		return 0.0;
+	
+	// PROBLEM:  Shadow acne.
+	// REASON:   Because the shadow map is limited by resolution,
+	//           multiple fragments can sample the same value from the depth map
+	//         	 when they're relatively far away from the light source.
+	// SOLUTION: Offset depth.
+	const float MIN_OFFSET = 0.005;
+	const float MAX_OFFSET = 0.05;
+	float       offsetBias = max(MAX_OFFSET * (1.0 - dot(normal, lightDirection)), MIN_OFFSET);
+	
+	// PCF - Percentage-Closer Filtering
+	// Produces softer shadows, making them appear less blocky or hard.
+	const float NR_OF_SAMPLES = 9.0;
+	const int   SAMPLE_OFFSET = 1;
+	float       shadowFactor  = 0.0;
+
+	// Width and height of the sampler texture at mipmap level 0
+    float2 texelSize;
+    depthMapTexture.GetDimensions(texelSize.x, texelSize.y);
+    texelSize = (1.0 / texelSize);
+	
+	// Sample surrounding texels (9 samples)
+    for (int x = -SAMPLE_OFFSET; x <= SAMPLE_OFFSET; x++)
+	{
+        for (int y = -SAMPLE_OFFSET; y <= SAMPLE_OFFSET; y++)
+		{
+            float2 texel        = float2(shadowMapCoordinates.xy + (float2(x, y) * texelSize));
+            float  closestDepth = depthMapTexture.Sample(depthMapTextureSampler, texel).r;
+			
+			// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
+			// Compare current fragment with the surrounding texel's depth.
+			shadowFactor += ((currentDepth - offsetBias) > closestDepth ? 1.0 : 0.0);
+        }
+	}
+	
+	// Average the results
+    shadowFactor /= NR_OF_SAMPLES;
+	
+	// Reduce the shadow intensity (max 75%) by adding some ambience
+	const float MAX_INTENSITY = 0.75;
+	
+	return min(shadowFactor, MAX_INTENSITY);
+}
+
 // Specular - reflects/mirrors the light direction over the normal
 float GetSpecularFactor(float3 lightDirection, float3 normal, float3 viewDirection, float shininess)
 {
@@ -111,8 +172,10 @@ float GetSpotLightFactor(CBLight light, float3 lightDirection)
 }
 
 // Directional light - all light rays have the same direction, independent of the location of the light source. Ex: sun light
-float4 GetDirectionalLight(CBLight light, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetDirectionalLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
+    CBLight light = LightSources[i];
+
 	// Direction of the light from the fragment surface
     float3 lightDirection = normalize(-light.Direction.xyz);
 	
@@ -123,20 +186,22 @@ float4 GetDirectionalLight(CBLight light, float3 normal, float3 viewDirection, f
     float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
 	
 	// Shadow
-	//float4 positionLightSpace = float4(light.light.viewProjectionMatrix * float4(FragmentPosition, 1.0));
-	//float shadow             = (1.0 - calculateShadow(lightDirection, normal, light.shadowMapTexture2D, positionLightSpace));
+    float4 positionLightSpace = mul(float4(fragmentPosition, 1.0), light.ViewProjection);
+    float  shadowFactor       = (1.0 - GetShadowFactor(lightDirection, normal, DepthMapTextures2D[i], DepthMapTextures2DSampler, positionLightSpace));
 	
     // Combine the light calculations
     float3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
     float3 diffuseFinal  = (light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     float3 specularFinal = (light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
-    return float4((ambientFinal + diffuseFinal + specularFinal), materialColor.a);
-    //return float4((ambientFinal + (shadow * (diffuseFinal + specularFinal))), materialColor.a);
+    //return float4((ambientFinal + diffuseFinal + specularFinal), materialColor.a);
+    return float4((ambientFinal + (shadowFactor * (diffuseFinal + specularFinal))), materialColor.a);
 }
 
-float4 GetPointLight(CBLight light, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetPointLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
+    CBLight light = LightSources[i];
+
 	// Direction of the light from the fragment surface
     float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
 	
@@ -162,8 +227,10 @@ float4 GetPointLight(CBLight light, float3 fragmentPosition, float3 normal, floa
 	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
 }
 
-float4 GetSpotLight(CBLight light, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetSpotLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
+    CBLight light = LightSources[i];
+
 	// Direction of the light from the fragment surface
     float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
 	
@@ -193,10 +260,9 @@ FS_INPUT VS(VS_INPUT input)
 {
     FS_INPUT output;
 
-	//output.Normal           = mul(input.Normal, (float3x3)Matrices.Model);
-	//output.Normal           = (float3)mul(float4(input.Normal, 0.0), Matrices.Model);
-
-	output.FragmentNormal        = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
+	//output.FragmentNormal        = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
+    //output.FragmentNormal        = (float3)mul(float4(input.VertexNormal, 0.0), MB.Normal);
+    output.FragmentNormal        = mul(input.VertexNormal, (float3x3)MB.Normal);
     output.FragmentTextureCoords = input.VertexTextureCoords;
     output.FragmentPosition      = mul(float4(input.VertexPosition, 1.0), MB.Model);
 	output.GL_Position           = mul(float4(input.VertexPosition, 1.0), MB.MVP);
@@ -241,18 +307,18 @@ float4 PS(FS_INPUT input) : SV_Target
     // LIGHT SOURCES
     for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
     {
-        if (LightSources[i].Active.x < 0.1)
-            continue;
-
-    	// SPOT LIGHT
-        if (LightSources[i].Angles.x > 0.1)
-            GL_FragColor += GetSpotLight(LightSources[i], input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
-    	// POINT LIGHT
-        else if (LightSources[i].Attenuation.r > 0.1)
-            GL_FragColor += GetPointLight(LightSources[i], input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
-    	// DIRECTIONAL LIGHT
-        else
-            GL_FragColor += GetDirectionalLight(LightSources[i], normal, viewDirection, materialColor, materialSpecular);
+        if (LightSources[i].Active.x > 0.1)
+        {
+    	    // SPOT LIGHT
+            if (LightSources[i].Angles.x > 0.1)
+                GL_FragColor += GetSpotLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
+    	    // POINT LIGHT
+            else if (LightSources[i].Attenuation.r > 0.1)
+                GL_FragColor += GetPointLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
+    	    // DIRECTIONAL LIGHT
+            else
+                GL_FragColor += GetDirectionalLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
+        }
     }
 
 	// LIGHT COLOR (PHONG REFLECTION)

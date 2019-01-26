@@ -1,5 +1,6 @@
 struct CBMatrix
 {
+    matrix Normal;
     matrix Model;
     matrix View;
     matrix Projection;
@@ -18,20 +19,15 @@ struct VS_INPUT
 	float2 VertexTextureCoords : TEXCOORD;
 };
 
-struct FS_INPUT
-{
-	float4 GL_Position : SV_POSITION;
-};
-
 // VERTEX SHADER
-FS_INPUT VS(VS_INPUT input)
+float4 VS(VS_INPUT input) : SV_Position
 {
-    FS_INPUT output;
-
-    output.GL_Position = mul(float4(input.VertexPosition, 1.0), MB.MVP);
-
-	return output;
+    return mul(float4(input.VertexPosition, 1.0), MB.MVP);
 }
 
 // FRAGMENT/PIXEL/COLOR SHADER
-void PS(FS_INPUT input) {}
+//float PS(FS_INPUT input) : SV_Depth
+void PS(float4 position : SV_Position)
+{
+	//return position.z;
+}

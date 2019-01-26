@@ -8,6 +8,7 @@ layout(location = 2) in vec2 VertexTextureCoords;
 layout(location = 0) out vec3 FragmentTextureCoords;
 
 layout(binding = 0) uniform MatrixBuffer {
+	mat4 Normal;
 	mat4 Model;
 	mat4 View;
 	mat4 Projection;

@@ -17,7 +17,7 @@ public:
 	~Texture();
 
 	#if defined _WINDOWS
-		Texture(DXGI_FORMAT format, int width, int height);
+		Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, int width, int height);
 	#endif
 
 public:
@@ -30,7 +30,8 @@ public:
 	glm::vec2           Scale;
 
 	#if defined _WINDOWS
-		ID3D11RenderTargetView*         Buffer11;
+		ID3D11RenderTargetView*         ColorBuffer11;
+		ID3D11DepthStencilView*         DepthBuffer11;
 		ID3D12DescriptorHeap*           Buffer12;
 		ID3D11Texture2D*                Resource11;
 		ID3D12Resource*                 Resource12;

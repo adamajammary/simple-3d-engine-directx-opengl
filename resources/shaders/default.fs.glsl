@@ -81,9 +81,6 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	// Convert shadow map UV and Depth coordinates
 	vec3 shadowMapCoordinates = vec3(positionLightSpace.xyz / positionLightSpace.w);	// Perspective projection divide
 	shadowMapCoordinates      = ((shadowMapCoordinates * 0.5) + 0.5);					// Convert coordinate range from [-1,1] to [0,1]
-	
-	// TODO: DEBUG VULKAN
-	//return min(texture(depthMapTexture, FragmentTextureCoords).r, 0.75);
 
 	// Get shadow map depth coordinates
 	//float closestDepth = texture(depthMapTexture, shadowMapCoordinates.xy).r;	// Closest depth value from light's perspective
@@ -91,7 +88,7 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 
 	// POBLEM:   Large dark region at the far end of the light source's frustum.
 	// REASON:   Coordinates outside the far plane of the light's orthographic frustum.
-	// SOLUTION: Force shadow values larger than 1.0 to 0 (not in shadow).
+	// SOLUTION: Force shadow values larger than 1 to 0 (not in shadow).
 	if (currentDepth > 1.0)
 		return 0.0;
 	
@@ -106,21 +103,21 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	
 	// PCF - Percentage-Closer Filtering
 	// Produces softer shadows, making them appear less blocky or hard.
-	float nrOfSamples  = 3.0;
-	int   sampleOffset = 1;
-	float shadowFactor = 0.0;
+	const float NR_OF_SAMPLES = 9.0;
+	const float SAMPLE_OFFSET = 1.0;
+	float       shadowFactor  = 0.0;
 
-	// Width and height of the sampler texture at mipmap level 0
+	// Pixel size of each texel in the sampler texture at mipmap level 0
 	vec2 texelSize = (1.0 / textureSize(depthMapTexture, 0));
 	
 	// Sample surrounding texels (9 samples)
-	for (int x = -sampleOffset; x <= sampleOffset; x++)
+	for (float x = -SAMPLE_OFFSET; x <= SAMPLE_OFFSET; x += 1.0)
 	{
-		for (int y = -sampleOffset; y <= sampleOffset; y++)
+		for (float y = -SAMPLE_OFFSET; y <= SAMPLE_OFFSET; y += 1.0)
 		{
 			vec2  texel        = vec2(shadowMapCoordinates.xy + (vec2(x, y) * texelSize));
 			float closestDepth = texture(depthMapTexture, texel).r;
-			
+
 			// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
 			// Compare current fragment with the surrounding texel's depth.
 			shadowFactor += ((currentDepth - offsetBias) > closestDepth ? 1.0 : 0.0);
@@ -128,11 +125,11 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	}
 	
 	// Average the results
-	shadowFactor /= (nrOfSamples * nrOfSamples);
+	shadowFactor /= NR_OF_SAMPLES;
 	
 	// Reduce the shadow intensity (max 75%) by adding some ambience
 	const float MAX_INTENSITY = 0.75;
-
+	
 	return min(shadowFactor, MAX_INTENSITY);
 }
 
@@ -276,18 +273,18 @@ void main()
     // LIGHT SOURCES
     for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
     {
-        if (db.LightSources[i].Active.x < 0.1)
-            continue;
-
-    	// SPOT LIGHT
-        if (db.LightSources[i].Angles.x > 0.1)
-            GL_FragColor += GetSpotLight(i, normal, viewDirection, materialColor, materialSpecular);
-    	// POINT LIGHT
-        else if (db.LightSources[i].Attenuation.r > 0.1)
-            GL_FragColor += GetPointLight(i, normal, viewDirection, materialColor, materialSpecular);
-    	// DIRECTIONAL LIGHT
-        else
-            GL_FragColor += GetDirectionalLight(i, normal, viewDirection, materialColor, materialSpecular);
+        if (db.LightSources[i].Active.x > 0.1)
+		{
+    		// SPOT LIGHT
+			if (db.LightSources[i].Angles.x > 0.1)
+				GL_FragColor += GetSpotLight(i, normal, viewDirection, materialColor, materialSpecular);
+    		// POINT LIGHT
+			else if (db.LightSources[i].Attenuation.r > 0.1)
+				GL_FragColor += GetPointLight(i, normal, viewDirection, materialColor, materialSpecular);
+    		// DIRECTIONAL LIGHT
+			else
+				GL_FragColor += GetDirectionalLight(i, normal, viewDirection, materialColor, materialSpecular);
+		}
     }
 
 	// LIGHT COLOR (PHONG REFLECTION)

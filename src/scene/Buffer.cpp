@@ -21,6 +21,7 @@ CBLight::CBLight(LightSource* lightSource)
 CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
 {
 	this->Model      = mesh->Matrix();
+	this->Normal     = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
 	this->MVP        = RenderEngine::CameraMain->MVP(mesh->Matrix(), removeTranslation);
 	this->Projection = RenderEngine::CameraMain->Projection();
 	this->View       = RenderEngine::CameraMain->View(removeTranslation);
@@ -28,10 +29,32 @@ CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
 
 CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
 {
+	glm::mat4 depthTransform = glm::mat4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.0f, 0.0f, 0.5f, 1.0f
+	);
+
 	this->Model      = mesh->Matrix();
-	this->MVP        = lightSource->MVP(mesh);
+	this->Normal     = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
 	this->Projection = lightSource->Projection();
 	this->View       = lightSource->View();
+	this->MVP        = lightSource->MVP(mesh);
+
+	// Apply the depth transform
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	case GRAPHICS_API_DIRECTX11:
+	case GRAPHICS_API_DIRECTX12:
+		depthTransform[1][1] *= -1.0f;
+		this->MVP             = (depthTransform * this->MVP);
+		break;
+	case GRAPHICS_API_VULKAN:
+		this->MVP = (depthTransform * this->MVP);
+		break;
+	default:
+		break;
+	}
 }
 
 CBColor::CBColor(const glm::vec4 &color)
@@ -113,6 +136,7 @@ CBLightDX::CBLightDX(const CBLight &light)
 
 CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
 {
+	this->Normal     = Utils::ToXMMATRIX(matrices.Normal);
 	this->Model      = Utils::ToXMMATRIX(matrices.Model);
 	this->View       = Utils::ToXMMATRIX(matrices.View);
 	this->Projection = Utils::ToXMMATRIX(matrices.Projection);

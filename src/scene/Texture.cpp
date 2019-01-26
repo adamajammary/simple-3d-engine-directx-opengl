@@ -155,7 +155,7 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 }
 
 // FRAMEBUFFER TEXTURE (DIRECTX)
-Texture::Texture(DXGI_FORMAT format, int width, int height)
+Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, int width, int height)
 {
 	int                result;
 	D3D11_SAMPLER_DESC samplerDesc11 = {};
@@ -164,8 +164,7 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = { width, height };
 	this->srgb        = false;
-	//this->textureType = TEXTURE_2D;
-	//this->textureType = TEXTURE_CUBEMAP;
+	this->textureType = textureType;
 	this->transparent = false;
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -178,10 +177,41 @@ Texture::Texture(DXGI_FORMAT format, int width, int height)
 		this->bufferViewPort11.MinDepth = 0.0f;
 		this->bufferViewPort11.MaxDepth = 1.0f;
 
-		this->setFilteringDX11(samplerDesc11);
-		this->setWrappingDX11(samplerDesc11);
+		samplerDesc11.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 
-		result = RenderEngine::Canvas.DX->CreateTextureBuffer11(format, samplerDesc11, this);
+		switch (this->textureType) {
+		case TEXTURE_2D:
+			switch (fboType) {
+			case FBO_COLOR:
+				samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+				samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+				samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+				break;
+			case FBO_DEPTH:
+				samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+				samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+				samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
+
+				// SET BORDER VALUES FOR CLAMP WRAPPING
+				for (int i = 0; i < 4; i++)
+					samplerDesc11.BorderColor[i] = 1.0f;
+
+				break;
+			}
+
+			break;
+		case TEXTURE_CUBEMAP:
+			samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+
+			break;
+		default:
+			throw;
+		}
+
+		result = RenderEngine::Canvas.DX->CreateTextureBuffer11(fboType, format, samplerDesc11, this);
 
 		if (result < 0)
 			wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
@@ -236,6 +266,7 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 		case FBO_COLOR:
 			this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 			this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
 			break;
 		case FBO_DEPTH:
 			this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -243,6 +274,7 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 
 			// SET BORDER VALUES FOR CLAMP WRAPPING
 			this->SamplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
 			break;
 		}
 
@@ -256,9 +288,6 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 	default:
 		throw;
 	}
-
-	//this->setFilteringVK(this->SamplerInfo);
-	//this->setWrappingVK(this->SamplerInfo);
 
 	int result = RenderEngine::Canvas.VK->CreateTextureBuffer(fboType, textureType, imageFormat, this);
 
@@ -292,8 +321,8 @@ Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textu
 			glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
 			// SET BORDER VALUES FOR CLAMP WRAPPING
-			GLfloat borderValues[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			glTexParameterfv(this->type, GL_TEXTURE_BORDER_COLOR, borderValues);
+			GLfloat borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+			glTexParameterfv(this->type, GL_TEXTURE_BORDER_COLOR, borderColor);
 
 			glTexImage2D(this->type, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, dataType, nullptr);
 		}
@@ -333,7 +362,8 @@ Texture::Texture()
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		this->Buffer11       = nullptr;
+		this->ColorBuffer11  = nullptr;
+		this->DepthBuffer11  = nullptr;
 		this->Resource11     = nullptr;
 		this->samplerState11 = nullptr;
 		this->SRV11          = nullptr;
@@ -368,7 +398,8 @@ Texture::Texture()
 Texture::~Texture()
 {
 	#if defined _WINDOWS
-		_RELEASEP(this->Buffer11);
+		_RELEASEP(this->ColorBuffer11);
+		_RELEASEP(this->DepthBuffer11);
 		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
@@ -473,25 +504,26 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
 		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
+		this->textureType = (images.size() > 1 ? TEXTURE_CUBEMAP : TEXTURE_2D);
 		this->transparent = (this->transparent && images2[0].HasAlpha());
 
 		switch (RenderEngine::SelectedGraphicsAPI) {
 		case GRAPHICS_API_DIRECTX11:
 			this->setFilteringDX11(samplerDesc11);
 
-			if (images.size() > 1)
+			if (this->textureType == TEXTURE_CUBEMAP)
 				this->setWrappingCubemapDX11(samplerDesc11);
 			else
 				this->setWrappingDX11(samplerDesc11);
 
-			if (RenderEngine::Canvas.DX->CreateTexture11(pixels2, format, samplerDesc11, this) < 0)
+			if (RenderEngine::Canvas.DX->CreateTexture11(FBO_UNKNOWN, pixels2, format, samplerDesc11, this) < 0)
 				wxMessageBox(("ERROR: Texture::loadTextureImagesDX11: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;
 		case GRAPHICS_API_DIRECTX12:
 			this->setFilteringDX12(this->SamplerDesc12);
 
-			if (images.size() > 1)
+			if (this->textureType == TEXTURE_CUBEMAP)
 				this->setWrappingCubemapDX12(this->SamplerDesc12);
 			else
 				this->setWrappingDX12(this->SamplerDesc12);

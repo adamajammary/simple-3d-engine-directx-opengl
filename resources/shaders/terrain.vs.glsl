@@ -10,6 +10,7 @@ layout(location = 1) out vec4 FragmentPosition;
 layout(location = 2) out vec2 FragmentTextureCoords;
 
 layout(binding = 0) uniform MatrixBuffer {
+	mat4 Normal;
 	mat4 Model;
 	mat4 View;
 	mat4 Projection;
@@ -18,7 +19,8 @@ layout(binding = 0) uniform MatrixBuffer {
 
 void main()
 {
-    FragmentNormal        = (mb.Model * vec4(VertexNormal, 0.0)).xyz;
+    //FragmentNormal        = vec3(mb.Model * vec4(VertexNormal, 0.0));
+    FragmentNormal        = (mat3(mb.Normal) * VertexNormal);
     FragmentPosition      = (mb.Model * vec4(VertexPosition, 1.0));
     FragmentTextureCoords = VertexTextureCoords;
 

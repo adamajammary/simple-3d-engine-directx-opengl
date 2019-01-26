@@ -56,9 +56,9 @@ public:
 	int  CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* buffer);
 	int  CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** fs, ID3D11VertexShader** shaderVS, ID3D11PixelShader** shaderFS);
 	int  CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
-	int  CreateTexture11(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
+	int  CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
 	int  CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture);
-	int  CreateTextureBuffer11(DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
+	int  CreateTextureBuffer11(FBOType fboType, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
 	int  CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture);
 	int  CreateVertexBuffer11(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	int  CreateVertexBuffer12(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);

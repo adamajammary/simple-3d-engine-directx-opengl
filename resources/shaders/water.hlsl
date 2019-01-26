@@ -16,7 +16,8 @@ struct CBLight
 
 struct CBMatrix
 {
-	matrix Model;
+    matrix Normal;
+    matrix Model;
     matrix View;
     matrix Projection;
     matrix MVP;

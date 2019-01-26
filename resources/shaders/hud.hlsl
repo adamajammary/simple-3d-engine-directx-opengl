@@ -2,6 +2,7 @@ static const int MAX_TEXTURES = 6;
 
 struct CBMatrix
 {
+    matrix Normal;
     matrix Model;
     matrix View;
     matrix Projection;

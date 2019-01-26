@@ -432,7 +432,7 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, DrawProperti
 		{
 			continue;
 		}
-		
+
 		glm::vec4 oldColor = mesh->ComponentMaterial.diffuse;
 
 		if (properties.DrawSelected)
@@ -624,20 +624,30 @@ void RenderEngine::setDrawSettingsGL(ShaderID shaderID)
 	case SHADER_ID_HUD:
 		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_CLAMP);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_STENCIL_TEST);
 		break;
 	case SHADER_ID_SKYBOX:
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL);
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
 		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_CLAMP);
 		glDisable(GL_STENCIL_TEST);
+		break;
+	case SHADER_ID_DEPTH:
+		glEnable(GL_CULL_FACE);  glCullFace(GL_FRONT); glFrontFace(GL_CCW);
+		glEnable(GL_DEPTH_CLAMP);
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
+		glDisable(GL_STENCIL_TEST);
+		glDisable(GL_BLEND);
 		break;
 	default:
 		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
-		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
-		glDisable(GL_STENCIL_TEST);
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
+		glDisable(GL_DEPTH_CLAMP);
+		glDisable(GL_STENCIL_TEST);
 		break;
 	}
 }
