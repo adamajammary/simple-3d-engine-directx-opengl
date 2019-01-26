@@ -475,7 +475,7 @@ int VKContext::CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* b
 
 	// COPY DATA TO STAGE BUFFER
 	vkMapMemory(this->deviceContext, stagingBufferMemory, 0, indexBufferSize, 0, &indexBufferMemData);
-		memcpy(indexBufferMemData, indices.data(), (size_t)indexBufferSize);
+	memcpy(indexBufferMemData, indices.data(), (size_t)indexBufferSize);
 	vkUnmapMemory(this->deviceContext, stagingBufferMemory);
 
 	// VERTEX BUFFER
@@ -672,7 +672,9 @@ int VKContext::createPipeline(
 		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 		break;
 	case SHADER_ID_DEPTH:
-		colorBlendInfo.attachmentCount = 0;
+		colorBlendInfo.attachmentCount     = 0;
+		rasterizationInfo.depthClampEnable = VK_TRUE;
+		rasterizationInfo.cullMode         = VK_CULL_MODE_FRONT_BIT;
 		break;
 	default:
 		break;
@@ -850,6 +852,7 @@ int VKContext::CreateTextureBuffer(FBOType fboType, TextureType textureType, VkF
 		throw;
 	}
 
+	// IMAGE (TEXTURE)
 	int result = this->createImage(
 		textureSize.GetWidth(), textureSize.GetHeight(), 1, 1, imageFormat, VK_IMAGE_TILING_OPTIMAL,
 		imageUseFlags, imageMemFlags, textureType, &texture->Image, &texture->ImageMemory
@@ -858,12 +861,13 @@ int VKContext::CreateTextureBuffer(FBOType fboType, TextureType textureType, VkF
 	if (result < 0)
 		return -2;
 
-	// SAMPLER
+	// IMAGE (TEXTURE) SAMPLER
 	texture->Sampler = this->createImageSampler(1.0f, 1.0f, texture->SamplerInfo);
 
 	if (texture->Sampler == nullptr)
 		return -3;
 
+	// IMAGE (TEXTURE) VIEW
 	texture->ImageView = this->createImageView(texture->Image, imageFormat, 1, textureType, imageAspectFlags);
 
 	if (texture->ImageView == nullptr)
@@ -874,6 +878,7 @@ int VKContext::CreateTextureBuffer(FBOType fboType, TextureType textureType, VkF
 	if (result < 0)
 		return -5;
 
+	// FRAME BUFFER
 	framebufferInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 	framebufferInfo.attachmentCount = 1;
 	framebufferInfo.pAttachments    = &texture->ImageView;
@@ -1034,7 +1039,7 @@ int VKContext::CreateVertexBuffer(const std::vector<float> &vertices, const std:
 
 	// COPY DATA TO STAGE BUFFER
 	vkMapMemory(this->deviceContext, stagingBufferMemory, 0, vertexBufferSize, 0, &vertexBufferMemData);
-		memcpy(vertexBufferMemData, vertexBufferData.data(), (size_t)vertexBufferSize);
+	memcpy(vertexBufferMemData, vertexBufferData.data(), (size_t)vertexBufferSize);
 	vkUnmapMemory(this->deviceContext, stagingBufferMemory);
 
 	// VERTEX BUFFER
@@ -1692,6 +1697,7 @@ VkDevice VKContext::initDeviceContext()
 	std::vector<const char*> extensions = { "VK_KHR_swapchain" };
 	VkPhysicalDeviceFeatures features   = {};
 
+	features.depthClamp        = VK_TRUE;
 	features.fillModeNonSolid  = VK_TRUE;
 	features.samplerAnisotropy = VK_TRUE;
 	//features.sampleRateShading = VK_TRUE;		// TODO: SAMPLE SHADING
@@ -1930,13 +1936,13 @@ VkPipelineRasterizationStateCreateInfo VKContext::initRasterizer(VkCullModeFlags
 	rasterizationInfo.frontFace   = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizationInfo.polygonMode = polyMode;
 
-	//rasterizer.depthClampEnable        = VK_FALSE;
-	//rasterizer.rasterizerDiscardEnable = VK_FALSE;
-	//rasterizer->frontFace              = VK_FRONT_FACE_CLOCKWISE;
-	//rasterizer.depthBiasEnable         = VK_FALSE;
-	//rasterizer.depthBiasConstantFactor = 0.0f;
-	//rasterizer.depthBiasClamp          = 0.0f;
-	//rasterizer.depthBiasSlopeFactor    = 0.0f;
+	//rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
+	//rasterizationInfo.depthClampEnable        = VK_FALSE;
+	//rasterizationInfo.depthBiasEnable         = VK_FALSE;
+	//rasterizationInfo.depthBiasConstantFactor = 0.0f;
+	//rasterizationInfo.depthBiasClamp          = 0.0f;
+	//rasterizationInfo.depthBiasSlopeFactor    = 0.0f;
+	//rasterizationInfo.frontFace              = VK_FRONT_FACE_CLOCKWISE;
 
 	return rasterizationInfo;
 }
