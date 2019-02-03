@@ -26,7 +26,7 @@ float4 VS(VS_INPUT input) : SV_Position
 }
 
 // FRAGMENT/PIXEL/COLOR SHADER
-//float PS(FS_INPUT input) : SV_Depth
+//float PS(float4 position : SV_Position) : SV_Depth
 void PS(float4 position : SV_Position)
 {
 	//return position.z;

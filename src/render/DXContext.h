@@ -42,14 +42,14 @@ private:
 	bool                       vSync;
 
 public:
-	void Bind11(ID3D11RenderTargetView* colorBuffer, ID3D11DepthStencilView* depthStencilBuffer, D3D11_VIEWPORT &viewPort);
-	void Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle, D3D12_VIEWPORT& viewPort, D3D12_RECT &scissorRect);
+	void Bind11(FBOType fboType, Texture* texture);
+	void Bind12(FBOType fboType, Texture* texture);
 	void Unbind11();
-	void Unbind12(ID3D12Resource* colorBufferResource);
-	void Clear11(float r, float g, float b, float a);
-	void Clear12(float r, float g, float b, float a);
-	void Clear11(float r, float g, float b, float a, FrameBuffer* fbo);
-	void Clear12(float r, float g, float b, float a, FrameBuffer* fbo);
+	void Unbind12(FBOType fboType, Texture* texture);
+	void Clear11(const glm::vec4 &colorRGBA);
+	void Clear12(const glm::vec4 &colorRGBA);
+	void Clear11(const glm::vec4 &colorRGBA, FrameBuffer* fbo);
+	void Clear12(const glm::vec4 &colorRGBA, FrameBuffer* fbo);
 	int  CreateConstantBuffers11(Buffer* buffer);
 	int  CreateConstantBuffers12(Buffer* buffer);
 	int  CreateIndexBuffer11(std::vector<unsigned int> &indices, Buffer* buffer);
@@ -57,9 +57,9 @@ public:
 	int  CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** fs, ID3D11VertexShader** shaderVS, ID3D11PixelShader** shaderFS);
 	int  CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
 	int  CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
-	int  CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture);
+	int  CreateTexture12(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture);
 	int  CreateTextureBuffer11(FBOType fboType, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
-	int  CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture);
+	int  CreateTextureBuffer12(FBOType fboType, DXGI_FORMAT format, Texture* texture);
 	int  CreateVertexBuffer11(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	int  CreateVertexBuffer12(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	int  Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
@@ -73,10 +73,11 @@ private:
 	int                      commandsExecute();
 	int                      commandsInit();
 	int                      compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
-	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, bool fbo, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
+	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, FBOType fboType, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
 	int                      createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
 	IDXGIAdapter*            getAdapter11(IDXGIFactory*  factory);
 	IDXGIAdapter1*           getAdapter12(IDXGIFactory5* factory);
+	D3D12_CLEAR_VALUE        getClearValueDX12(FBOType fboType, DXGI_FORMAT format);
 	bool                     init11(bool vsync = true);
 	bool                     init12(bool vsync = true);
 	D3D11_BLEND_DESC         initColorBlending11(BOOL enableBlend);

@@ -37,7 +37,7 @@ void VKContext::blitImage(VkCommandBuffer cmdBuffer, VkImage image, int mipWidth
 	);
 }
 
-void VKContext::Clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
+void VKContext::Clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
 {
 	VkCommandBuffer commandBuffer = cmdBuffer;
 	VkRect2D        scissorRect   = {};
@@ -60,7 +60,7 @@ void VKContext::Clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCo
 
 			switch (fbo->Type()) {
 			case FBO_COLOR:
-				clearValues[0].color      = { r, g, b, a };
+				clearValues[0].color      = { colorRGBA.r, colorRGBA.g, colorRGBA.b, colorRGBA.a };
 				renderPassInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_COLOR];
 				break;
 			case FBO_DEPTH:
@@ -105,7 +105,7 @@ void VKContext::Clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCo
 
 		VkClearValue clearValues[2] = {};
 
-		clearValues[0].color        = { r, g, b, a };
+		clearValues[0].color        = { colorRGBA.r, colorRGBA.g, colorRGBA.b, colorRGBA.a };
 		clearValues[1].depthStencil = { 1.0f, 0 };
 
 		// START RENDER PASS

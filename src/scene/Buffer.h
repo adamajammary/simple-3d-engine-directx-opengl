@@ -214,9 +214,11 @@ public:
 		ID3D11InputLayout*       InputLayoutsDX11[NR_OF_SHADERS];
 		ID3D11RasterizerState*   RasterizerStatesDX11[NR_OF_SHADERS];
 		ID3D12PipelineState*     PipelineStatesDX12[NR_OF_SHADERS];
-		ID3D12PipelineState*     PipelineStatesColorFBODX12[NR_OF_SHADERS];
-		ID3D12PipelineState*     PipelineStatesDepthFBODX12[NR_OF_SHADERS];
+		ID3D12PipelineState*     PipelineStatesColorDX12[NR_OF_SHADERS];
+		ID3D12PipelineState*     PipelineStatesDepthDX12[NR_OF_SHADERS];
 		ID3D12RootSignature*     RootSignaturesDX12[NR_OF_SHADERS];
+		ID3D12RootSignature*     RootSignaturesColorDX12[NR_OF_SHADERS];
+		ID3D12RootSignature*     RootSignaturesDepthDX12[NR_OF_SHADERS];
 
 		ID3D11Buffer*         ConstantBuffersDX11[NR_OF_SHADERS];
 		ID3D12Resource*       ConstantBuffersDX12[NR_OF_SHADERS];

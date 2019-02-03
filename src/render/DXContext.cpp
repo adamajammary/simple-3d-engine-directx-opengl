@@ -19,27 +19,51 @@ DXContext::~DXContext()
 	this->release();
 }
 
-void DXContext::Bind11(ID3D11RenderTargetView* colorBuffer, ID3D11DepthStencilView* depthStencilBuffer, D3D11_VIEWPORT &viewPort)
+void DXContext::Bind11(FBOType fboType, Texture* texture)
 {
-	const UINT NR_OF_RENDER_TARGETS = (colorBuffer != nullptr ? 1 : 0);
+	UINT           nrOfRenderTargets = (fboType == FBO_DEPTH ? 0 : 1);
+	D3D11_VIEWPORT viewPort          = texture->BufferViewPort11();
 
 	this->deviceContext->RSSetViewports(1, &viewPort);
-	this->deviceContext->OMSetRenderTargets(NR_OF_RENDER_TARGETS, &colorBuffer, depthStencilBuffer);
+	this->deviceContext->OMSetRenderTargets(nrOfRenderTargets, &texture->ColorBuffer11, texture->DepthBuffer11);
 }
 
-void DXContext::Bind12(ID3D12Resource* colorBufferResource, CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle, CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle, D3D12_VIEWPORT &viewPort, D3D12_RECT &scissorRect)
+void DXContext::Bind12(FBOType fboType, Texture* texture)
 {
 	this->commandsInit();
 
-	this->transitionResource(
-		colorBufferResource,
-		(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE),
-		D3D12_RESOURCE_STATE_RENDER_TARGET
-	);
+	UINT                           nrOfRenderTargets;
+	D3D12_RESOURCE_STATES          resourceStateOld   = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	CD3DX12_CPU_DESCRIPTOR_HANDLE* colorBufferHandle  = nullptr;
+	CD3DX12_CPU_DESCRIPTOR_HANDLE* depthStencilHandle = nullptr;
+	D3D12_RECT                     scissor            = {};
+	D3D12_VIEWPORT                 viewPort           = texture->BufferViewPort12();
 
-	this->commandList->RSSetViewports(1,     &viewPort);
-	this->commandList->RSSetScissorRects(1,  &scissorRect);
-	this->commandList->OMSetRenderTargets(1, colorBufferHandle, TRUE, depthStencilHandle);
+	scissor.right  = (LONG)viewPort.Width;
+	scissor.bottom = (LONG)viewPort.Height;
+
+	switch (fboType) {
+	case FBO_COLOR:
+		colorBufferHandle = &CD3DX12_CPU_DESCRIPTOR_HANDLE(texture->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
+		nrOfRenderTargets = 1;
+
+		this->transitionResource(texture->Resource12, resourceStateOld, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		break;
+	case FBO_DEPTH:
+		depthStencilHandle = &CD3DX12_CPU_DESCRIPTOR_HANDLE(texture->DepthBuffer12->GetCPUDescriptorHandleForHeapStart());
+		nrOfRenderTargets  = 0;
+
+		this->transitionResource(texture->Resource12, resourceStateOld, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+		break;
+	default:
+		throw;
+	}
+
+	this->commandList->RSSetViewports(1, &viewPort);
+	this->commandList->RSSetScissorRects(1, &scissor);
+	this->commandList->OMSetRenderTargets(nrOfRenderTargets, colorBufferHandle, TRUE, depthStencilHandle);
 }
 
 void DXContext::Unbind11()
@@ -48,45 +72,47 @@ void DXContext::Unbind11()
 	this->deviceContext->OMSetRenderTargets(1, &this->colorBuffer, this->depthStencilBuffer11);
 }
 
-void DXContext::Unbind12(ID3D12Resource* colorBufferResource)
+void DXContext::Unbind12(FBOType fboType, Texture* texture)
 {
-	this->transitionResource(
-		colorBufferResource,
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-	);
+	D3D12_RESOURCE_STATES resourceStateNew = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	switch (fboType) {
+	case FBO_COLOR:
+		this->transitionResource(texture->Resource12, D3D12_RESOURCE_STATE_RENDER_TARGET, resourceStateNew);
+		break;
+	case FBO_DEPTH:
+		this->transitionResource(texture->Resource12, D3D12_RESOURCE_STATE_DEPTH_WRITE, resourceStateNew);
+		break;
+	default:
+		throw;
+	}
 
 	this->commandsExecute();
 	this->wait();
 }
 
-void DXContext::Clear11(float r, float g, float b, float a)
+void DXContext::Clear11(const glm::vec4 &colorRGBA)
 {
-	FLOAT color[] = { r, g, b, a };
-
 	this->deviceContext->RSSetViewports(1,     &this->viewPort11);
 	this->deviceContext->OMSetRenderTargets(1, &this->colorBuffer, this->depthStencilBuffer11);
 
-	this->deviceContext->ClearRenderTargetView(this->colorBuffer, color);
+	this->deviceContext->ClearRenderTargetView(this->colorBuffer, &colorRGBA[0]);
 	this->deviceContext->ClearDepthStencilView(this->depthStencilBuffer11, (D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL), 1.0f, 0);
 }
 
-void DXContext::Clear11(float r, float g, float b, float a, FrameBuffer* fbo)
+void DXContext::Clear11(const glm::vec4 &colorRGBA, FrameBuffer* fbo)
 {
-	FLOAT color[] = { r, g, b, a };
-
 	if (fbo == nullptr)
-		this->Clear11(r, g, b, a);
+		this->Clear11(colorRGBA);
 	else if (fbo->Type() == FBO_COLOR)
-		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->ColorBuffer11, color);
+		this->deviceContext->ClearRenderTargetView(fbo->GetTexture()->ColorBuffer11, &colorRGBA[0]);
 	else if (fbo->Type() == FBO_DEPTH)
 		this->deviceContext->ClearDepthStencilView(fbo->GetTexture()->DepthBuffer11, D3D11_CLEAR_DEPTH, 1.0f, 0);
 		//this->deviceContext->ClearDepthStencilView(fbo->GetTexture()->DepthBuffer11, (D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL), 1.0f, 0);
 }
 
-void DXContext::Clear12(float r, float g, float b, float a)
+void DXContext::Clear12(const glm::vec4 &colorRGBA)
 {
-	FLOAT                         color[] = { r, g, b, a };
 	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(this->colorBufferHeap->GetCPUDescriptorHandleForHeapStart(), this->colorBufferIndex, this->colorBufferSize);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE depthStencilHandle(this->depthStencilBufferHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -100,19 +126,28 @@ void DXContext::Clear12(float r, float g, float b, float a)
 	this->commandList->RSSetScissorRects(1,  &this->scissorRect);
 	this->commandList->OMSetRenderTargets(1, &colorBufferHandle, TRUE, &depthStencilHandle);
 
-	this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
+	this->commandList->ClearRenderTargetView(colorBufferHandle, &colorRGBA[0], 0, nullptr);
 	this->commandList->ClearDepthStencilView(depthStencilHandle, (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL), 1.0f, 0, 0, nullptr);
 }
 
-void DXContext::Clear12(float r, float g, float b, float a, FrameBuffer* fbo)
+void DXContext::Clear12(const glm::vec4 &colorRGBA, FrameBuffer* fbo)
 {
-	if (fbo == nullptr) {
-		this->Clear12(r, g, b, a);
-	} else {
-		FLOAT                         color[] = { r, g, b, a };
-		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->GetTexture()->Buffer12->GetCPUDescriptorHandleForHeapStart());
+	if (fbo == nullptr)
+	{
+		this->Clear12(colorRGBA);
+	}
+	else if (fbo->Type() == FBO_COLOR)
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(fbo->GetTexture()->ColorBuffer12->GetCPUDescriptorHandleForHeapStart());
 
-		this->commandList->ClearRenderTargetView(colorBufferHandle, color, 0, nullptr);
+		this->commandList->ClearRenderTargetView(colorBufferHandle, &colorRGBA[0], 0, nullptr);
+	}
+	else if (fbo->Type() == FBO_DEPTH)
+	{
+		CD3DX12_CPU_DESCRIPTOR_HANDLE depthStencilHandle(fbo->GetTexture()->DepthBuffer12->GetCPUDescriptorHandleForHeapStart());
+
+		this->commandList->ClearDepthStencilView(depthStencilHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		//this->commandList->ClearDepthStencilView(depthStencilHandle, (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL), 1.0f, 0, 0, nullptr);
 	}
 }
 
@@ -237,13 +272,13 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 
 	D3D12_DESCRIPTOR_HEAP_DESC bufferHeapDesc  = {};
 
-	bufferHeapDesc.NumDescriptors = (1 + MAX_TEXTURES);
+	bufferHeapDesc.NumDescriptors = (1 + MAX_TEXTURES + (2 * MAX_LIGHT_SOURCES));
 	bufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	bufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 
 	D3D12_DESCRIPTOR_HEAP_DESC samplerHeapDesc = {};
 
-	samplerHeapDesc.NumDescriptors = MAX_TEXTURES;
+	samplerHeapDesc.NumDescriptors = (MAX_TEXTURES + 2);
 	samplerHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
 	samplerHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
@@ -368,25 +403,16 @@ int DXContext::createPipeline(
 	ShaderProgram*        shaderProgram,
 	ID3D12PipelineState** pipeline,
 	ID3D12RootSignature** rootSignature,
-	bool                  fbo,
+	FBOType               fboType,
 	const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs
 )
 {
 	if (shaderProgram == nullptr)
 		return -1;
 
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
-
-	pipelineStateDesc.DSVFormat        = (fbo ? DXGI_FORMAT_UNKNOWN : DXGI_FORMAT_D32_FLOAT);
-	pipelineStateDesc.InputLayout      = { attribsDescs.data(), (UINT)attribsDescs.size() };
-	pipelineStateDesc.NumRenderTargets = 1;
-	pipelineStateDesc.RTVFormats[0]    = (fbo ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
-	pipelineStateDesc.SampleMask       = UINT_MAX;
-	pipelineStateDesc.SampleDesc.Count = 1;
-	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
-
-	ID3D10Blob* fs = shaderProgram->FS();
-	ID3D10Blob* vs = shaderProgram->VS();
+	ID3D10Blob* fs       = shaderProgram->FS();
+	ID3D10Blob* vs       = shaderProgram->VS();
+	ShaderID    shaderID = shaderProgram->ID();
 
 	if ((vs == nullptr) || (fs == nullptr))
 		return -2;
@@ -394,15 +420,33 @@ int DXContext::createPipeline(
 	if (FAILED(this->createRootSignature(shaderProgram, rootSignature)))
 		return -3;
 
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pipelineStateDesc = {};
+
 	pipelineStateDesc.pRootSignature = *rootSignature;
 
 	pipelineStateDesc.VS = { vs->GetBufferPointer(), vs->GetBufferSize() };
 	pipelineStateDesc.PS = { fs->GetBufferPointer(), fs->GetBufferSize() };
 
-	//pipelineStateDesc.PrimitiveTopologyType = (D3D12_PRIMITIVE_TOPOLOGY_TYPE)(RenderEngine::DrawMode - 1);
+	pipelineStateDesc.DSVFormat        = DXGI_FORMAT_D32_FLOAT;
+	pipelineStateDesc.NumRenderTargets = 1;
+	pipelineStateDesc.RTVFormats[0]    = (fboType == FBO_UNKNOWN ? DXGI_FORMAT_R8G8B8A8_UNORM : DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+
+	if (fboType == FBO_COLOR)
+		pipelineStateDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	if (shaderID == SHADER_ID_DEPTH) {
+		pipelineStateDesc.NumRenderTargets = 0;
+		pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_UNKNOWN;
+	}
+
+	pipelineStateDesc.InputLayout      = { attribsDescs.data(), (UINT)attribsDescs.size() };
+	pipelineStateDesc.SampleMask       = UINT_MAX;
+	pipelineStateDesc.SampleDesc.Count = 1;
+	//pipelineStateDesc.SampleDesc.Count = this->multiSampleCount;	// TODO: MSAA DX12
+
 	pipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	switch(shaderProgram->ID()) {
+	switch(shaderID) {
 	case SHADER_ID_HUD:
 		pipelineStateDesc.BlendState        = this->initColorBlending12(TRUE);
 		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
@@ -420,12 +464,17 @@ int DXContext::createPipeline(
 		break;
 	}
 
-	if (fbo)
-		pipelineStateDesc.DepthStencilState = this->initDepthStencilBuffer12(FALSE);
-
-	if (shaderProgram->ID() == SHADER_ID_WIREFRAME) {
+	switch (shaderID) {
+	case SHADER_ID_WIREFRAME:
 		pipelineStateDesc.PrimitiveTopologyType    = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
 		pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+		break;
+	case SHADER_ID_DEPTH:
+		pipelineStateDesc.RasterizerState.DepthClipEnable = FALSE;
+		pipelineStateDesc.RasterizerState.CullMode        = D3D12_CULL_MODE_FRONT;
+		break;
+	default:
+		break;
 	}
 
 	if (FAILED(this->renderDevice12->CreateGraphicsPipelineState(&pipelineStateDesc, IID_PPV_ARGS(pipeline))))
@@ -437,14 +486,16 @@ int DXContext::createPipeline(
 int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature)
 {
 	// ROOT SIGNATURE
-	ID3DBlob*                           error             = nullptr;
-	D3D12_FEATURE_DATA_ROOT_SIGNATURE   featureData       = {};
-	int                                 nrOfRootParams    = 1;
-	D3D12_DESCRIPTOR_RANGE1             ranges[3]         = {};
-	D3D12_ROOT_PARAMETER1               rootParams[3]     = {};
-	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc = {};
-	D3D12_ROOT_SIGNATURE_FLAGS          rootSignatureFlags;
-	ID3DBlob*                           signature         = nullptr;
+	ID3DBlob*                           error                                  = nullptr;
+	D3D12_FEATURE_DATA_ROOT_SIGNATURE   featureData                            = {};
+	UINT                                nrOfParameters                         = 0;
+	UINT                                nrOfSRVs                               = 0;
+	UINT                                nrOfSamplers                           = 0;
+	D3D12_DESCRIPTOR_RANGE1             ranges[NR_OF_ROOT_SIGNATURE_TYPES]     = {};
+	D3D12_ROOT_PARAMETER1               rootParams[NR_OF_ROOT_SIGNATURE_TYPES] = {};
+	D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc                      = {};
+	ShaderID                            shaderID                               = shader->ID();
+	ID3DBlob*                           signature                              = nullptr;
 
 	featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
 
@@ -453,49 +504,62 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	if (FAILED(result))
 		featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
 
-	// CONSTANT BUFFERS
-	ranges[0].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	ranges[0].NumDescriptors                    = 1;
-	ranges[0].Flags                             = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
-	ranges[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	// MESH TEXTURES
+	switch (shaderID) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_HUD:
+	case SHADER_ID_SKYBOX:
+	case SHADER_ID_TERRAIN:
+	case SHADER_ID_WATER:
+		nrOfSRVs     += MAX_TEXTURES;
+		nrOfSamplers += MAX_TEXTURES;
+		break;
+	default:
+		break;
+	}
 
-	rootParams[0].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[0].DescriptorTable  = { 1, &ranges[0] };
-	rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	// DEPTH MAP TEXTURES
+	if (shaderID == SHADER_ID_DEFAULT) {
+		nrOfSRVs     += (2 * MAX_LIGHT_SOURCES);
+		nrOfSamplers += 2;
+	}
 
-	// TEXTURE RESOURCES
-	ranges[1].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	ranges[1].NumDescriptors                    = MAX_TEXTURES;
-	ranges[1].Flags                             = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
-	ranges[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	for (uint32_t i = 0; i < NR_OF_ROOT_SIGNATURE_TYPES; i++)
+	{
+		ranges[i].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	rootParams[1].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[1].DescriptorTable  = { 1, &ranges[1] };
-	rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		switch (i) {
+		case ROOT_CBV:
+			ranges[i].RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			ranges[i].NumDescriptors     = 1;
+			ranges[i].Flags              = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
+			break;
+		case ROOT_TEXTURE_SRV:
+			ranges[i].RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+			ranges[i].NumDescriptors     = nrOfSRVs;
+			ranges[i].Flags              = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC;
+			break;
+		case ROOT_TEXTURE_SAMPLER:
+			ranges[i].RangeType          = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+			ranges[i].NumDescriptors     = nrOfSamplers;
+			ranges[i].Flags              = D3D12_DESCRIPTOR_RANGE_FLAG_NONE;
+			break;
+		default:
+			throw;
+		}
 
-	// TEXTURE SAMPLERS
-	ranges[2].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
-	ranges[2].NumDescriptors                    = MAX_TEXTURES;
-	ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		rootParams[i].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		rootParams[i].DescriptorTable  = { 1, &ranges[i] };
+		rootParams[i].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
-	rootParams[2].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams[2].DescriptorTable  = { 1, &ranges[2] };
-	rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		nrOfParameters++;
 
-	//// UAV
-	//ranges[3].RangeType                         = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-	//ranges[3].NumDescriptors                    = 1;
-	//ranges[2].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	//rootParams[3].ParameterType    = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	//rootParams[3].DescriptorTable  = { 1, &ranges[3] };
-	//rootParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-
-	//nrOfRootParams = 4;
-	nrOfRootParams = 3;
+		if ((nrOfSRVs == 0) || (nrOfSamplers == 0))
+			break;
+	}
 
 	// ALLOW INPUT LAYOUT AND DENY ACCESS UNNECESSARY TO PIPELINE STAGES
-	rootSignatureFlags = (
+	D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags = (
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
 		//D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS
 		D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS       |
@@ -509,11 +573,11 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	rootSignatureDesc.Version = featureData.HighestVersion;
 
 	if (rootSignatureDesc.Version == D3D_ROOT_SIGNATURE_VERSION_1_1) {
-		rootSignatureDesc.Desc_1_1.NumParameters = nrOfRootParams;
+		rootSignatureDesc.Desc_1_1.NumParameters = nrOfParameters;
 		rootSignatureDesc.Desc_1_1.pParameters   = &rootParams[0];
 		rootSignatureDesc.Desc_1_1.Flags         = rootSignatureFlags;
 	} else {
-		rootSignatureDesc.Desc_1_0.NumParameters = nrOfRootParams;
+		rootSignatureDesc.Desc_1_0.NumParameters = nrOfParameters;
 		rootSignatureDesc.Desc_1_0.pParameters   = reinterpret_cast<D3D12_ROOT_PARAMETER*>(&rootParams[0]);
 		rootSignatureDesc.Desc_1_0.Flags         = rootSignatureFlags;
 	}
@@ -589,7 +653,6 @@ int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels
 
 	textureDesc.ArraySize        = arraySize;
 	textureDesc.BindFlags        = bindFlags;
-	//textureDesc.Format           = (fboType == FBO_DEPTH ? DXGI_FORMAT_R24G8_TYPELESS : format);
 	textureDesc.Format           = format;
 	textureDesc.MipLevels        = mipLevels;
 	textureDesc.MiscFlags        = flags;
@@ -605,41 +668,42 @@ int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels
 		textureDesc.Height = (UINT)bufferViewPort.Height;
 	}
 
-	std::vector<D3D11_SUBRESOURCE_DATA> textureData(dataCount);
+	HRESULT result;
 
-	for (size_t i = 0; i < pixels.size(); i++)
+	if (fboType == FBO_UNKNOWN)
 	{
-		for (uint32_t j = 0; j < textureDesc.MipLevels; j++)
-		{
-			textureData[i + j].pSysMem          = pixels[i];
-			textureData[i + j].SysMemPitch      = (textureDesc.Width * 4);
-			textureData[i + j].SysMemSlicePitch = (textureDesc.Width * textureDesc.Height * 4);
-		}
-	}
+		std::vector<D3D11_SUBRESOURCE_DATA> textureData(dataCount);
 
-	HRESULT result = this->renderDevice11->CreateTexture2D(
-		&textureDesc, (fboType == FBO_UNKNOWN ? textureData.data() : nullptr), &texture->Resource11
-	);
+		for (size_t i = 0; i < pixels.size(); i++)
+		{
+			for (uint32_t j = 0; j < textureDesc.MipLevels; j++)
+			{
+				textureData[i + j].pSysMem          = pixels[i];
+				textureData[i + j].SysMemPitch      = (textureDesc.Width * 4);
+				textureData[i + j].SysMemSlicePitch = (textureDesc.Width * textureDesc.Height * 4);
+			}
+		}
+
+		result = this->renderDevice11->CreateTexture2D(&textureDesc, textureData.data(), &texture->Resource11);
+	} else {
+		result = this->renderDevice11->CreateTexture2D(&textureDesc, nullptr, &texture->Resource11);
+	}
 
 	if (FAILED(result))
 		return -2;
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 
-	//srvDesc.Format = (fboType == FBO_DEPTH ? DXGI_FORMAT_R24_UNORM_X8_TYPELESS : textureDesc.Format);
 	srvDesc.Format = (fboType == FBO_DEPTH ? DXGI_FORMAT_R32_FLOAT : textureDesc.Format);
 
 	switch (textureType) {
 	case TEXTURE_2D:
 		srvDesc.ViewDimension       = D3D11_SRV_DIMENSION_TEXTURE2D;
 		srvDesc.Texture2D.MipLevels = (fboType == FBO_UNKNOWN ? -1 : 1);
-
 		break;
 	case TEXTURE_CUBEMAP:
 		srvDesc.ViewDimension         = D3D11_SRV_DIMENSION_TEXTURECUBE;
 		srvDesc.TextureCube.MipLevels = 1;
-		//srvDesc.TextureCube.MostDetailedMip = 0;
-
 		break;
 	default:
 		throw;
@@ -654,7 +718,6 @@ int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels
 		this->deviceContext->GenerateMips(texture->SRV11);
 
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	//samplerDesc->ComparisonFunc = D3D11_COMPARISON_ALWAYS;
 	samplerDesc.MaxAnisotropy  = 16;
 	samplerDesc.MaxLOD         = D3D11_FLOAT32_MAX;
 
@@ -707,21 +770,47 @@ int DXContext::CreateTextureBuffer11(FBOType fboType, DXGI_FORMAT format, D3D11_
 }
 
 // TODO: Generate MipMaps
-int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture)
+int DXContext::CreateTexture12(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture)
 {
 	if (texture == nullptr)
 		return -1;
 
+	size_t                dataCount;
+	UINT                  mipLevels;
+	UINT16                arraySize     = (fboType == FBO_UNKNOWN ? (UINT16)pixels.size() : 1);
+	D3D12_RESOURCE_STATES shaderState   = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	D3D12_RESOURCE_STATES resourceState = shaderState;
+	D3D12_RESOURCE_FLAGS  resourceFlags = D3D12_RESOURCE_FLAG_NONE;
+	TextureType           textureType   = texture->GetTextureType();
+
+	switch (fboType) {
+		case FBO_COLOR: resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; break;
+		case FBO_DEPTH: resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL; break;
+		default:        resourceState = D3D12_RESOURCE_STATE_COPY_DEST;          break;
+	}
+
+	switch (textureType) {
+	case TEXTURE_2D:
+		//dataCount = (fboType == FBO_UNKNOWN ? texture->MipLevels() : 1);
+		dataCount = 1;
+		mipLevels = dataCount;
+		break;
+	case TEXTURE_CUBEMAP:
+		dataCount = pixels.size();
+		mipLevels = 1;
+		break;
+	default:
+		throw;
+	}
+
 	D3D12_RESOURCE_DESC textureResourceDesc = {};
 	wxSize              textureSize         = texture->Size();
 
-	textureResourceDesc.DepthOrArraySize = (!pixels.empty() ? pixels.size() : 1);
+	textureResourceDesc.DepthOrArraySize = arraySize;
 	textureResourceDesc.Dimension        = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	textureResourceDesc.Flags            = (!pixels.empty() ? D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	textureResourceDesc.Flags            = resourceFlags;
 	textureResourceDesc.Format           = format;
-	textureResourceDesc.MipLevels        = 1;
-	//textureResourceDesc.MipLevels        = (pixels.size() > 1 ? 1 : texture->MipLevels());
-	//textureResourceDesc.SampleDesc.Count = this->multiSampleCount;
+	textureResourceDesc.MipLevels        = mipLevels;
 	textureResourceDesc.SampleDesc.Count = 1;
 	textureResourceDesc.Width            = (UINT64)textureSize.GetWidth();
 	textureResourceDesc.Height           = (UINT64)textureSize.GetHeight();
@@ -734,19 +823,26 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		textureResourceDesc.Height = (UINT64)bufferViewPort.Height;
 	}
 
+	D3D12_CLEAR_VALUE* clearValue;
+
+	switch (fboType) {
+		case FBO_COLOR: clearValue = &this->getClearValueDX12(fboType, textureResourceDesc.Format); break;
+		case FBO_DEPTH: clearValue = &this->getClearValueDX12(fboType, DXGI_FORMAT_D32_FLOAT);      break;
+		default:        clearValue = nullptr; break;
+	}
+
 	HRESULT result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &textureResourceDesc,
-		(!pixels.empty() ? D3D12_RESOURCE_STATE_COPY_DEST : (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)),
-		nullptr, IID_PPV_ARGS(&texture->Resource12)
+		resourceState, clearValue, IID_PPV_ARGS(&texture->Resource12)
 	);
 
 	if (FAILED(result))
 		return -2;
 
-	if (!pixels.empty())
+	//if (!pixels.empty())
+	if (fboType == FBO_UNKNOWN)
 	{
-		//std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size() > 1 ? pixels.size() : texture->MipLevels());
-		std::vector<D3D12_SUBRESOURCE_DATA> textureData(pixels.size());
+		std::vector<D3D12_SUBRESOURCE_DATA> textureData(dataCount);
 		ID3D12Resource*                     textureResource = nullptr;
 
 		result = this->renderDevice12->CreateCommittedResource(
@@ -771,11 +867,7 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 			this->commandList, texture->Resource12, textureResource, 0, 0, textureData.size(), textureData.data()
 		);
 
-		this->transitionResource(
-			texture->Resource12,
-			D3D12_RESOURCE_STATE_COPY_DEST,
-			(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-		);
+		this->transitionResource(texture->Resource12, resourceState, shaderState);
 
 		this->commandsExecute();
 		this->wait();
@@ -783,57 +875,85 @@ int DXContext::CreateTexture12(const std::vector<BYTE*> &pixels, DXGI_FORMAT for
 		_RELEASEP(textureResource);
 	}
 
-	texture->SRVDesc12.Format                  = format;
+	texture->SRVDesc12.Format                  = (fboType == FBO_DEPTH ? DXGI_FORMAT_R32_FLOAT : textureResourceDesc.Format);
 	texture->SRVDesc12.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
-	if (pixels.size() > 1) {
+	switch (textureType) {
+	case TEXTURE_2D:
+		texture->SRVDesc12.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
+		//texture->SRVDesc12.Texture2D.MipLevels = (fboType == FBO_UNKNOWN ? -1 : 1);
+		texture->SRVDesc12.Texture2D.MipLevels = 1;
+		break;
+	case TEXTURE_CUBEMAP:
 		texture->SRVDesc12.ViewDimension         = D3D12_SRV_DIMENSION_TEXTURECUBE;
 		texture->SRVDesc12.TextureCube.MipLevels = 1;
-	} else {
-		texture->SRVDesc12.ViewDimension       = D3D12_SRV_DIMENSION_TEXTURE2D;
-		//texture->SRVDesc12.Texture2D.MipLevels = texture->MipLevels();
-		//texture->SRVDesc12.Texture2D.MipLevels = -1;
-		texture->SRVDesc12.Texture2D.MipLevels = 1;
+		break;
+	default:
+		throw;
 	}
 	
 	texture->SamplerDesc12.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-	//texture->SamplerDesc12->ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-	//texture->SamplerDesc12.MaxAnisotropy  = this->multiSampleCount;
+	//texture->SamplerDesc12.MaxAnisotropy   = 16;
 	texture->SamplerDesc12.MaxAnisotropy  = 1;
 	texture->SamplerDesc12.MaxLOD         = D3D12_FLOAT32_MAX;
 
 	return 0;
 }
 
-int DXContext::CreateTextureBuffer12(DXGI_FORMAT format, Texture* texture)
+int DXContext::CreateTextureBuffer12(FBOType fboType, DXGI_FORMAT format, Texture* texture)
 {
-	HRESULT result = this->CreateTexture12({}, format, texture);
+	HRESULT result = this->CreateTexture12(fboType, {}, format, texture);
 
 	if (FAILED(result))
 		return -1;
 
-	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION
-	D3D12_DESCRIPTOR_HEAP_DESC colorBufferHeapDesc = {};
+	// FRAME BUFFER
+	CD3DX12_CPU_DESCRIPTOR_HANDLE descriptorHandle;
+	ID3D12DescriptorHeap**        descriptorHeap;
+	D3D12_DESCRIPTOR_HEAP_DESC    descriptorHeapDesc = {};
+	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc    = {};
+	D3D12_DEPTH_STENCIL_VIEW_DESC depthBufferDesc    = {};
 
-	colorBufferHeapDesc.NumDescriptors = 1;
-	colorBufferHeapDesc.Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	//colorBufferHeapDesc.Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	descriptorHeapDesc.NumDescriptors = 1;
 
-	result = this->renderDevice12->CreateDescriptorHeap(&colorBufferHeapDesc, IID_PPV_ARGS(&texture->Buffer12));
+	switch (fboType) {
+	case FBO_COLOR:
+		descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		descriptorHeap          = &texture->ColorBuffer12;
+		break;
+	case FBO_DEPTH:
+		descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		descriptorHeap          = &texture->DepthBuffer12;
+		break;
+	default:
+		throw;
+	}
+
+	result = this->renderDevice12->CreateDescriptorHeap(&descriptorHeapDesc, IID_PPV_ARGS(descriptorHeap));
 
 	if (FAILED(result))
 		return -2;
 
-	// COLOR BUFFER (RENDER TARGET VIEW) - HEAP DESCRIPTION HANDLE
-	CD3DX12_CPU_DESCRIPTOR_HANDLE colorBufferHandle(texture->Buffer12->GetCPUDescriptorHandleForHeapStart());
+	descriptorHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE((*descriptorHeap)->GetCPUDescriptorHandleForHeapStart());
 
-	// COLOR BUFFER (RENDER TARGET VIEW)
-	D3D12_RENDER_TARGET_VIEW_DESC colorBufferDesc = {};
+	switch (fboType) {
+	case FBO_COLOR:
+		colorBufferDesc.Format        = format;
+		colorBufferDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 
-	colorBufferDesc.Format        = format;
-	colorBufferDesc.ViewDimension = (this->multiSampleCount > 1 ? D3D12_RTV_DIMENSION_TEXTURE2DMS : D3D12_RTV_DIMENSION_TEXTURE2D);
+		this->renderDevice12->CreateRenderTargetView(texture->Resource12, &colorBufferDesc, descriptorHandle);
 
-	this->renderDevice12->CreateRenderTargetView(texture->Resource12, &colorBufferDesc, colorBufferHandle);
+		break;
+	case FBO_DEPTH:
+		depthBufferDesc.Format        = DXGI_FORMAT_D32_FLOAT;
+		depthBufferDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+
+		this->renderDevice12->CreateDepthStencilView(texture->Resource12, &depthBufferDesc, descriptorHandle);
+
+		break;
+	default:
+		throw;
+	}
 
 	return 0;
 }
@@ -1045,19 +1165,15 @@ int DXContext::CreateVertexBuffer12(const std::vector<float> &vertices, const st
 	// RENDER PIPELINES
 	for (int i = 0; i < NR_OF_SHADERS; i++)
 	{
-		int result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesDX12[i], &buffer->RootSignaturesDX12[i], false, attribsDescs);
+		ShaderProgram* program = ShaderManager::Programs[i];
 
-		if (result < 0)
+		if (this->createPipeline(program, &buffer->PipelineStatesDX12[i], &buffer->RootSignaturesDX12[i], FBO_UNKNOWN, attribsDescs) < 0)
 			return -3;
 
-		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesColorFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
-
-		if (result < 0)
+		if (this->createPipeline(program, &buffer->PipelineStatesColorDX12[i], &buffer->RootSignaturesColorDX12[i], FBO_COLOR, attribsDescs) < 0)
 			return -4;
 
-		result = this->createPipeline(ShaderManager::Programs[i], &buffer->PipelineStatesDepthFBODX12[i], &buffer->RootSignaturesDX12[i], true, attribsDescs);
-
-		if (result < 0)
+		if (this->createPipeline(program, &buffer->PipelineStatesDepthDX12[i], &buffer->RootSignaturesDepthDX12[i], FBO_DEPTH, attribsDescs) < 0)
 			return -5;
 	}
 
@@ -1139,15 +1255,15 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	// BIND DEPTH MAP TEXTURES
 	if (shaderID == SHADER_ID_DEFAULT)
 	{
-		const int NR_OF_SAMPLES = 2;
+		const int NR_OF_SAMPLERS = 2;
 
-		ID3D11SamplerState* depthTextureSamplers[NR_OF_SAMPLES] = {
+		ID3D11SamplerState* depthTextureSamplers[NR_OF_SAMPLERS] = {
 			SceneManager::EmptyTexture->SamplerState11,
 			SceneManager::EmptyCubemap->SamplerState11
 		};
 
 		// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
-		for (int n = 0; n < NR_OF_SAMPLES; n++)
+		for (int n = 0; n < NR_OF_SAMPLERS; n++)
 		{
 			ID3D11ShaderResourceView* depthTextureSRVs[MAX_LIGHT_SOURCES] = {};
 
@@ -1199,6 +1315,7 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	else
 		this->deviceContext->Draw(dynamic_cast<Mesh*>(mesh)->NrOfVertices(), 0);
 
+	// RESET
 	ID3D11ShaderResourceView* nullSRV[MAX_LIGHT_SOURCES]     = {};
 	ID3D11SamplerState*       nullSampler[MAX_LIGHT_SOURCES] = {};
 
@@ -1227,9 +1344,11 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	if ((vertexBuffer == nullptr) || (fragmentShader == nullptr) || (vertexShader == nullptr))
 		return -2;
 
+	// SHADER UNIFORM BUFFERS
 	if (shaderProgram->UpdateUniformsDX12(mesh, properties) < 0)
 		return -3;
 
+	// INDEX AND VERTEX BUFFERS
 	D3D12_INDEX_BUFFER_VIEW  indexBufferView  = {};
 	D3D12_VERTEX_BUFFER_VIEW vertexBufferView = vertexBuffer->VertexBufferViewDX12;
 
@@ -1241,6 +1360,7 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 		vertexBuffer->SamplerHeapsDX12[shaderProgram->ID()]
 	};
 
+	// CONSTANT BUFFER AND TEXTURES
 	UINT cbvSrvDescSize = this->renderDevice12->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	CD3DX12_CPU_DESCRIPTOR_HANDLE srvHandleCPU(descHeaps[0]->GetCPUDescriptorHandleForHeapStart(), 1, cbvSrvDescSize);
 	CD3DX12_GPU_DESCRIPTOR_HANDLE srvHandleGPU(descHeaps[0]->GetGPUDescriptorHandleForHeapStart(), 1, cbvSrvDescSize);
@@ -1249,25 +1369,96 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	CD3DX12_CPU_DESCRIPTOR_HANDLE samplerHandleCPU(descHeaps[1]->GetCPUDescriptorHandleForHeapStart());
 	CD3DX12_GPU_DESCRIPTOR_HANDLE samplerHandleGPU(descHeaps[1]->GetGPUDescriptorHandleForHeapStart());
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-	{
-		this->renderDevice12->CreateShaderResourceView(
-			mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU
-		);
-		srvHandleCPU.Offset(1, cbvSrvDescSize);
+	bool setRootTextures = false;
 
-		this->renderDevice12->CreateSampler(&mesh->Textures[i]->SamplerDesc12, samplerHandleCPU);
-		samplerHandleCPU.Offset(1, samplerDescSize);
+	// MESH TEXTURES
+	switch (shaderID) {
+	case SHADER_ID_DEFAULT:
+	case SHADER_ID_HUD:
+	case SHADER_ID_SKYBOX:
+	case SHADER_ID_TERRAIN:
+	case SHADER_ID_WATER:
+		for (int i = 0; i < MAX_TEXTURES; i++)
+		{
+			this->renderDevice12->CreateShaderResourceView(
+				mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU
+			);
+			srvHandleCPU.Offset(1, cbvSrvDescSize);
+
+			this->renderDevice12->CreateSampler(&mesh->Textures[i]->SamplerDesc12, samplerHandleCPU);
+			samplerHandleCPU.Offset(1, samplerDescSize);
+		}
+
+		setRootTextures = true;
+
+		break;
+	default:
+		break;
 	}
 
-	this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesDX12[shaderID]);
+	// DEPTH MAP TEXTURES
+	if (shaderID == SHADER_ID_DEFAULT)
+	{
+		const int NR_OF_SAMPLERS = 2;
+
+		// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
+		for (int n = 0; n < NR_OF_SAMPLERS; n++)
+		{
+			D3D12_SAMPLER_DESC samplerDesc;
+
+			// LIGHT SOURCES
+			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			{
+				Texture*     texture;
+				LightSource* lightSource = SceneManager::LightSources[i];
+
+				if ((lightSource != nullptr) && (lightSource->DepthMapFBO() != nullptr)) {
+					texture     = lightSource->DepthMapFBO()->GetTexture();
+					samplerDesc = texture->SamplerDesc12;
+				} else {
+					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
+				}
+				
+				if ((n == 0) && (texture->GetTextureType() != TEXTURE_2D)) {
+					texture     = SceneManager::EmptyTexture;
+					samplerDesc = texture->SamplerDesc12;
+				}
+
+				if ((n == 1) && (texture->GetTextureType() != TEXTURE_CUBEMAP)) {
+					texture     = SceneManager::EmptyCubemap;
+					samplerDesc = texture->SamplerDesc12;
+				}
+
+				this->renderDevice12->CreateShaderResourceView(
+					texture->Resource12, &texture->SRVDesc12, srvHandleCPU
+				);
+
+				srvHandleCPU.Offset(1, cbvSrvDescSize);
+			}
+
+			this->renderDevice12->CreateSampler(&samplerDesc, samplerHandleCPU);
+			samplerHandleCPU.Offset(1, samplerDescSize);
+		}
+
+		setRootTextures = true;
+	}
+
+	// SHADER ROOT SIGNATURES
+	switch (properties.FboType) {
+		case FBO_COLOR: this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesColorDX12[shaderID]); break;
+		case FBO_DEPTH: this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesDepthDX12[shaderID]); break;
+		default:        this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesDX12[shaderID]);      break;
+	}
 
 	this->commandList->SetDescriptorHeaps(2, descHeaps);
-	this->commandList->SetGraphicsRootDescriptorTable(0, descHeaps[0]->GetGPUDescriptorHandleForHeapStart());
+	this->commandList->SetGraphicsRootDescriptorTable(ROOT_CBV, descHeaps[0]->GetGPUDescriptorHandleForHeapStart());
 
-	this->commandList->SetGraphicsRootDescriptorTable(1, srvHandleGPU);
-	this->commandList->SetGraphicsRootDescriptorTable(2, samplerHandleGPU);
+	if (setRootTextures) {
+		this->commandList->SetGraphicsRootDescriptorTable(ROOT_TEXTURE_SRV,     srvHandleGPU);
+		this->commandList->SetGraphicsRootDescriptorTable(ROOT_TEXTURE_SAMPLER, samplerHandleGPU);
+	}
 
+	// DRAW
 	if (indexBuffer != nullptr)
 		this->commandList->IASetIndexBuffer(&indexBufferView);
 
@@ -1275,9 +1466,9 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	this->commandList->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
 	switch (properties.FboType) {
-		case FBO_COLOR: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesColorFBODX12[shaderID]); break;
-		case FBO_DEPTH: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDepthFBODX12[shaderID]); break;
-		default:        this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);         break;
+		case FBO_COLOR: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesColorDX12[shaderID]); break;
+		case FBO_DEPTH: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDepthDX12[shaderID]); break;
+		default:        this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);      break;
 	}
 
 	if (indexBuffer != nullptr)
@@ -1333,6 +1524,26 @@ IDXGIAdapter1* DXContext::getAdapter12(IDXGIFactory5* factory)
 	}
 
 	return nullptr;
+}
+
+D3D12_CLEAR_VALUE DXContext::getClearValueDX12(FBOType fboType, DXGI_FORMAT format)
+{
+	D3D12_CLEAR_VALUE clearValue = {};
+
+	for (int i = 0; i < 4; i++)
+	{
+		switch (fboType) {
+			case FBO_COLOR: clearValue.Color[i] = CLEAR_VALUE_COLOR[i];   break;
+			case FBO_DEPTH: clearValue.Color[i] = CLEAR_VALUE_DEPTH[i];   break;
+			default:        clearValue.Color[i] = CLEAR_VALUE_DEFAULT[i]; break;
+		}
+	}
+
+	clearValue.Format               = format;
+	clearValue.DepthStencil.Depth   = 1.0f;
+	clearValue.DepthStencil.Stencil = 0;
+
+	return clearValue;
 }
 
 bool DXContext::init11(bool vsync)
@@ -1628,10 +1839,7 @@ bool DXContext::init12(bool vsync)
 	depthStencilResourceDesc.Height           = swapChainDesc.BufferDesc.Height;
 
 	// DEPTH/STENCIL BUFFER - CLEAR VALUE
-	D3D12_CLEAR_VALUE depthStencilClearValue = {};
-
-	depthStencilClearValue.Format             = depthStencilResourceDesc.Format;
-	depthStencilClearValue.DepthStencil.Depth = 1.0f;
+	D3D12_CLEAR_VALUE depthStencilClearValue = this->getClearValueDX12(FBO_UNKNOWN, depthStencilResourceDesc.Format);
 
     result = this->renderDevice12->CreateCommittedResource(
 		&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE, &depthStencilResourceDesc,
@@ -1831,9 +2039,9 @@ D3D12_RASTERIZER_DESC DXContext::initRasterizer12(D3D12_CULL_MODE cullMode, D3D1
 	rasterizationInfo.ConservativeRaster    = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
 
 	rasterizationInfo.DepthClipEnable      = TRUE;
-	rasterizationInfo.DepthBias            = 0;
-	rasterizationInfo.DepthBiasClamp       = 0.0f;
-	rasterizationInfo.SlopeScaledDepthBias = 0.0f;
+	//rasterizationInfo.DepthBias            = 0;
+	//rasterizationInfo.DepthBiasClamp       = 0.0f;
+	//rasterizationInfo.SlopeScaledDepthBias = 0.0f;
 
 	return rasterizationInfo;
 }

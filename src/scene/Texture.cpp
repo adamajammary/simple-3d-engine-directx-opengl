@@ -225,10 +225,41 @@ Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, i
 		this->bufferViewPort12.MinDepth = 0.0f;
 		this->bufferViewPort12.MaxDepth = 1.0f;
 
-		this->setFilteringDX12(this->SamplerDesc12);
-		this->setWrappingDX12(this->SamplerDesc12);
+		this->SamplerDesc12.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 
-		result = RenderEngine::Canvas.DX->CreateTextureBuffer12(format, this);
+		switch (this->textureType) {
+		case TEXTURE_2D:
+			switch (fboType) {
+			case FBO_COLOR:
+				this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+				this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+				this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
+				break;
+			case FBO_DEPTH:
+				this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+				this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+				this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+
+				// SET BORDER VALUES FOR CLAMP WRAPPING
+				for (int i = 0; i < 4; i++)
+					this->SamplerDesc12.BorderColor[i] = 1.0f;
+
+				break;
+			}
+
+			break;
+		case TEXTURE_CUBEMAP:
+			this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+			this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+
+			break;
+		default:
+			throw;
+		}
+
+		result = RenderEngine::Canvas.DX->CreateTextureBuffer12(fboType, format, this);
 
 		if (result < 0)
 			wxMessageBox("ERROR: Failed to create a texture frame buffer.", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
@@ -370,8 +401,9 @@ Texture::Texture()
 
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		this->Buffer12   = nullptr;
-		this->Resource12 = nullptr;
+		this->ColorBuffer12 = nullptr;
+		this->DepthBuffer12 = nullptr;
+		this->Resource12    = nullptr;
 
 		break;
 	#endif
@@ -404,7 +436,8 @@ Texture::~Texture()
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
 
-		_RELEASEP(this->Buffer12);
+		_RELEASEP(this->ColorBuffer12);
+		_RELEASEP(this->DepthBuffer12);
 		_RELEASEP(this->Resource12);
 	#endif
 
@@ -528,7 +561,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 			else
 				this->setWrappingDX12(this->SamplerDesc12);
 
-			if (RenderEngine::Canvas.DX->CreateTexture12(pixels2, format, this) < 0)
+			if (RenderEngine::Canvas.DX->CreateTexture12(FBO_UNKNOWN, pixels2, format, this) < 0)
 				wxMessageBox(("ERROR: Texture::loadTextureImagesDX12: Failed to create a texture from image files."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 
 			break;

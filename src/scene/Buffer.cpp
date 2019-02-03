@@ -312,9 +312,11 @@ Buffer::~Buffer()
 			_RELEASEP(this->InputLayoutsDX11[i]);
 
 			_RELEASEP(this->PipelineStatesDX12[i]);
-			_RELEASEP(this->PipelineStatesColorFBODX12[i]);
-			_RELEASEP(this->PipelineStatesDepthFBODX12[i]);
+			_RELEASEP(this->PipelineStatesColorDX12[i]);
+			_RELEASEP(this->PipelineStatesDepthDX12[i]);
 			_RELEASEP(this->RootSignaturesDX12[i]);
+			_RELEASEP(this->RootSignaturesColorDX12[i]);
+			_RELEASEP(this->RootSignaturesDepthDX12[i]);
 		}
 
 		_RELEASEP(this->VertexBufferDX11);
@@ -358,18 +360,20 @@ void Buffer::init()
 		this->IndexBufferViewDX12  = {};
 		this->VertexBufferViewDX12 = {};
 
-		this->BlendStatesDX11[NR_OF_SHADERS]            = {};
-		this->ConstantBuffersDX11[NR_OF_SHADERS]        = {};
-		this->ConstantBuffersDX12[NR_OF_SHADERS]        = {};
-		this->ConstantBufferHeapsDX12[NR_OF_SHADERS]    = {};
-		this->DepthStencilStatesDX11[NR_OF_SHADERS]     = {};
-		this->InputLayoutsDX11[NR_OF_SHADERS]           = {};
-		this->RasterizerStatesDX11[NR_OF_SHADERS]       = {};
-		this->PipelineStatesDX12[NR_OF_SHADERS]         = {};
-		this->PipelineStatesColorFBODX12[NR_OF_SHADERS] = {};
-		this->PipelineStatesDepthFBODX12[NR_OF_SHADERS] = {};
-		this->RootSignaturesDX12[NR_OF_SHADERS]         = {};
-		this->SamplerHeapsDX12[NR_OF_SHADERS]           = {};
+		this->BlendStatesDX11[NR_OF_SHADERS]         = {};
+		this->ConstantBuffersDX11[NR_OF_SHADERS]     = {};
+		this->ConstantBuffersDX12[NR_OF_SHADERS]     = {};
+		this->ConstantBufferHeapsDX12[NR_OF_SHADERS] = {};
+		this->DepthStencilStatesDX11[NR_OF_SHADERS]  = {};
+		this->InputLayoutsDX11[NR_OF_SHADERS]        = {};
+		this->RasterizerStatesDX11[NR_OF_SHADERS]    = {};
+		this->PipelineStatesDX12[NR_OF_SHADERS]      = {};
+		this->PipelineStatesColorDX12[NR_OF_SHADERS] = {};
+		this->PipelineStatesDepthDX12[NR_OF_SHADERS] = {};
+		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
+		this->RootSignaturesColorDX12[NR_OF_SHADERS] = {};
+		this->RootSignaturesDepthDX12[NR_OF_SHADERS] = {};
+		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
 
 		this->ConstantBufferColor   = {};
 		this->ConstantBufferDefault = {};

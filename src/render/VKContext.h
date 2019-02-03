@@ -104,7 +104,7 @@ private:
 	#endif
 
 public:
-	void            Clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	void            Clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
 	VkCommandBuffer CommandBufferBegin();
 	void            CommandBufferEnd(VkCommandBuffer cmdBuffer);
 	int             CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* buffer);

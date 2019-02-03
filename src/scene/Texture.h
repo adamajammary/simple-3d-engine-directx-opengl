@@ -32,7 +32,8 @@ public:
 	#if defined _WINDOWS
 		ID3D11RenderTargetView*         ColorBuffer11;
 		ID3D11DepthStencilView*         DepthBuffer11;
-		ID3D12DescriptorHeap*           Buffer12;
+		ID3D12DescriptorHeap*           ColorBuffer12;
+		ID3D12DescriptorHeap*           DepthBuffer12;
 		ID3D11Texture2D*                Resource11;
 		ID3D12Resource*                 Resource12;
 		D3D12_SAMPLER_DESC              SamplerDesc12;

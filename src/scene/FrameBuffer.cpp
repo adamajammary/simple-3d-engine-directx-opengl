@@ -7,20 +7,13 @@ FrameBuffer::FrameBuffer(const wxSize &size, FBOType fboType, TextureType textur
 	this->type    = fboType;
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
-	#if defined _WINDOWS
-	case GRAPHICS_API_DIRECTX11:
-	case GRAPHICS_API_DIRECTX12:
-		this->createTextureDX(textureType);
-		break;
-	#endif
-	case GRAPHICS_API_OPENGL:
-		this->createTextureGL(textureType);
-		break;
-	case GRAPHICS_API_VULKAN:
-		this->createTextureVK(textureType);
-		break;
-	default:
-		throw;
+		#if defined _WINDOWS
+		case GRAPHICS_API_DIRECTX11:
+		case GRAPHICS_API_DIRECTX12: this->createTextureDX(textureType); break;
+		#endif
+		case GRAPHICS_API_OPENGL: this->createTextureGL(textureType); break;
+		case GRAPHICS_API_VULKAN: this->createTextureVK(textureType); break;
+		default: throw;
 	}
 }
 
@@ -55,7 +48,6 @@ void FrameBuffer::createTextureDX(TextureType textureType)
 	case FBO_DEPTH:
 		//DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_D32_FLOAT_S8X24_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT
 		this->texture = new Texture(
-			//this->type, textureType, DXGI_FORMAT_D24_UNORM_S8_UINT, this->size.GetWidth(), this->size.GetHeight()
 			this->type, textureType, DXGI_FORMAT_R32_TYPELESS, this->size.GetWidth(), this->size.GetHeight()
 		);
 		break;
@@ -132,37 +124,13 @@ void FrameBuffer::createTextureVK(TextureType textureType)
 
 void FrameBuffer::Bind()
 {
-	#if defined _WINDOWS
-		D3D12_RECT     scissor = {};
-		D3D12_VIEWPORT viewPort;
-	#endif
-
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		switch (this->type) {
-		case FBO_COLOR:
-			RenderEngine::Canvas.DX->Bind11(this->texture->ColorBuffer11, nullptr, this->texture->BufferViewPort11());
-			break;
-		case FBO_DEPTH:
-			RenderEngine::Canvas.DX->Bind11(nullptr, this->texture->DepthBuffer11, this->texture->BufferViewPort11());
-			break;
-		default:
-			throw;
-		}
-
+		RenderEngine::Canvas.DX->Bind11(this->type, this->texture);
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		viewPort       = this->texture->BufferViewPort12();
-		scissor.right  = (LONG)viewPort.Width;
-		scissor.bottom = (LONG)viewPort.Height;
-
-		RenderEngine::Canvas.DX->Bind12(
-			this->texture->Resource12,
-			&CD3DX12_CPU_DESCRIPTOR_HANDLE(this->texture->Buffer12->GetCPUDescriptorHandleForHeapStart()),
-			nullptr, viewPort, scissor
-		);
-
+		RenderEngine::Canvas.DX->Bind12(this->type, this->texture);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
@@ -188,7 +156,7 @@ void FrameBuffer::Unbind()
 		RenderEngine::Canvas.DX->Unbind11();
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->Unbind12(this->texture->Resource12);
+		RenderEngine::Canvas.DX->Unbind12(this->type, this->texture);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:

@@ -104,14 +104,17 @@ class VKContext;
 class Water;
 class WindowFrame;
 
-static const uint32_t BUFFER_SIZE           = 1024;
-static const uint32_t LZMA_OFFSET_ID        = 8;
-static const uint32_t LZMA_OFFSET_SIZE      = 8;
-static const uint32_t MAX_CONCURRENT_FRAMES = 2;
-static const uint32_t MAX_LIGHT_SOURCES     = 13;
-static const uint32_t MAX_TEXTURES          = 6;
-static const uint32_t MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES + MAX_LIGHT_SOURCES);
-static const uint32_t NR_OF_FRAMEBUFFERS    = 2;
+static const uint32_t  BUFFER_SIZE           = 1024;
+static const glm::vec4 CLEAR_VALUE_COLOR     = { 0.0f, 0.0f, 1.0f, 1.0f };
+static const glm::vec4 CLEAR_VALUE_DEFAULT   = { 0.0f, 0.2f, 0.4f, 1.0f };
+static const glm::vec4 CLEAR_VALUE_DEPTH     = { 1.0f, 1.0f, 1.0f, 1.0f };
+static const uint32_t  LZMA_OFFSET_ID        = 8;
+static const uint32_t  LZMA_OFFSET_SIZE      = 8;
+static const uint32_t  MAX_CONCURRENT_FRAMES = 2;
+static const uint32_t  MAX_LIGHT_SOURCES     = 13;
+static const uint32_t  MAX_TEXTURES          = 6;
+static const uint32_t  MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES + MAX_LIGHT_SOURCES);
+static const uint32_t  NR_OF_FRAMEBUFFERS    = 2;
 
 #if defined _WINDOWS
 
@@ -278,6 +281,11 @@ enum ShaderID
 enum TextureType
 {
 	TEXTURE_UNKNOWN = -1, TEXTURE_2D, TEXTURE_CUBEMAP, NR_OF_TEXTURE_TYPES
+};
+
+enum RootSignatureTypeDX12
+{
+	ROOT_CBV, ROOT_TEXTURE_SRV, ROOT_TEXTURE_SAMPLER, NR_OF_ROOT_SIGNATURE_TYPES
 };
 
 enum UniformBufferTypeGL

@@ -43,7 +43,7 @@ public:
 	static void     SetVSync(bool enable);
 
 private:
-	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	static void           clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
 	static void           createDepthFBO();
 	static void           createWaterFBOs();
 	static int            drawBoundingVolumes();

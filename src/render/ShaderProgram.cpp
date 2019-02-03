@@ -771,7 +771,15 @@ int ShaderProgram::UpdateUniformsDX12(Component* mesh, const DrawProperties &pro
 	if (vertexBuffer == nullptr)
 		return -2;
 
-	CBMatrix        matrices          = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+	// MATRIX UNIFORM BUFFER
+	CBMatrix matrices;
+
+	if (this->ID() == SHADER_ID_DEPTH)
+		matrices = CBMatrix(properties.Light, mesh);
+	else
+		matrices = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
+
+	// UNIFORM BUFFERS
 	size_t          constBufferSize   = 0;
 	const void*     constBufferValues = ShaderProgram::getBufferValues(matrices, mesh, properties, constBufferSize);
 	ID3D12Resource* constBuffer       = vertexBuffer->ConstantBuffersDX12[this->ID()];

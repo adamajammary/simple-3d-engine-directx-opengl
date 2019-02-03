@@ -15,27 +15,27 @@ GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN
 std::vector<Component*> RenderEngine::Terrains;
 std::vector<Component*> RenderEngine::Waters;
 
-void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
+void RenderEngine::clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear11(r, g, b, a, fbo);
+			RenderEngine::Canvas.DX->Clear11(colorRGBA, fbo);
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear12(r, g, b, a, fbo);
+			RenderEngine::Canvas.DX->Clear12(colorRGBA, fbo);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glClearColor(r, g, b, a);
+		glClearColor(colorRGBA.r, colorRGBA.g, colorRGBA.b, colorRGBA.a);
 		glClearStencil(0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK != nullptr)
-			RenderEngine::Canvas.VK->Clear(r, g, b, a, fbo, cmdBuffer);
+			RenderEngine::Canvas.VK->Clear(colorRGBA, fbo, cmdBuffer);
 		break;
 	}
 }
@@ -82,7 +82,7 @@ void RenderEngine::createDepthFBO()
 			lightSource->DepthMapFBO()->Bind();
 
 		// CLEAR
-		RenderEngine::clear(1.0f, 1.0f, 1.0f, 1.0f, lightSource->DepthMapFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_DEPTH, lightSource->DepthMapFBO(), cmdBuffer);
 
 		// DRAW
 		DrawProperties drawProperties = {};
@@ -137,7 +137,7 @@ void RenderEngine::createWaterFBOs()
 		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->ReflectionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->ReflectionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawTerrains(drawProperties);
@@ -160,7 +160,7 @@ void RenderEngine::createWaterFBOs()
 		drawProperties.ClipMax = glm::vec3(scale.x,   position.y, scale.z);
 		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->RefractionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->RefractionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawTerrains(drawProperties);
@@ -178,7 +178,7 @@ void RenderEngine::Draw()
 	RenderEngine::createDepthFBO();
 	RenderEngine::createWaterFBOs();
 
-	RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
+	RenderEngine::clear(CLEAR_VALUE_DEFAULT);
 	RenderEngine::drawScene();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
