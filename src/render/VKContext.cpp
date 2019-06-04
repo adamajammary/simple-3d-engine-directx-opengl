@@ -909,12 +909,6 @@ int VKContext::createUniformBuffers(Buffer* buffer)
 	if (this->createBuffer(sizeof(CBHUD), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
 		return -4;
 
-	if (this->createBuffer(sizeof(CBDefault), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_TERRAIN], &buffer->Uniform.BufferMemories[UBO_VK_TERRAIN]) < 0)
-		return -5;
-
-	if (this->createBuffer(sizeof(CBWater), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_WATER], &buffer->Uniform.BufferMemories[UBO_VK_WATER]) < 0)
-		return -6;
-
 	return 0;
 }
 

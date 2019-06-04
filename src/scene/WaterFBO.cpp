@@ -11,11 +11,16 @@ WaterFBO::WaterFBO(const std::vector<wxString> &textureImageFiles)
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
 
+	int FBO_TEXTURE_HEIGHT = static_cast<int>(
+		static_cast<float>(FBO_TEXTURE_SIZE) * RenderEngine::Canvas.AspectRatio
+	);
+
 	// WATER REFLECTION - ABOVE WATER
-	this->reflectionFBO = new FrameBuffer(wxSize(320, (int)(320.0f * RenderEngine::Canvas.AspectRatio)), FBO_COLOR, TEXTURE_2D);
+	//this->reflectionFBO = new FrameBuffer(wxSize(320, (int)(320.0f * RenderEngine::Canvas.AspectRatio)), FBO_COLOR, TEXTURE_2D);
+	this->reflectionFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_HEIGHT), FBO_COLOR, TEXTURE_2D);
 
     // WATER REFRACTION - BELOW WATER
-	this->refractionFBO = new FrameBuffer(wxSize(1280, (int)(1280.0f * RenderEngine::Canvas.AspectRatio)), FBO_COLOR, TEXTURE_2D);
+	this->refractionFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_HEIGHT), FBO_COLOR, TEXTURE_2D);
 
     // TEXTURES
 	this->Textures[0] = this->reflectionFBO->GetTexture();

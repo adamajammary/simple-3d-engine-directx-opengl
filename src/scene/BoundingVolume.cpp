@@ -61,37 +61,45 @@ bool BoundingVolume::loadModelFile(aiMesh* mesh, float scaleSize)
 
 glm::vec3 BoundingVolume::MaxBoundaries()
 {
-	auto isPlane = (this->Parent->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE]);
-	auto max     = this->scale;
+	const float PLANE_HEIGHT = 0.2f;
 
-	if (std::abs(this->rotation.x) > 0.01f)
+	bool      isPlane  = (this->Parent->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE]);
+	glm::vec3 scale    = this->Parent->Scale();
+	glm::vec3 rotation = this->Parent->Rotation();
+
+	if (isPlane)
+		scale.z = PLANE_HEIGHT;
+
+	glm::vec3 max = scale;
+
+	if (std::abs(rotation.x) > 0.01f)
 	{
-		max = glm::rotateX(max, this->rotation.x);
+		max = glm::rotateX(max, rotation.x);
 		max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
 
 		if (isPlane)
-			max = { max.x, std::max(max.y, this->scale.z), std::max(max.z, this->scale.z) };
+			max = { max.x, std::max(max.y, PLANE_HEIGHT), std::max(max.z, PLANE_HEIGHT) };
 		else
-			max = { max.x, std::max(std::max(max.y, max.z), this->scale.y), std::max(std::max(max.z, max.y), this->scale.z) };
+			max = { max.x, std::max(std::max(max.y, max.z), scale.y), std::max(std::max(max.z, max.y), scale.z) };
 	}
 
-	if (std::abs(this->rotation.y) > 0.01f)
+	if (std::abs(rotation.y) > 0.01f)
 	{
-		max = glm::rotateY(max, this->rotation.y);
+		max = glm::rotateY(max, rotation.y);
 		max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
 
 		if (isPlane)
-			max = { std::max(max.x, this->scale.z), max.y, std::max(max.z, this->scale.z) };
+			max = { std::max(max.x, PLANE_HEIGHT), max.y, std::max(max.z, PLANE_HEIGHT) };
 		else
-			max = { std::max(std::max(max.x, max.z), this->scale.x), max.y, std::max(std::max(max.z, max.x), this->scale.z) };
+			max = { std::max(std::max(max.x, max.z), scale.x), max.y, std::max(std::max(max.z, max.x), scale.z) };
 	}
 
 	if (!isPlane)
 	{
-		if (std::abs(this->rotation.z) > 0.01f) {
-			max = glm::rotateZ(max, this->rotation.z);
+		if (std::abs(rotation.z) > 0.01f) {
+			max = glm::rotateZ(max, rotation.z);
 			max = { std::abs(max.x), std::abs(max.y), std::abs(max.z) };
-			max = { std::max(std::max(max.x, max.y), this->scale.x), std::max(std::max(max.y, max.x), this->scale.y), max.z };
+			max = { std::max(std::max(max.x, max.y), scale.x), std::max(std::max(max.y, max.x), scale.y), max.z };
 		}
 	}
 

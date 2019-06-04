@@ -8,6 +8,7 @@ layout(location = 2) in vec2 VertexTextureCoords;
 layout(location = 0) out vec3 FragmentNormal;
 layout(location = 1) out vec4 FragmentPosition;
 layout(location = 2) out vec2 FragmentTextureCoords;
+layout(location = 3) out vec4 ClipSpace;
 
 layout(binding = 0) uniform MatrixBuffer {
 	mat4 Normal;
@@ -20,10 +21,11 @@ layout(binding = 0) uniform MatrixBuffer {
 void main()
 {
 	// TODO: Calculate the normal matrix on the CPU and send it to the shaders via a uniform before drawing
-    //FragmentNormal        = vec3(mb.Model * vec4(VertexNormal, 0.0));
-	//FragmentNormal        = vec3(transpose(inverse(mat3(mb.Model))) * VertexNormal);
-    FragmentNormal        = (mat3(mb.Normal) * VertexNormal);
-    FragmentTextureCoords = VertexTextureCoords;
-    FragmentPosition      = (mb.Model * vec4(VertexPosition, 1.0));
-    gl_Position           = (mb.MVP   * vec4(VertexPosition, 1.0));
+	//FragmentNormal = vec3(mb.Model * vec4(VertexNormal, 0.0));
+	//FragmentNormal = vec3(transpose(inverse(mat3(mb.Model))) * VertexNormal);
+	FragmentNormal        = (mat3(mb.Normal) * VertexNormal);
+	FragmentPosition      = (mb.Model * vec4(VertexPosition, 1.0));
+	FragmentTextureCoords = VertexTextureCoords;
+	ClipSpace             = (mb.MVP * vec4(VertexPosition, 1.0));
+	gl_Position           = ClipSpace;
 }

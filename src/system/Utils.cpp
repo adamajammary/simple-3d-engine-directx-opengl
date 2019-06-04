@@ -216,8 +216,6 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
 	{ "resources/shaders/depth.hlsl",   "depth",     "" },
 	{ "resources/shaders/hud.hlsl",     "hud",       "" },
 	{ "resources/shaders/skybox.hlsl",  "skybox",    "" },
-	{ "resources/shaders/terrain.hlsl", "terrain",   "" },
-	{ "resources/shaders/water.hlsl",   "water",     "" },
 	{ "resources/shaders/color.hlsl",   "wireframe", "" }
 };
 
@@ -232,10 +230,6 @@ const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
 	{ "resources/shaders/hud.fs.glsl",     "hud_fs",       "" },
 	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",    "" },
 	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",    "" },
-	{ "resources/shaders/terrain.vs.glsl", "terrain_vs",   "" },
-	{ "resources/shaders/terrain.fs.glsl", "terrain_fs",   "" },
-	{ "resources/shaders/water.vs.glsl",   "water_vs",     "" },
-	{ "resources/shaders/water.fs.glsl",   "water_fs",     "" },
 	{ "resources/shaders/color.vs.glsl",   "wireframe_vs", "" },
 	{ "resources/shaders/color.fs.glsl",   "wireframe_fs", "" }
 };
@@ -717,7 +711,13 @@ glm::vec4 Utils::ToVec4Color(const wxColour &color)
 glm::vec4 Utils::ToVec4Float(bool boolean)
 {
 	float value = (boolean ? 1.0f : 0);
-	return glm::vec4(value, 0.0, 0.0, 0.0);
+	return glm::vec4(value, value, value, value);
+}
+
+glm::vec4 Utils::ToVec4Float(int integer)
+{
+	float value = static_cast<float>(integer);
+	return glm::vec4(value, value, value, value);
 }
 
 std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
@@ -793,6 +793,12 @@ DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec4 &vector)
 DirectX::XMFLOAT4 Utils::ToXMFLOAT4(bool boolean)
 {
 	float value = (boolean ? 1.0f : 0);
+	return DirectX::XMFLOAT4(value, value, value, value);
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(int integer)
+{
+	float value = static_cast<int>(integer);
 	return DirectX::XMFLOAT4(value, value, value, value);
 }
 

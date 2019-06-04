@@ -239,8 +239,6 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 	bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
 	bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
 	bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
-	bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);
-	bufferSizes[SHADER_ID_WATER]     = sizeof(CBWaterDX);
 	bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
 
 	D3D11_BUFFER_DESC bufferDesc = {};
@@ -317,8 +315,6 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 		bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
 		bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
 		bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
-		bufferSizes[SHADER_ID_TERRAIN]   = sizeof(CBDefaultDX);
-		bufferSizes[SHADER_ID_WATER]     = sizeof(CBWaterDX);
 		bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {};
@@ -509,8 +505,6 @@ int DXContext::createRootSignature(ShaderProgram* shader, ID3D12RootSignature** 
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-	case SHADER_ID_TERRAIN:
-	case SHADER_ID_WATER:
 		nrOfSRVs     += MAX_TEXTURES;
 		nrOfSamplers += MAX_TEXTURES;
 		break;
@@ -1237,8 +1231,6 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-	case SHADER_ID_TERRAIN:
-	case SHADER_ID_WATER:
 		for (int i = 0; i < MAX_TEXTURES; i++) {
 			meshTextureSRVs[i]     = mesh->Textures[i]->SRV11;
 			meshTextureSamplers[i] = mesh->Textures[i]->SamplerState11;
@@ -1376,8 +1368,6 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-	case SHADER_ID_TERRAIN:
-	case SHADER_ID_WATER:
 		for (int i = 0; i < MAX_TEXTURES; i++)
 		{
 			this->renderDevice12->CreateShaderResourceView(

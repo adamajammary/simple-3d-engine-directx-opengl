@@ -24,6 +24,9 @@ public:
 	Texture*                Textures[MAX_TEXTURES];
 
 protected:
+	static uint32_t sid;
+
+	uint32_t      id;
 	bool          isValid;
 	glm::mat4     matrix;
 	wxString      modelFile;
@@ -37,6 +40,7 @@ protected:
 
 public:
 	int           GetChildIndex(Component* child);
+	uint32_t      ID();
 	bool          IsTextured(int index);
 	bool          IsValid();
 	void          LoadTexture(Texture* texture, int index);

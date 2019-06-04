@@ -27,14 +27,6 @@ int SceneManager::AddComponent(Component* component)
 		if (!component->Children.empty())
 			RenderEngine::Skybox = dynamic_cast<Mesh*>(component->Children[0]);
 		break;
-	case COMPONENT_TERRAIN:
-		for (auto child : component->Children)
-			RenderEngine::Terrains.push_back(child);
-		break;
-	case COMPONENT_WATER:
-		for (auto child : component->Children)
-			RenderEngine::Waters.push_back(child);
-		break;
 	case COMPONENT_LIGHTSOURCE:
 		if (SceneManager::AddLightSource(component) < 0)
 			return -2;
@@ -83,7 +75,7 @@ int SceneManager::AddLightSource(Component* component)
 
 void SceneManager::Clear()
 {
-	RenderEngine::CameraMain            = nullptr;
+	RenderEngine::CameraMain        = nullptr;
 	SceneManager::SelectedComponent = nullptr;
 	SceneManager::SelectedChild     = nullptr;
 	RenderEngine::Skybox            = nullptr;
@@ -92,8 +84,6 @@ void SceneManager::Clear()
 		SceneManager::LightSources[i] = nullptr;
 
 	RenderEngine::HUDs.clear();
-    RenderEngine::Terrains.clear();
-    RenderEngine::Waters.clear();
 	RenderEngine::LightSources.clear();
 	RenderEngine::Renderables.clear();
 
@@ -109,7 +99,7 @@ void SceneManager::Clear()
 int SceneManager::GetComponentIndex(Component* component)
 {
 	for (int i = 0; i < (int)SceneManager::Components.size(); i++) {
-		if (SceneManager::Components[i] == component)
+		if (SceneManager::Components[i]->ID() == component->ID())
 			return i;
 	}
 
@@ -347,6 +337,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 Skybox* SceneManager::LoadSkybox()
 {
+	if (RenderEngine::Skybox != nullptr)
+		return nullptr;
+
 	std::vector<wxString> imageFiles;
 
 	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxRight"]);
@@ -360,14 +353,6 @@ Skybox* SceneManager::LoadSkybox()
 
     if ((skybox == nullptr) || !skybox->IsValid())
 		return nullptr;
-
-	if (RenderEngine::Skybox != nullptr)
-	{
-		int index = SceneManager::GetComponentIndex(RenderEngine::Skybox);
-
-		SceneManager::Components.erase(SceneManager::Components.begin() + index);
-		RenderEngine::Canvas.Window->RemoveComponent(index);
-	}
 
 	SceneManager::AddComponent(skybox);
 

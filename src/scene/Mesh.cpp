@@ -197,8 +197,11 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	aiVector3D position, rotation, scale;
 	transformMatrix.Decompose(scale, rotation, position);
 
-	if (this->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE])
-		scale.z = 0.1f;
+	//if (this->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE])
+	if (this->type == COMPONENT_WATER) {
+		scale.z = 10.0f;
+		this->ComponentMaterial.specular.shininess = 20.0f;
+	}
 
 	this->updateModelData(position, scale, rotation);
 	this->setMaxScale();

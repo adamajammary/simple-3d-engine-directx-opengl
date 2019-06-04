@@ -38,9 +38,9 @@ CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
 
 	this->Model      = mesh->Matrix();
 	this->Normal     = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
+	this->MVP        = lightSource->MVP(mesh);
 	this->Projection = lightSource->Projection();
 	this->View       = lightSource->View();
-	this->MVP        = lightSource->MVP(mesh);
 
 	// Apply the depth transform
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -64,41 +64,39 @@ CBColor::CBColor(const glm::vec4 &color)
 
 CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 {
-	this->CameraPosition = glm::vec4(RenderEngine::CameraMain->Position(), 0.0f);
-
-	this->MeshSpecular = glm::vec4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
-	this->MeshDiffuse  = mesh->ComponentMaterial.diffuse;
-
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
 		if (SceneManager::LightSources[i] != nullptr)
 			this->LightSources[i] = CBLight(SceneManager::LightSources[i]);
 	}
-
-	this->ClipMax        = glm::vec4(properties.ClipMax, 0.0f);
-	this->ClipMin        = glm::vec4(properties.ClipMin, 0.0f);
-	this->EnableClipping = Utils::ToVec4Float(properties.EnableClipping);
-
-	this->EnableSRGB = Utils::ToVec4Float(RenderEngine::EnableSRGB);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+
+	this->MeshSpecular = glm::vec4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = mesh->ComponentMaterial.diffuse;
+
+	this->ClipMax        = glm::vec4(properties.ClipMax, 0.0f);
+	this->ClipMin        = glm::vec4(properties.ClipMin, 0.0f);
+	this->EnableClipping = Utils::ToVec4Float(properties.EnableClipping);
+
+	this->CameraPosition = glm::vec4(RenderEngine::CameraMain->Position(), 0.0f);
+	this->ComponentType  = Utils::ToVec4Float(static_cast<int>(mesh->Type()));
+	this->EnableSRGB     = Utils::ToVec4Float(RenderEngine::EnableSRGB);
+	this->WaterProps     = {};
+
+	if (mesh->Type() == COMPONENT_WATER) {
+		auto water = dynamic_cast<Water*>(mesh->Parent);
+		this->WaterProps = { water->FBO()->MoveFactor(), water->FBO()->WaveStrength, 0.0f, 0.0f };
+	}
 }
 
 CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
 {
 	this->MaterialColor = color;
 	this->IsTransparent = Utils::ToVec4Float(transparent);
-}
-
-CBWater::CBWater(const CBDefault &default, float moveFactor, float waveStrength)
-{
-	this->MoveFactor   = moveFactor;
-	this->WaveStrength = waveStrength;
-
-	this->DB = default;
 }
 
 #if defined _WINDOWS
@@ -153,50 +151,59 @@ CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::v
 {
 	this->MB = CBMatrixDX(matrices);
 
-	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
-
-	this->MeshSpecular = Utils::ToXMFLOAT4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
-	this->MeshDiffuse  = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
-
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
 		if (SceneManager::LightSources[i] != nullptr)
 			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]);
 	}
-
-	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);
-	this->ClipMin        = Utils::ToXMFLOAT4(clipMin, 0.0f);
-	this->EnableClipping = Utils::ToXMFLOAT4(enableClipping);
-
-	this->EnableSRGB = Utils::ToXMFLOAT4(RenderEngine::EnableSRGB);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+
+	this->MeshSpecular = Utils::ToXMFLOAT4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
+
+	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);
+	this->ClipMin        = Utils::ToXMFLOAT4(clipMin, 0.0f);
+	this->EnableClipping = Utils::ToXMFLOAT4(enableClipping);
+
+	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
+	this->ComponentType  = Utils::ToXMFLOAT4(static_cast<int>(mesh->Type()));
+	this->EnableSRGB     = Utils::ToXMFLOAT4(RenderEngine::EnableSRGB);
+	this->WaterProps     = {};
+
+	if (mesh->Type() == COMPONENT_WATER) {
+		auto water = dynamic_cast<Water*>(mesh->Parent);
+		this->WaterProps = { water->FBO()->MoveFactor(), water->FBO()->WaveStrength, 0.0f, 0.0f };
+	}
 }
 
 CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 {
 	this->MB = CBMatrixDX(matrices);
 
-	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
-
-	this->MeshSpecular = Utils::ToXMFLOAT4(default.MeshSpecular);
-	this->MeshDiffuse  = Utils::ToXMFLOAT4(default.MeshDiffuse);
-
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
 		this->LightSources[i] = CBLightDX(default.LightSources[i]);
-
-	this->ClipMax        = Utils::ToXMFLOAT4(default.ClipMax);
-	this->ClipMin        = Utils::ToXMFLOAT4(default.ClipMin);
-	this->EnableClipping = Utils::ToXMFLOAT4(default.EnableClipping);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->IsTextured[i] = Utils::ToXMFLOAT4(default.IsTextured[i]);
 
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->TextureScales[i] = Utils::ToXMFLOAT4(default.TextureScales[i]);
+
+	this->MeshSpecular = Utils::ToXMFLOAT4(default.MeshSpecular);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(default.MeshDiffuse);
+
+	this->ClipMax        = Utils::ToXMFLOAT4(default.ClipMax);
+	this->ClipMin        = Utils::ToXMFLOAT4(default.ClipMin);
+	this->EnableClipping = Utils::ToXMFLOAT4(default.EnableClipping);
+
+	this->CameraPosition = Utils::ToXMFLOAT4(default.CameraPosition);
+	this->ComponentType  = Utils::ToXMFLOAT4(default.ComponentType);
+	this->EnableSRGB     = Utils::ToXMFLOAT4(default.EnableSRGB);
+	this->WaterProps     = Utils::ToXMFLOAT4(default.WaterProps);
 }
 
 CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transparent)
@@ -209,14 +216,6 @@ CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transpar
 CBSkyboxDX::CBSkyboxDX(const CBMatrix &matrices)
 {
 	this->MB = CBMatrixDX(matrices);
-}
-
-CBWaterDX::CBWaterDX(const CBMatrix &matrices, const CBDefault &default, float moveFactor, float waveStrength)
-{
-	this->MoveFactor   = moveFactor;
-	this->WaveStrength = waveStrength;
-
-	this->DB = CBDefaultDX(default, matrices);
 }
 
 #endif
@@ -379,7 +378,6 @@ void Buffer::init()
 		this->ConstantBufferDefault = {};
 		this->ConstantBufferHUD     = {};
 		this->ConstantBufferSkybox  = {};
-		this->ConstantBufferWater   = {};
 	#endif
 }
 

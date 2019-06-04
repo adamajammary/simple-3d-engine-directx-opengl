@@ -59,8 +59,6 @@ struct CBDefault
 	glm::vec4 IsTextured[MAX_TEXTURES];
 	glm::vec4 TextureScales[MAX_TEXTURES];
 
-	glm::vec4 CameraPosition = {};
-
 	glm::vec4 MeshSpecular = {};
 	glm::vec4 MeshDiffuse  = {};
 
@@ -68,7 +66,10 @@ struct CBDefault
 	glm::vec4 ClipMin        = {};
 	glm::vec4 EnableClipping = {};
 
-	glm::vec4 EnableSRGB = {};
+	glm::vec4 CameraPosition = {};
+	glm::vec4 ComponentType  = {};
+	glm::vec4 EnableSRGB     = {};
+	glm::vec4 WaterProps     = {}; // { MoveFactor, WaveStrength, 0, 0 }
 };
 
 struct CBHUD
@@ -78,18 +79,6 @@ struct CBHUD
 
 	glm::vec4 MaterialColor = {};
 	glm::vec4 IsTransparent = {};
-};
-
-struct CBWater
-{
-	CBWater(const CBDefault &default, float moveFactor, float waveStrength);
-	CBWater() {}
-
-	float     MoveFactor   = 0;
-	float     WaveStrength = 0;
-	glm::vec2 Padding1     = {};
-
-	CBDefault DB = {};
 };
 
 #if defined _WINDOWS
@@ -145,8 +134,6 @@ struct CBDefaultDX
 	DirectX::XMFLOAT4 IsTextured[MAX_TEXTURES];
 	DirectX::XMFLOAT4 TextureScales[MAX_TEXTURES];
 
-	DirectX::XMFLOAT4 CameraPosition = {};
-
 	DirectX::XMFLOAT4 MeshSpecular = {};
 	DirectX::XMFLOAT4 MeshDiffuse  = {};
 
@@ -154,7 +141,10 @@ struct CBDefaultDX
 	DirectX::XMFLOAT4 ClipMin        = {};
 	DirectX::XMFLOAT4 EnableClipping = {};
 
-	DirectX::XMFLOAT4 EnableSRGB = {};
+	DirectX::XMFLOAT4 CameraPosition = {};
+	DirectX::XMFLOAT4 ComponentType  = {};
+	DirectX::XMFLOAT4 EnableSRGB     = {};
+	DirectX::XMFLOAT4 WaterProps     = {}; // { MoveFactor, WaveStrength, 0, 0 }
 };
 
 struct CBHUDDX
@@ -174,18 +164,6 @@ struct CBSkyboxDX
 	CBSkyboxDX() {}
 
 	CBMatrixDX MB = {};
-};
-
-struct CBWaterDX
-{
-	CBWaterDX(const CBMatrix &matrices, const CBDefault &default, float moveFactor, float waveStrength);
-	CBWaterDX() {}
-
-	float             MoveFactor    = 0;
-	float             WaveStrength  = 0;
-	DirectX::XMFLOAT2 Padding1      = {};
-
-	CBDefaultDX DB = {};
 };
 
 #endif
@@ -229,7 +207,6 @@ public:
 		CBDefaultDX ConstantBufferDefault;
 		CBHUDDX     ConstantBufferHUD;
 		CBSkyboxDX  ConstantBufferSkybox;
-		CBWaterDX   ConstantBufferWater;
 
 		ID3D11Buffer*            VertexBufferDX11;
 		ID3D12Resource*          VertexBufferDX12;

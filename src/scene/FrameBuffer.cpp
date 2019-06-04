@@ -60,8 +60,15 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 {
 	glCreateFramebuffers(1, &this->fbo);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		wxMessageBox("ERROR! Failed to create a frame buffer for the depth map", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		wxString fboType;
+		switch (this->type) {
+			case FBO_COLOR: fboType = "color"; break;
+			case FBO_DEPTH: fboType = "depth"; break;
+			default: throw;
+		}
+		wxMessageBox("ERROR! Failed to create a " + fboType + " frame buffer", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		throw;
 	}
 

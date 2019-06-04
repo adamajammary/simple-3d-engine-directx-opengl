@@ -63,7 +63,6 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 
 		break;
 	case SHADER_ID_DEFAULT:
-	case SHADER_ID_TERRAIN:
 		vertexBuffer->ConstantBufferDefault = CBDefaultDX(
 			matrices, mesh, properties.ClipMax, properties.ClipMin, properties.EnableClipping
 		);
@@ -89,18 +88,6 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		bufferValues = &vertexBuffer->ConstantBufferSkybox;
 
 		break;
-	case SHADER_ID_WATER:
-		vertexBuffer->ConstantBufferWater = CBWaterDX(
-			matrices,
-			CBDefault(mesh, properties),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor(),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength
-		);
-
-		bufferSize   = sizeof(vertexBuffer->ConstantBufferWater);
-		bufferValues = &vertexBuffer->ConstantBufferWater;
-
-		break;
 	default:
 		throw;
 	}
@@ -121,10 +108,6 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_HUD;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
 		return SHADER_ID_SKYBOX;
-	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_TERRAIN].Name)
-		return SHADER_ID_TERRAIN;
-	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WATER].Name)
-		return SHADER_ID_WATER;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_WIREFRAME].Name)
 		return SHADER_ID_WIREFRAME;
 
@@ -345,14 +328,6 @@ void ShaderProgram::setUniformsGL()
 	this->Uniforms[UBO_GL_HUD] = glGetUniformBlockIndex(this->program, "HUDBuffer");
 	glGenBuffers(1, &this->UniformBuffers[UBO_GL_HUD]);
 
-	// TERRAIN BUFFER
-	this->Uniforms[UBO_GL_TERRAIN] = glGetUniformBlockIndex(this->program, "TerrainBuffer");
-	glGenBuffers(1, &this->UniformBuffers[UBO_GL_TERRAIN]);
-
-	// WATER BUFFER
-	this->Uniforms[UBO_GL_WATER] = glGetUniformBlockIndex(this->program, "WaterBuffer");
-	glGenBuffers(1, &this->UniformBuffers[UBO_GL_WATER]);
-
 	// MESH TEXTURES
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
@@ -419,14 +394,6 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_DEFAULT, &db, sizeof(db));
 	}
 
-	// TERRAIN BUFFER
-	id = this->Uniforms[UBO_GL_TERRAIN];
-
-	if (id >= 0) {
-		CBDefault tb = CBDefault(mesh, properties);
-		this->updateUniformGL(id, UBO_GL_TERRAIN, &tb, sizeof(tb));
-	}
-
 	// HUD BUFFER
 	id = this->Uniforms[UBO_GL_HUD];
 
@@ -435,27 +402,11 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_HUD, &hb, sizeof(hb));
 	}
 
-	// WATER BUFFER
-	id = this->Uniforms[UBO_GL_WATER];
-
-	if (id >= 0)
-	{
-		CBWater wb = CBWater(
-			CBDefault(mesh, properties),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor(),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength
-		);
-
-		this->updateUniformGL(id, UBO_GL_WATER, &wb, sizeof(wb));
-	}
-
     // BIND MESH TEXTURES
 	switch (shaderID) {
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-	case SHADER_ID_TERRAIN:
-	case SHADER_ID_WATER:
 		for (int i = 0; i < MAX_TEXTURES; i++)
 		{
 			glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
@@ -520,7 +471,6 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 	CBColor   cbColor;
 	CBDefault cbDefault;
 	CBHUD     cbHUD;
-	CBWater   cbWater;
 
 	switch (this->ID()) {
 	case SHADER_ID_COLOR:
@@ -542,31 +492,11 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 		);
 
 		break;
-	case SHADER_ID_TERRAIN:
-		cbDefault = CBDefault(mesh, properties);
-
-		result = ShaderProgram::updateUniformsVK(
-			UBO_VK_TERRAIN, UBO_BINDING_DEFAULT, uniform, &cbDefault, sizeof(cbDefault), deviceContext, mesh
-		);
-
-		break;
 	case SHADER_ID_HUD:
 		cbHUD = CBHUD(mesh->ComponentMaterial.diffuse, dynamic_cast<HUD*>(mesh->Parent)->Transparent);
 
 		result = ShaderProgram::updateUniformsVK(
 			UBO_VK_HUD, UBO_BINDING_DEFAULT, uniform, &cbHUD, sizeof(cbHUD), deviceContext, mesh
-		);
-
-		break;
-	case SHADER_ID_WATER:
-		cbWater = CBWater(
-			CBDefault(mesh, properties),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->MoveFactor(),
-			dynamic_cast<Water*>(mesh->Parent)->FBO()->WaveStrength
-		);
-
-		result = ShaderProgram::updateUniformsVK(
-			UBO_VK_WATER, UBO_BINDING_DEFAULT, uniform, &cbWater, sizeof(cbWater), deviceContext, mesh
 		);
 
 		break;
@@ -661,8 +591,6 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-	case SHADER_ID_TERRAIN:
-	case SHADER_ID_WATER:
 		for (int i = 0; i < MAX_TEXTURES; i++)
 		{
 			uniformTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

@@ -26,6 +26,7 @@ struct CBLight
 layout(location = 0) in vec3 FragmentNormal;
 layout(location = 1) in vec4 FragmentPosition;
 layout(location = 2) in vec2 FragmentTextureCoords;
+layout(location = 3) in vec4 ClipSpace;
 
 layout(location = 0) out vec4 GL_FragColor;
 
@@ -36,8 +37,6 @@ layout(binding = 1) uniform DefaultBuffer
     vec4 IsTextured[MAX_TEXTURES];
     vec4 TextureScales[MAX_TEXTURES];
 
-	vec4 CameraPosition;
-
     vec4 MeshSpecular;
     vec4 MeshDiffuse;
 
@@ -45,12 +44,25 @@ layout(binding = 1) uniform DefaultBuffer
     vec4 ClipMin;
 	vec4 EnableClipping;
 
+	vec4 CameraPosition;
+	vec4 ComponentType;
     vec4 EnableSRGB;
+	vec4 WaterProps;
 } db;
 
 layout(binding = 2) uniform sampler2D   Textures[MAX_TEXTURES];
 layout(binding = 3) uniform sampler2D   DepthMapTextures2D[MAX_LIGHT_SOURCES];
 layout(binding = 4) uniform samplerCube DepthMapTexturesCube[MAX_LIGHT_SOURCES];
+
+bool ClipFragment()
+{
+	vec4 fp = FragmentPosition;
+
+	return ((db.EnableClipping.x > 0.1) && (
+		(fp.x > db.ClipMax.x) || (fp.y > db.ClipMax.y) || (fp.z > db.ClipMax.z) ||
+		(fp.x < db.ClipMin.x) || (fp.y < db.ClipMin.y) || (fp.z < db.ClipMin.z)
+	));
+}
 
 // Attenuation = (1 / (c + (l * d) + (q * d^2))
 float GetAttenuationFactor(vec3 lightPosition, vec3 attenuation)
@@ -73,6 +85,75 @@ float GetAttenuationFactor(vec3 lightPosition, vec3 attenuation)
 float GetDiffuseFactor(vec3 normal, vec3 lightDirection)
 {
 	return max(dot(normal, lightDirection), 0.0);
+}
+
+vec2 GetTiledTexCoords(vec4 textureScale)
+{
+	return vec2((FragmentTextureCoords.x * textureScale.x), (FragmentTextureCoords.y * textureScale.y));
+}
+
+// MESH DIFFUSE (COLOR)
+vec4 GetMaterialColor()
+{
+	if (db.IsTextured[0].x > 0.1)
+		return texture(Textures[0], GetTiledTexCoords(db.TextureScales[0]));
+
+	return db.MeshDiffuse;
+}
+
+// MESH SPECULAR HIGHLIGHTS
+vec4 GetMaterialSpecular()
+{
+	if (db.IsTextured[1].x > 0.1)
+		return texture(Textures[1], GetTiledTexCoords(db.TextureScales[1]));
+
+	return db.MeshSpecular;
+}
+
+vec4 GetMaterialColorTerrain()
+{
+	vec4  blendMapColor       = texture(Textures[4], FragmentTextureCoords);
+	float backgroundTexAmount = (1.0 - (blendMapColor.r + blendMapColor.g + blendMapColor.b));
+	vec2  tiledCoords         = GetTiledTexCoords(db.TextureScales[0]);
+	vec4  backgroundTexColor  = (texture(Textures[0], tiledCoords) * backgroundTexAmount);
+	vec4  rTextureColor       = (texture(Textures[1], tiledCoords) * blendMapColor.r);
+	vec4  gTextureColor       = (texture(Textures[2], tiledCoords) * blendMapColor.g);
+	vec4  bTextureColor       = (texture(Textures[3], tiledCoords) * blendMapColor.b);
+
+	return (backgroundTexColor + rTextureColor + gTextureColor + bTextureColor);
+}
+
+vec4 GetMaterialColorWater(vec3 cameraView, out vec3 normal)
+{
+	// PROJECTIVE TEXTURE COORDS - NORMALIZED DEVICE SPACE
+	vec2 ndcReflectionTexCoords = ((vec2(ClipSpace.x, -ClipSpace.y) / ClipSpace.w) * 0.5 + 0.5); // [-1,1] => [0,1]
+	vec2 ndcRefractionTexCoords = ((vec2(ClipSpace.x, ClipSpace.y)  / ClipSpace.w) * 0.5 + 0.5); // [-1,1] => [0,1]
+
+	// DU/DV MAP - DISTORTION
+	float moveFactor   = db.WaterProps.x;
+	float waveStrength = db.WaterProps.y;
+	vec2  tiledCoords  = GetTiledTexCoords(db.TextureScales[0]);
+
+	vec2 distortedTexCoords = (texture(Textures[2], vec2((tiledCoords.x + moveFactor), tiledCoords.y)).rg * 0.1);
+	distortedTexCoords      = (tiledCoords + vec2(distortedTexCoords.x, (distortedTexCoords.y + moveFactor)));
+
+	vec2 totalDistortion = ((texture(Textures[2], distortedTexCoords).rg * 2.0 - 1.0) * waveStrength);
+
+	ndcReflectionTexCoords += totalDistortion;
+	ndcRefractionTexCoords += totalDistortion;
+		
+	vec4 reflectionColor = texture(Textures[0], ndcReflectionTexCoords);
+	vec4 refractionColor = texture(Textures[1], ndcRefractionTexCoords);
+
+	// NORMAL MAP
+	vec4 normalColor = texture(Textures[3], distortedTexCoords);
+	normal = normalize(vec3((normalColor.r * 2.0 - 1.0), normalColor.b, (normalColor.g * 2.0 - 1.0)));
+
+	// FRESNEL EFFECT - higher power => more refractive (transparent)
+	float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+
+	// MATERIAL COLOR
+	return mix(reflectionColor, refractionColor, refractionFactor);
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional light
@@ -134,13 +215,13 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 }
 
 // Specular - reflects/mirrors the light direction over the normal
-float GetSpecularFactor(vec3 lightDirection, vec3 normal, vec3 viewDirection, float shininess)
+float GetSpecularFactor(vec3 lightDirection, vec3 normal, vec3 cameraView, float shininess)
 {
 	if (shininess < 0.1)
 		return 0.0;
 
-	//return pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), shininess);	// Phong
-	return pow(max(dot(normal, normalize(lightDirection + viewDirection)), 0.0), shininess);	// Blinn-Phong
+	//return pow(max(dot(viewDirection, reflect(-lightDirection, normal)), 0.0), shininess); // Phong
+	return pow(max(dot(normal, normalize(lightDirection + cameraView)), 0.0), shininess); // Blinn-Phong
 }
 
 // Spot Light - the impact of light inside the cone
@@ -154,7 +235,7 @@ float GetSpotLightFactor(CBLight light, vec3 lightDirection)
 }
 
 // Directional light - all light rays have the same direction, independent of the location of the light source. Ex: sun light
-vec4 GetDirectionalLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, vec4 materialSpec)
+vec4 GetDirectionalLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 materialSpec)
 {
 	CBLight light = db.LightSources[i];
 
@@ -165,7 +246,7 @@ vec4 GetDirectionalLight(int i, vec3 normal, vec3 viewDirection, vec4 materialCo
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
 	
     // Specular - reflects/mirrors the light direction over the normal
-	float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
+	float specularFactor = GetSpecularFactor(lightDirection, normal, cameraView, materialSpec.a);
 	
 	// Shadow
 	vec4  positionLightSpace = (light.ViewProjection * vec4(FragmentPosition.xyz, 1.0));
@@ -180,7 +261,7 @@ vec4 GetDirectionalLight(int i, vec3 normal, vec3 viewDirection, vec4 materialCo
     return vec4((ambientFinal + (shadowFactor * (diffuseFinal + specularFinal))), materialColor.a);
 }
 
-vec4 GetPointLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, vec4 materialSpec)
+vec4 GetPointLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 materialSpec)
 {
 	CBLight light = db.LightSources[i];
 
@@ -191,7 +272,7 @@ vec4 GetPointLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, v
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
 	
     // Specular - reflects/mirrors the light direction over the normal
-	float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
+	float specularFactor = GetSpecularFactor(lightDirection, normal, cameraView, materialSpec.a);
 	
 	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
 	float attenuationFactor = GetAttenuationFactor(light.Position.xyz, light.Attenuation.xyz);
@@ -209,7 +290,7 @@ vec4 GetPointLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, v
 	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
 }
 
-vec4 GetSpotLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, vec4 materialSpec)
+vec4 GetSpotLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 materialSpec)
 {
 	CBLight light = db.LightSources[i];
 
@@ -220,7 +301,7 @@ vec4 GetSpotLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, ve
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
 	
     // Specular - reflects/mirrors the light direction over the normal
-	float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
+	float specularFactor = GetSpecularFactor(lightDirection, normal, cameraView, materialSpec.a);
 	
 	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
 	float attenuationFactor = GetAttenuationFactor(light.Position.xyz, light.Attenuation.xyz);
@@ -237,38 +318,26 @@ vec4 GetSpotLight(int i, vec3 normal, vec3 viewDirection, vec4 materialColor, ve
     //return (vec4(ambient, 1.0) + ((1.0 - GetShadow()) * (diffuse + vec4(specular, 1.0))));
 }
 
-void main()
+// HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)
+vec3 GetFragColorHDR(vec3 colorRGB)
 {
-	if (db.EnableClipping.x > 0.1)
-	{
-		vec4 p = FragmentPosition;
+    return (colorRGB / (colorRGB + vec3(1.0)));
+}
 
-		if ((p.x > db.ClipMax.x) || (p.y > db.ClipMax.y) || (p.z > db.ClipMax.z) || (p.x < db.ClipMin.x) || (p.y < db.ClipMin.y) || (p.z < db.ClipMin.z))
-			discard;
+// sRGB GAMMA CORRECTION
+vec3 GetFragColorSRGB(vec3 colorRGB)
+{
+	if (db.EnableSRGB.x > 0.1) {
+		float sRGB = (1.0 / 2.2);
+		colorRGB.rgb = pow(colorRGB.rgb, vec3(sRGB, sRGB, sRGB));
 	}
 
-	vec4 materialColor;
-	vec4 materialSpecular;
-	
-	// MESH DIFFUSE (COLOR)
-	if (db.IsTextured[0].x > 0.1) {
-		vec2 tiledCoordinates = vec2(FragmentTextureCoords.x * db.TextureScales[0].x, FragmentTextureCoords.y * db.TextureScales[0].y);
-		materialColor = texture(Textures[0], tiledCoordinates);
-	} else {
-		materialColor = db.MeshDiffuse;
-	}	
-	
-	// MESH SPECULAR HIGHLIGHTS
-	if (db.IsTextured[1].x > 0.1) {
-		vec2 tiledCoordinates = vec2(FragmentTextureCoords.x * db.TextureScales[1].x, FragmentTextureCoords.y * db.TextureScales[1].y);
-		materialSpecular      = texture(Textures[1], tiledCoordinates);
-	} else {
-		materialSpecular = db.MeshSpecular;
-	}
-	
-	vec3 normal        = normalize(FragmentNormal);									// Normal on the fragment surface
-	vec3 viewDirection = normalize(db.CameraPosition.xyz - FragmentPosition.xyz);	// The direction the camera is viewing the fragment surface
-	GL_FragColor       = vec4(0);
+	return colorRGB;
+}
+
+vec4 GetFragColorLight(vec4 materialColor, vec4 materialSpecular, vec3 cameraView, vec3 normal)
+{
+	vec4 fragColor = vec4(0);
 
     // LIGHT SOURCES
     for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
@@ -276,24 +345,47 @@ void main()
         if (db.LightSources[i].Active.x > 0.1)
 		{
     		// SPOT LIGHT
-			if (db.LightSources[i].Angles.x > 0.1)
-				GL_FragColor += GetSpotLight(i, normal, viewDirection, materialColor, materialSpecular);
+			if (db.LightSources[i].Angles.x > 0.1) {
+				fragColor += GetSpotLight(i, normal, cameraView, materialColor, materialSpecular);
     		// POINT LIGHT
-			else if (db.LightSources[i].Attenuation.r > 0.1)
-				GL_FragColor += GetPointLight(i, normal, viewDirection, materialColor, materialSpecular);
+			} else if (db.LightSources[i].Attenuation.r > 0.1) {
+				fragColor += GetPointLight(i, normal, cameraView, materialColor, materialSpecular);
     		// DIRECTIONAL LIGHT
-			else
-				GL_FragColor += GetDirectionalLight(i, normal, viewDirection, materialColor, materialSpecular);
+			} else {
+				fragColor += GetDirectionalLight(i, normal, cameraView, materialColor, materialSpecular);
+			}
 		}
     }
 
-	// LIGHT COLOR (PHONG REFLECTION)
-	//vec3 lightColor = (db.SunLightAmbient + (db.SunLightDiffuse.rgb * dot(normalize(FragmentNormal), normalize(-db.SunLightDirection))));
-	//GL_FragColor    = vec4((db.MeshDiffuse.rgb * lightColor), db.MeshDiffuse.a);
+    fragColor.rgb = GetFragColorHDR(fragColor.rgb);
+	fragColor.rgb = GetFragColorSRGB(fragColor.rgb);
 
-	// sRGB GAMMA CORRECTION
-    if (db.EnableSRGB.x > 0.1) {
-		float sRGB = (1.0 / 2.2);
-		GL_FragColor.rgb = pow(GL_FragColor.rgb, vec3(sRGB, sRGB, sRGB));
+	return fragColor;
+}
+
+void main()
+{
+	if (ClipFragment())
+		discard;
+
+	vec3 cameraView = normalize(db.CameraPosition.xyz - FragmentPosition.xyz);
+	vec3 normal     = normalize(FragmentNormal);
+	vec4 color      = vec4(0);
+	vec4 specular   = vec4(0);
+
+	// COMPONENT_WATER = 6
+    if (db.ComponentType.x > 5.9) {
+		color    = GetMaterialColorWater(cameraView, normal);
+		specular = db.MeshSpecular;
+	// COMPONENT_TERRAIN = 5
+    } else if (db.ComponentType.x > 4.9) {
+		color = GetMaterialColorTerrain();
+		specular = db.MeshSpecular;
+	// COMPONENT_MODEL = 3, COMPONENT_MESH = 2
+	} else {
+		color    = GetMaterialColor();
+		specular = GetMaterialSpecular();
 	}
+
+	GL_FragColor = GetFragColorLight(color, specular, cameraView, normal);
 }

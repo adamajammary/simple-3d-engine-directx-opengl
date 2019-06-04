@@ -12,8 +12,6 @@ std::vector<Component*> RenderEngine::LightSources;
 bool                    RenderEngine::Ready               = false;
 std::vector<Component*> RenderEngine::Renderables;
 GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-std::vector<Component*> RenderEngine::Terrains;
-std::vector<Component*> RenderEngine::Waters;
 
 void RenderEngine::clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
 {
@@ -105,18 +103,18 @@ void RenderEngine::createDepthFBO()
 
 void RenderEngine::createWaterFBOs()
 {
-	for (auto water : RenderEngine::Waters)
+	for (auto component : RenderEngine::Renderables)
 	{
-		if (water == nullptr)
+		if ((component == nullptr) || (component->Type() != COMPONENT_WATER))
 			continue;
 
-		Water* parent = dynamic_cast<Water*>(water->Parent);
+		Water* parent = dynamic_cast<Water*>(component->Parent);
 
 		if (parent == nullptr)
 			continue;
 
-		glm::vec3       position       = water->Position();
-		glm::vec3       scale          = water->Scale();
+		glm::vec3       position       = component->Position();
+		glm::vec3       scale          = component->Scale();
 		float           cameraDistance = ((RenderEngine::CameraMain->Position().y - position.y) * 2.0f);
 		VkCommandBuffer cmdBuffer      = nullptr;
 
@@ -133,14 +131,13 @@ void RenderEngine::createWaterFBOs()
 
 		drawProperties.EnableClipping  = true;
 		drawProperties.FboType         = FBO_COLOR;
-		drawProperties.ClipMax         = glm::vec3(scale.x, scale.y, scale.z);
+		drawProperties.ClipMax         = glm::vec3(scale.x,  scale.y,    scale.z);
 		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
 		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->ReflectionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
-		RenderEngine::drawTerrains(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
 		
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
@@ -157,13 +154,12 @@ void RenderEngine::createWaterFBOs()
 		else
 			parent->FBO()->BindRefraction();
 
-		drawProperties.ClipMax = glm::vec3(scale.x,   position.y, scale.z);
+		drawProperties.ClipMax = glm::vec3(scale.x,  position.y, scale.z);
 		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
 
 		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->RefractionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
-		RenderEngine::drawTerrains(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
 
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
@@ -313,40 +309,6 @@ int RenderEngine::drawSkybox(DrawProperties &properties)
 	return 0;
 }
 
-int RenderEngine::drawTerrains(DrawProperties &properties)
-{
-	if (RenderEngine::Terrains.empty())
-		return 1;
-
-	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-		RenderEngine::setDrawSettingsGL(SHADER_ID_TERRAIN);
-
-	if (properties.Shader == SHADER_ID_UNKNOWN)
-		properties.Shader = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_TERRAIN : SHADER_ID_WIREFRAME);
-
-	RenderEngine::drawMeshes(RenderEngine::Terrains, properties);
-
-	properties.Shader = SHADER_ID_UNKNOWN;
-
-	return 0;
-}
-
-int RenderEngine::drawWaters()
-{
-	if (RenderEngine::Waters.empty())
-		return 1;
-
-	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-		RenderEngine::setDrawSettingsGL(SHADER_ID_WATER);
-
-	DrawProperties properties = {};
-	properties.Shader         = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_WATER : SHADER_ID_WIREFRAME);
-
-	RenderEngine::drawMeshes(RenderEngine::Waters, properties);
-
-	return 0;
-}
-
 void RenderEngine::drawMesh(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -433,6 +395,10 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, DrawProperti
 			continue;
 		}
 
+		// SKIP RENDERING WATER WHEN CREATING FBO
+		if ((properties.FboType != FBO_UNKNOWN) && (mesh->Type() == COMPONENT_WATER))
+			continue;
+
 		glm::vec4 oldColor = mesh->ComponentMaterial.diffuse;
 
 		if (properties.DrawSelected)
@@ -456,8 +422,6 @@ void RenderEngine::drawScene()
 	RenderEngine::drawSelected();
 	RenderEngine::drawBoundingVolumes();
 	RenderEngine::drawSkybox();
-	RenderEngine::drawTerrains();
-	RenderEngine::drawWaters();
     RenderEngine::drawHUDs();
 }
 
@@ -545,20 +509,6 @@ int RenderEngine::RemoveMesh(Component* mesh)
 		break;
 	case COMPONENT_SKYBOX:
         RenderEngine::Skybox = nullptr;
-		break;
-	case COMPONENT_TERRAIN:
-		index = std::find(RenderEngine::Terrains.begin(), RenderEngine::Terrains.end(), mesh);
-
-		if (index != RenderEngine::Terrains.end())
-			RenderEngine::Terrains.erase(index);
-
-		break;
-	case COMPONENT_WATER:
-		index = std::find(RenderEngine::Waters.begin(), RenderEngine::Waters.end(), mesh);
-
-		if (index != RenderEngine::Waters.end())
-			RenderEngine::Waters.erase(index);
-
 		break;
 	case COMPONENT_LIGHTSOURCE:
 		index = std::find(RenderEngine::LightSources.begin(), RenderEngine::LightSources.end(), mesh);

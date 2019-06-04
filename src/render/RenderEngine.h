@@ -23,8 +23,6 @@ public:
 	static std::vector<Component*> Renderables;
 	static GraphicsAPI             SelectedGraphicsAPI;
 	static Mesh*                   Skybox;
-	static std::vector<Component*> Terrains;
-	static std::vector<Component*> Waters;
 
 private:
 	static DrawModeType drawMode;
@@ -52,8 +50,6 @@ private:
 	static int            drawLightSources();
 	static int            drawRenderables(DrawProperties &properties = DrawProperties());
 	static int            drawSkybox(DrawProperties      &properties = DrawProperties());
-	static int            drawTerrains(DrawProperties    &properties = DrawProperties());
-	static int            drawWaters();
 	static int            drawMeshDX11(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
 	static int            drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
 	static int            drawMeshGL(Component*   mesh, ShaderProgram* shaderProgram, DrawProperties &properties);

@@ -32,8 +32,6 @@ cbuffer DefaultBuffer : register(b0)
     float4 IsTextured[MAX_TEXTURES];
     float4 TextureScales[MAX_TEXTURES];
 
-    float4 CameraPosition;
-
     float4 MeshSpecular;
     float4 MeshDiffuse;
 
@@ -41,7 +39,10 @@ cbuffer DefaultBuffer : register(b0)
     float4 ClipMin;
     float4 EnableClipping;
 
-    float4 EnableSRGB;
+	float4 CameraPosition;
+	float4 ComponentType;
+	float4 EnableSRGB;
+	float4 WaterProps;
 };
 
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
@@ -65,8 +66,17 @@ struct FS_INPUT
 	float3 FragmentNormal        : NORMAL0;
 	float2 FragmentTextureCoords : TEXCOORD0;
 	float4 FragmentPosition      : POSITION0;
+	float4 ClipSpace             : POSITION1;
 	float4 GL_Position           : SV_POSITION;
 };
+
+bool ClipFragment(float3 fragPos)
+{
+	return ((EnableClipping.x > 0.1) && (
+		(fragPos.x > ClipMax.x) || (fragPos.y > ClipMax.y) || (fragPos.z > ClipMax.z) ||
+		(fragPos.x < ClipMin.x) || (fragPos.y < ClipMin.y) || (fragPos.z < ClipMin.z)
+	));
+}
 
 // Attenuation = (1 / (c + (l * d) + (q * d^2))
 float GetAttenuationFactor(float3 lightPosition, float3 fragmentPosition, float3 attenuation)
@@ -89,6 +99,75 @@ float GetAttenuationFactor(float3 lightPosition, float3 fragmentPosition, float3
 float GetDiffuseFactor(float3 normal, float3 lightDirection)
 {
 	return max(dot(normal, lightDirection), 0.0);
+}
+
+float2 GetTiledTexCoords(float2 fragTexCoords, float4 textureScale)
+{
+	return float2((fragTexCoords.x * textureScale.x), (fragTexCoords.y * textureScale.y));
+}
+
+// MESH DIFFUSE (COLOR)
+float4 GetMaterialColor(float2 fragTexCoords)
+{
+	if (IsTextured[0].x > 0.1)
+		return Textures[0].Sample(TextureSamplers[0], GetTiledTexCoords(fragTexCoords, TextureScales[0]));
+
+	return MeshDiffuse;
+}
+
+// MESH SPECULAR HIGHLIGHTS
+float4 GetMaterialSpecular(float2 fragTexCoords)
+{
+	if (IsTextured[1].x > 0.1)
+		return Textures[1].Sample(TextureSamplers[1], GetTiledTexCoords(fragTexCoords, TextureScales[1]));
+
+	return MeshSpecular;
+}
+
+float4 GetMaterialColorTerrain(float2 fragTexCoords)
+{
+	float4 blendMapColor       = Textures[4].Sample(TextureSamplers[4], fragTexCoords);
+	float  backgroundTexAmount = (1.0 - (blendMapColor.r + blendMapColor.g + blendMapColor.b));
+	float2 tiledCoords         = GetTiledTexCoords(fragTexCoords, TextureScales[0]);
+	float4 backgroundTexColor  = (Textures[0].Sample(TextureSamplers[0], tiledCoords) * backgroundTexAmount);
+	float4 rTextureColor       = (Textures[1].Sample(TextureSamplers[1], tiledCoords) * blendMapColor.r);
+	float4 gTextureColor       = (Textures[2].Sample(TextureSamplers[2], tiledCoords) * blendMapColor.g);
+	float4 bTextureColor       = (Textures[3].Sample(TextureSamplers[3], tiledCoords) * blendMapColor.b);
+
+	return (backgroundTexColor + rTextureColor + gTextureColor + bTextureColor);
+}
+
+float4 GetMaterialColorWater(float2 fragTexCoords, float4 clipSpace, float3 cameraView, out float3 normal)
+{
+	// PROJECTIVE TEXTURE COORDS - NORMALIZED DEVICE SPACE
+	float2 ndcReflectionTexCoords = ((float2(clipSpace.x, clipSpace.y)  / clipSpace.w) * 0.5 + 0.5); // [-1,1] => [0,1]
+	float2 ndcRefractionTexCoords = ((float2(clipSpace.x, -clipSpace.y) / clipSpace.w) * 0.5 + 0.5); // [-1,1] => [0,1]
+
+	// DU/DV MAP - DISTORTION
+	float  moveFactor   = WaterProps.x;
+	float  waveStrength = WaterProps.y;
+	float2 tiledCoords  = GetTiledTexCoords(fragTexCoords, TextureScales[0]);
+
+	float2 distortedTexCoords = (Textures[2].Sample(TextureSamplers[2], float2((tiledCoords.x + moveFactor), tiledCoords.y)).rg * 0.1);
+	distortedTexCoords        = (tiledCoords + float2(distortedTexCoords.x, (distortedTexCoords.y + moveFactor)));
+
+	float2 totalDistortion = ((Textures[2].Sample(TextureSamplers[2], distortedTexCoords).rg * 2.0 - 1.0) * waveStrength);
+
+	ndcReflectionTexCoords += totalDistortion;
+	ndcRefractionTexCoords += totalDistortion;
+		
+	float4 reflectionColor = Textures[0].Sample(TextureSamplers[0], ndcReflectionTexCoords);
+	float4 refractionColor = Textures[1].Sample(TextureSamplers[1], ndcRefractionTexCoords);
+
+	// NORMAL MAP
+	float4 normalColor = Textures[3].Sample(TextureSamplers[3], distortedTexCoords);
+	normal = normalize(float3((normalColor.r * 2.0 - 1.0), normalColor.b, (normalColor.g * 2.0 - 1.0)));
+
+	// FRESNEL EFFECT - higher power => more refractive (transparent)
+	float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+
+	// MATERIAL COLOR
+	return lerp(reflectionColor, refractionColor, refractionFactor);
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional light
@@ -172,7 +251,7 @@ float GetSpotLightFactor(CBLight light, float3 lightDirection)
 }
 
 // Directional light - all light rays have the same direction, independent of the location of the light source. Ex: sun light
-float4 GetDirectionalLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetDirectionalLight(int i, float3 fragPos, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
     CBLight light = LightSources[i];
 
@@ -186,7 +265,7 @@ float4 GetDirectionalLight(int i, float3 fragmentPosition, float3 normal, float3
     float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
 	
 	// Shadow
-    float4 positionLightSpace = mul(float4(fragmentPosition, 1.0), light.ViewProjection);
+    float4 positionLightSpace = mul(float4(fragPos, 1.0), light.ViewProjection);
     float  shadowFactor       = (1.0 - GetShadowFactor(lightDirection, normal, DepthMapTextures2D[i], DepthMapTextures2DSampler, positionLightSpace));
 	
     // Combine the light calculations
@@ -198,12 +277,12 @@ float4 GetDirectionalLight(int i, float3 fragmentPosition, float3 normal, float3
     return float4((ambientFinal + (shadowFactor * (diffuseFinal + specularFinal))), materialColor.a);
 }
 
-float4 GetPointLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetPointLight(int i, float3 fragPos, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
     CBLight light = LightSources[i];
 
 	// Direction of the light from the fragment surface
-    float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
+    float3 lightDirection = normalize(light.Position.xyz - fragPos);
 	
     // Diffuse - the impact of the light on the the fragment surface (angle difference)
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
@@ -212,7 +291,7 @@ float4 GetPointLight(int i, float3 fragmentPosition, float3 normal, float3 viewD
     float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
 	
 	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
-    float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragmentPosition, light.Attenuation.xyz);
+    float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragPos, light.Attenuation.xyz);
 	
 	// Shadow
 	//float shadow = (1.0 - GetShadow(light.Position, lightDirection, normal, light.ShadowMapTextureCube));
@@ -227,12 +306,12 @@ float4 GetPointLight(int i, float3 fragmentPosition, float3 normal, float3 viewD
 	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
 }
 
-float4 GetSpotLight(int i, float3 fragmentPosition, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
+float4 GetSpotLight(int i, float3 fragPos, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
 {
     CBLight light = LightSources[i];
 
 	// Direction of the light from the fragment surface
-    float3 lightDirection = normalize(light.Position.xyz - fragmentPosition);
+    float3 lightDirection = normalize(light.Position.xyz - fragPos);
 	
     // Diffuse - the impact of the light on the the fragment surface (angle difference)
 	float diffuseFactor = GetDiffuseFactor(normal, lightDirection);
@@ -241,7 +320,7 @@ float4 GetSpotLight(int i, float3 fragmentPosition, float3 normal, float3 viewDi
     float specularFactor = GetSpecularFactor(lightDirection, normal, viewDirection, materialSpec.a);
 	
 	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
-    float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragmentPosition, light.Attenuation.xyz);
+    float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragPos, light.Attenuation.xyz);
 	
 	// Spotlight intensity
     float spotLightFactor = GetSpotLightFactor(light, lightDirection);
@@ -255,17 +334,64 @@ float4 GetSpotLight(int i, float3 fragmentPosition, float3 normal, float3 viewDi
     //return (float4(ambient, 1.0) + ((1.0 - GetShadow()) * (diffuse + float4(specular, 1.0))));
 }
 
+// HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)
+float3 GetFragColorHDR(float3 colorRGB)
+{
+    return (colorRGB / (colorRGB + float3(1.0, 1.0, 1.0)));
+}
+
+// sRGB GAMMA CORRECTION
+float3 GetFragColorSRGB(float3 colorRGB)
+{
+	if (EnableSRGB.x > 0.1) {
+		float sRGB = (1.0 / 2.2);
+		colorRGB.rgb = pow(colorRGB.rgb, float3(sRGB, sRGB, sRGB));
+	}
+
+	return colorRGB;
+}
+
+float4 GetFragColorLight(float3 fragPos, float4 materialColor, float4 materialSpecular, float3 cameraView, float3 normal)
+{
+	float4 fragColor = float4(0.0, 0.0, 0.0, 0.0);
+
+    // LIGHT SOURCES
+    for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+    {
+        if (LightSources[i].Active.x > 0.1)
+		{
+    		// SPOT LIGHT
+			if (LightSources[i].Angles.x > 0.1) {
+				fragColor += GetSpotLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
+    		// POINT LIGHT
+			} else if (LightSources[i].Attenuation.r > 0.1) {
+				fragColor += GetPointLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
+    		// DIRECTIONAL LIGHT
+			} else {
+				fragColor += GetDirectionalLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
+			}
+		}
+    }
+
+    fragColor.rgb = GetFragColorHDR(fragColor.rgb);
+	fragColor.rgb = GetFragColorSRGB(fragColor.rgb);
+
+	return fragColor;
+}
+
 // VERTEX SHADER
 FS_INPUT VS(VS_INPUT input)
 {
     FS_INPUT output;
 
-	//output.FragmentNormal        = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
-    //output.FragmentNormal        = (float3)mul(float4(input.VertexNormal, 0.0), MB.Normal);
-    output.FragmentNormal        = mul(input.VertexNormal, (float3x3)MB.Normal);
-    output.FragmentTextureCoords = input.VertexTextureCoords;
+	// TODO: Calculate the normal matrix on the CPU and send it to the shaders via a uniform before drawing
+	//output.FragmentNormal = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
+	//output.FragmentNormal = (float3)mul(float4(input.VertexNormal, 0.0), MB.Normal);
+	output.FragmentNormal        = mul(input.VertexNormal, (float3x3)MB.Normal);
+	output.FragmentTextureCoords = input.VertexTextureCoords;
     output.FragmentPosition      = mul(float4(input.VertexPosition, 1.0), MB.Model);
-	output.GL_Position           = mul(float4(input.VertexPosition, 1.0), MB.MVP);
+	output.ClipSpace             = mul(float4(input.VertexPosition, 1.0), MB.MVP);
+	output.GL_Position           = output.ClipSpace;
 
 	return output;
 }
@@ -273,63 +399,27 @@ FS_INPUT VS(VS_INPUT input)
 // FRAGMENT/PIXEL/COLOR SHADER
 float4 PS(FS_INPUT input) : SV_Target
 {
-	if (EnableClipping.x > 0.1)
-    {
-		float4 p = input.FragmentPosition;
-
-		if ((p.x > ClipMax.x) || (p.y > ClipMax.y) || (p.z > ClipMax.z) || (p.x < ClipMin.x) || (p.y < ClipMin.y) || (p.z < ClipMin.z))
-			discard;
-	}
-
-	float4 materialColor;
-    float4 materialSpecular;
+	if (ClipFragment(input.FragmentPosition))
+		discard;
 	
-	// MESH DIFFUSE (COLOR)
-	if (IsTextured[0].x > 0.1) {
-        float2 tiledCoordinates = float2(input.FragmentTextureCoords.x * TextureScales[0].x, input.FragmentTextureCoords.y * TextureScales[0].y);
-        materialColor           = Textures[0].Sample(TextureSamplers[0], tiledCoordinates);
-    } else {
-		materialColor = MeshDiffuse;
-	}
-	
-	// MESH SPECULAR HIGHLIGHTS
-	if (IsTextured[1].x > 0.1) {
-        float2 tiledCoordinates = float2(input.FragmentTextureCoords.x * TextureScales[1].x, input.FragmentTextureCoords.y * TextureScales[1].y);
-        materialSpecular        = Textures[1].Sample(TextureSamplers[1], tiledCoordinates);
+	float3 cameraView = normalize(CameraPosition.xyz - input.FragmentPosition.xyz);
+	float3 normal     = normalize(input.FragmentNormal);
+	float4 color      = float4(0.0, 0.0, 0.0, 0.0);
+	float4 specular   = float4(0.0, 0.0, 0.0, 0.0);
+
+	// COMPONENT_WATER = 6
+    if (ComponentType.x > 5.9) {
+		color    = GetMaterialColorWater(input.FragmentTextureCoords, input.ClipSpace, cameraView, normal);
+		specular = MeshSpecular;
+	// COMPONENT_TERRAIN = 5
+    } else if (ComponentType.x > 4.9) {
+		color    = GetMaterialColorTerrain(input.FragmentTextureCoords);
+		specular = MeshSpecular;
+	// COMPONENT_MODEL = 3, COMPONENT_MESH = 2
 	} else {
-		materialSpecular = MeshSpecular;
+		color    = GetMaterialColor(input.FragmentTextureCoords);
+		specular = GetMaterialSpecular(input.FragmentTextureCoords);
 	}
-	
-	float3 normal        = normalize(input.FragmentNormal);	    				    	// Normal on the fragment surface
-    float3 viewDirection = normalize(CameraPosition.xyz - input.FragmentPosition.xyz);  // The direction the camera is viewing the fragment surface
-    float4 GL_FragColor  = float4(0, 0, 0, 0);
 
-    // LIGHT SOURCES
-    for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
-    {
-        if (LightSources[i].Active.x > 0.1)
-        {
-    	    // SPOT LIGHT
-            if (LightSources[i].Angles.x > 0.1)
-                GL_FragColor += GetSpotLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
-    	    // POINT LIGHT
-            else if (LightSources[i].Attenuation.r > 0.1)
-                GL_FragColor += GetPointLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
-    	    // DIRECTIONAL LIGHT
-            else
-                GL_FragColor += GetDirectionalLight(i, input.FragmentPosition.xyz, normal, viewDirection, materialColor, materialSpecular);
-        }
-    }
-
-	// LIGHT COLOR (PHONG REFLECTION)
-    //float3 lightColor = float3(SunLightAmbient + (SunLightDiffuse.rgb * dot(normalize(input.Normal), normalize(-SunLightDirection))));
-    //GL_FragColor      = float4((MeshDiffuse.rgb * lightColor), MeshDiffuse.a);
-
-	// sRGB GAMMA CORRECTION
-    if (EnableSRGB.x > 0.1) {
-        float sRGB = (1.0 / 2.2);
-        GL_FragColor.rgb = pow(GL_FragColor.rgb, float3(sRGB, sRGB, sRGB));
-    }
-
-    return GL_FragColor;
+	return GetFragColorLight(input.FragmentPosition.xyz, color, specular, cameraView, normal);
 }

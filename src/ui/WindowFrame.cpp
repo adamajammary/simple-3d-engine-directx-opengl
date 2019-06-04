@@ -263,7 +263,7 @@ int WindowFrame::init()
 	this->SetSizer(sizer);
 
 	// ADS
-	this->addAds(sizer);
+	//this->addAds(sizer);
 
 	// TABS
 	wxNotebook* tabs = new wxNotebook(this, ID_TABS, wxDefaultPosition, Utils::UI_TABS_SIZE, wxNB_TOP);
@@ -831,11 +831,12 @@ int WindowFrame::UpdateComponents(wxPGProperty* property)
 	else if (propertyNameFirst == Utils::PROPERTY_IDS[PROPERTY_ID_TEXTURE_])
 		dynamic_cast<Mesh*>(selected)->LoadTextureImage(property->GetValueAsString(), std::atoi(propertyNameLast.c_str().AsChar()));
 
-	// HUD
 	if (selected->Type() == COMPONENT_HUD)
 		dynamic_cast<HUD*>(selected->Parent)->Update();
 
-	dynamic_cast<Mesh*>(selected)->UpdateBoundingVolume();
+	if (selected->Type() != COMPONENT_CAMERA)
+		dynamic_cast<Mesh*>(selected)->UpdateBoundingVolume();
+
 	return this->UpdateProperties();
 }
 

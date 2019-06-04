@@ -47,19 +47,17 @@ LightSource::LightSource()
 
 FrameBuffer* LightSource::initDepthMap()
 {
-	const int TEXTURE_SIZE = 2048;
-
 	_DELETEP(this->depthMapFBO);
 
 	switch (this->sourceType) {
 	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D);
+		this->depthMapFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D);
 		break;
 	case ID_ICON_LIGHT_POINT:
-		//this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), TEXTURE_CUBEMAP);
+		//this->depthMapFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), TEXTURE_CUBEMAP);
 		break;
 	case ID_ICON_LIGHT_SPOT:
-		//this->depthMapFBO = new FrameBuffer(wxSize(TEXTURE_SIZE, TEXTURE_SIZE), TEXTURE_CUBEMAP);
+		//this->depthMapFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), TEXTURE_CUBEMAP);
 		break;
 	default:
 		throw;

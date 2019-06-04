@@ -1,5 +1,7 @@
 #include "Component.h"
 
+uint32_t Component::sid = 0;
+
 Component::Component(const wxString &name, const glm::vec3 &position)
 {
 	this->AutoRotate        = false;
@@ -19,6 +21,8 @@ Component::Component(const wxString &name, const glm::vec3 &position)
 
 	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
+
+	this->id = Component::sid++;
 }
 
 Component::~Component()
@@ -40,11 +44,16 @@ Component::~Component()
 int Component::GetChildIndex(Component* child)
 {
 	for (int i = 0; i < (int)this->Children.size(); i++) {
-		if (this->Children[i] == child)
+		if (this->Children[i]->ID() == child->ID())
 			return i;
 	}
 
 	return -1;
+}
+
+uint32_t Component::ID()
+{
+	return this->id;
 }
 
 bool Component::IsTextured(int index)
