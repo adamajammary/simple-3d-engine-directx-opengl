@@ -199,7 +199,7 @@ void WindowFrame::addTab(IconType id, const wxString &label, wxNotebook* tabs, c
 	if (id == ID_TABS_GEOMETRY)
 	{
 		this->addButton(
-			tab, InputManager::OnIcon, sizer, ID_ICON_BROWSE, "BROWSE",
+			tab, InputManager::OnIcon, sizer, ID_ICON_BROWSE, "Browse",
 			(wxLEFT | wxTOP), wxDefaultPosition, wxSize(-1, 36)
 		);
 	}
@@ -321,9 +321,9 @@ int WindowFrame::init()
 
 	this->addTextLabel(sizerSceneMenu, "Scene", (wxALIGN_CENTER_VERTICAL | wxLEFT), 10);
 
-	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_SAVE,  "SAVE",  wxLEFT);
-	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_LOAD,  "LOAD",  wxLEFT);
-	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_CLEAR, "CLEAR", wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_SAVE,  "Save",  wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_LOAD,  "Load",  wxLEFT);
+	this->addButton(this, InputManager::OnList, sizerSceneMenu, ID_SCENE_CLEAR, "Clear", wxLEFT);
 
 	sizerMiddleRight->Add(sizerSceneMenu, 0, wxBOTTOM, 10);
 
@@ -355,13 +355,27 @@ int WindowFrame::InitProperties()
 	wxBoxSizer*   sizerButtons = new wxBoxSizer(wxHORIZONTAL);
 	ComponentType selectedType = SceneManager::SelectedComponent->Type();
 
-	// REMOVE COMPONENT
-	if ((SceneManager::SelectedComponent != nullptr) && (selectedType != COMPONENT_CAMERA))
-		this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_COMPONENT, wxString("REMOVE " + SceneManager::SelectedComponent->Name), wxBOTTOM);
+	if (selectedType == COMPONENT_CAMERA)
+	{
+		// RESET CAMERA POSITION AND ROTATION
+		this->addButton(this, InputManager::OnList, sizerButtons, ID_RESET_CAMERA, "Reset Camera", wxBOTTOM);
+	}
+	else
+	{
+		const size_t maxLabelSize = 20;
 
-	// REMOVE CHILD
-	if ((SceneManager::SelectedChild != nullptr) && (selectedType != COMPONENT_CAMERA))
-		this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_CHILD, wxString("REMOVE " + SceneManager::SelectedChild->Name), wxLEFT);
+		// REMOVE COMPONENT
+		if (SceneManager::SelectedComponent != nullptr) {
+			wxString label = wxString("Remove " + Utils::GetSubString(SceneManager::SelectedComponent->Name, maxLabelSize, "..."));
+			this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_COMPONENT, label, wxBOTTOM);
+		}
+
+		// REMOVE CHILD
+		if (SceneManager::SelectedChild != nullptr) {
+			wxString label = wxString("Remove " + Utils::GetSubString(SceneManager::SelectedChild->Name, maxLabelSize, "..."));
+			this->addButton(this, InputManager::OnList, sizerButtons, ID_REMOVE_CHILD, label, wxLEFT);
+		}
+	}
 
 	this->sizerProperties->Add(sizerButtons);
 
@@ -712,9 +726,11 @@ void WindowFrame::SetCanvas(wxGLCanvas* canvas)
 
 void WindowFrame::setPropertyXYZ(const wxString &id, float x, float y, float z)
 {
-	this->properties->SetPropertyValue(wxString(id + "_X"), x);
-	this->properties->SetPropertyValue(wxString(id + "_Y"), y);
-	this->properties->SetPropertyValue(wxString(id + "_Z"), z);
+	if (this->properties->GetPropertyByName(wxString(id + "_X")) != nullptr) {
+		this->properties->SetPropertyValue(wxString(id + "_X"), x);
+		this->properties->SetPropertyValue(wxString(id + "_Y"), y);
+		this->properties->SetPropertyValue(wxString(id + "_Z"), z);
+	}
 }
 
 glm::vec3 WindowFrame::updatePropertyXYZ(const wxString &id, float value, const glm::vec3 &values)

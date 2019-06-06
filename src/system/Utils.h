@@ -63,6 +63,7 @@ public:
 	static GLenum                   GetImageFormat(const wxImage &image, bool srgb, bool in);
 	static VkFormat                 GetImageFormatVK(const wxImage &image, bool srgb);
 	static GLsizei                  GetStride(GLsizei size, GLenum arrayType);
+	static wxString                 GetSubString(const wxString& string, size_t maxLength, const wxString& endChars);
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
 	static wxImage*                 LoadImageFile(const wxString &file, wxBitmapType type = wxBITMAP_TYPE_ANY);
 	static std::vector<AssImpMesh*> LoadModelFile(const wxString &file);

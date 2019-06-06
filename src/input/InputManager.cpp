@@ -114,6 +114,12 @@ void InputManager::OnList(wxCommandEvent &event)
 		case ID_REMOVE_CHILD:
 			SceneManager::RemoveSelectedChild();
 			break;
+		case ID_RESET_CAMERA:
+			if (RenderEngine::CameraMain != nullptr) {
+				RenderEngine::CameraMain->Reset();
+				RenderEngine::Canvas.Window->UpdateProperties();
+			}
+			break;
 		default:
 			throw;
 	}
@@ -140,6 +146,8 @@ void InputManager::OnMouseMove(wxMouseEvent &event)
 
 		RenderEngine::Canvas.Canvas->WarpPointer(center.x, center.y);
 		InputManager::mouseState.Position = center;
+
+		RenderEngine::Canvas.Window->UpdateProperties();
 	}
 }
 

@@ -38,6 +38,7 @@ public:
 	glm::mat4  MVP(const glm::mat4 &model, bool removeTranslation = false);
 	float      Near();
 	Component* Parent();
+	void       Reset();
 	void       RotateBy(const glm::vec3 &amountRadians)      override;
 	void       RotateTo(const glm::vec3 &newRotationRadions) override;
 	glm::mat4  Projection();

@@ -16,18 +16,9 @@ Camera::Camera(const glm::vec3 &position, const glm::vec3 &lookAt, float fovRadi
 	this->Children = { this };
 }
 
-Camera::Camera() : Component("Camera", { 0.0f, 2.5f, 10.0f })
+Camera::Camera() : Component("Camera")
 {
-	this->fovRadians = (glm::pi<float>() * 0.25f);
-	this->near       = 0.1f;
-	this->far        = 100.0f;
-	this->pitch      = 0;
-	this->yaw        = -(glm::pi<float>() * 0.5f);
-	this->type       = COMPONENT_CAMERA;
-	this->isValid    = true;
-
-	this->init(this->position, {});
-
+	this->Reset();
 	this->Children = { this };
 }
 
@@ -114,7 +105,7 @@ void Camera::InputMouseScroll(const wxMouseEvent &event)
 	glm::vec3    moveVector;
 	const double MOVE_SPEED   = 20.0;
 	float        moveModifier = ((std::signbit((float)event.GetWheelRotation()) ? -1.0 : 1.0) * TimeManager::DeltaTime * MOVE_SPEED);
-	glm::vec3    moveAmount = { moveModifier, moveModifier, moveModifier };
+	glm::vec3    moveAmount   = { moveModifier, moveModifier, moveModifier };
 
     // UP / DOWN (Y)
 	if (event.GetModifiers() == wxMOD_SHIFT) {
@@ -183,6 +174,20 @@ void Camera::RotateTo(const glm::vec3 &newRotationRadians)
 glm::mat4 Camera::Projection()
 {
 	return projection;
+}
+
+void Camera::Reset()
+{
+	this->position   = { 0.0f, 2.5f, 10.0f };
+	this->fovRadians = (glm::pi<float>() * 0.25f);
+	this->near       = 0.1f;
+	this->far        = 100.0f;
+	this->pitch      = 0;
+	this->yaw        = -(glm::pi<float>() * 0.5f);
+	this->type       = COMPONENT_CAMERA;
+	this->isValid    = true;
+
+	this->init(this->position, {});
 }
 
 void Camera::SetFOV(const wxString &fov)

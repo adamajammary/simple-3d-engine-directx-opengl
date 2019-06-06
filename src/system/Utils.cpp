@@ -342,6 +342,11 @@ GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
 	return stride;
 }
 
+wxString Utils::GetSubString(const wxString &string, size_t maxLength, const wxString &endChars)
+{
+	return (string.size() > maxLength ? string.substr(0, maxLength).append(endChars) : string);
+}
+
 std::vector<uint8_t> Utils::LoadDataFile(const wxString &file)
 {
 	std::vector<uint8_t> result;
