@@ -1,10 +1,11 @@
+static const int MAX_TEXTURES = 6;
+
 struct CBMatrix
 {
     matrix Normal;
     matrix Model;
-    matrix View;
-    matrix Projection;
-    matrix MVP;
+	matrix VP[MAX_TEXTURES];
+	matrix MVP;
 };
 
 cbuffer ColorBuffer : register(b0)

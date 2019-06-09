@@ -34,6 +34,7 @@ int ShaderManager::Init()
 
 		for (int i = 0; i < NR_OF_SHADERS; i++)
 		{
+			Resource gs = {};
 			Resource vs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 0];
 			Resource fs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 1];
 
@@ -43,15 +44,21 @@ int ShaderManager::Init()
 			vs.Result = Utils::LoadTextFile(vs.File);
 			fs.Result = Utils::LoadTextFile(fs.File);
 
+			if (i == SHADER_ID_DEPTH_OMNI) {
+				gs.Name   = (vs.Name.substr(0, vs.Name.rfind("_vs")) + "_gs");
+				gs.File   = (vs.File.substr(0, vs.File.rfind(".vs.glsl")) + ".gs.glsl");
+				gs.Result = Utils::LoadTextFile(gs.File);
+			}
+
 			wxString shaderName        = vs.Name.substr(0, vs.Name.rfind("_"));
 			ShaderManager::Programs[i] = new ShaderProgram(shaderName);
 
 			int result;
 			
 			if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-				result = ShaderManager::Programs[i]->LoadAndLink(vs.Result, fs.Result);
+				result = ShaderManager::Programs[i]->LoadAndLink(vs.Result, fs.Result, gs.Result);
 			else
-				result = ShaderManager::Programs[i]->LoadAndLink(vs.File, fs.File);
+				result = ShaderManager::Programs[i]->LoadAndLink(vs.File, fs.File, gs.File);
 
 			if ((result < 0) || !ShaderManager::Programs[i]->IsOK()) {
 				ShaderManager::Programs[i]->Log();

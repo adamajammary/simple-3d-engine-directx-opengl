@@ -15,16 +15,14 @@ CBLight::CBLight(LightSource* lightSource)
 	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
 		this->Angles = glm::vec4(glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f);
 
-	this->ViewProjection = (lightSource->Projection() * lightSource->View());
+	this->ViewProjection = (lightSource->Projection() * lightSource->View(0));
 }
 
 CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
 {
-	this->Model      = mesh->Matrix();
-	this->Normal     = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
-	this->MVP        = RenderEngine::CameraMain->MVP(mesh->Matrix(), removeTranslation);
-	this->Projection = RenderEngine::CameraMain->Projection();
-	this->View       = RenderEngine::CameraMain->View(removeTranslation);
+	this->Model  = mesh->Matrix();
+	this->Normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
+	this->MVP    = RenderEngine::CameraMain->MVP(this->Model, removeTranslation);
 }
 
 CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
@@ -36,11 +34,13 @@ CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
 		0.0f, 0.0f, 0.5f, 1.0f
 	);
 
-	this->Model      = mesh->Matrix();
-	this->Normal     = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
-	this->MVP        = lightSource->MVP(mesh);
-	this->Projection = lightSource->Projection();
-	this->View       = lightSource->View();
+	this->Model = mesh->Matrix();
+	this->MVP   = lightSource->MVP(this->Model);
+
+	glm::mat4 projection = lightSource->Projection();
+
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+		this->VP[i] = (projection * lightSource->View(i));
 
 	// Apply the depth transform
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -93,6 +93,11 @@ CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 	}
 }
 
+CBDepth::CBDepth(const glm::vec3 &lightPosition, int depthLayer)
+{
+	this->lightPosition = glm::vec4(lightPosition, static_cast<float>(depthLayer));
+}
+
 CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
 {
 	this->MaterialColor = color;
@@ -116,7 +121,7 @@ CBLightDX::CBLightDX(LightSource* lightSource)
 	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
 		this->Angles = { glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f };
 
-	this->ViewProjection = Utils::ToXMMATRIX(lightSource->Projection() * lightSource->View());
+	this->ViewProjection = Utils::ToXMMATRIX(lightSource->Projection() * lightSource->View(0));
 }
 
 CBLightDX::CBLightDX(const CBLight &light)
@@ -134,11 +139,12 @@ CBLightDX::CBLightDX(const CBLight &light)
 
 CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
 {
-	this->Normal     = Utils::ToXMMATRIX(matrices.Normal);
-	this->Model      = Utils::ToXMMATRIX(matrices.Model);
-	this->View       = Utils::ToXMMATRIX(matrices.View);
-	this->Projection = Utils::ToXMMATRIX(matrices.Projection);
-	this->MVP        = Utils::ToXMMATRIX(matrices.MVP);
+	this->Normal = Utils::ToXMMATRIX(matrices.Normal);
+	this->Model  = Utils::ToXMMATRIX(matrices.Model);
+	this->MVP    = Utils::ToXMMATRIX(matrices.MVP);
+
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+		this->VP[i] = Utils::ToXMMATRIX(matrices.VP[i]);
 }
 
 CBColorDX::CBColorDX(const CBMatrix &matrices, const glm::vec4 &color)
@@ -204,6 +210,11 @@ CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 	this->ComponentType  = Utils::ToXMFLOAT4(default.ComponentType);
 	this->EnableSRGB     = Utils::ToXMFLOAT4(default.EnableSRGB);
 	this->WaterProps     = Utils::ToXMFLOAT4(default.WaterProps);
+}
+
+CBDepthDX::CBDepthDX(const glm::vec3 &lightPosition, int depthLayer)
+{
+	this->lightPosition = Utils::ToXMFLOAT4(lightPosition, static_cast<float>(depthLayer));
 }
 
 CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transparent)

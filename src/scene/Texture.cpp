@@ -327,61 +327,77 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 }
 
 // FRAMEBUFFER TEXTURE (OPENGL)
-Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height)
+//Texture::Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height)
+Texture::Texture(GLint format, GLenum textureType, const wxSize &size)
 {
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
-	this->size        = { width, height };
-	this->textureType = (textureType == GL_TEXTURE_2D ? TEXTURE_2D : TEXTURE_CUBEMAP);
+	this->size        = size;
 	this->srgb        = false;
 	this->transparent = false;
 	this->type        = textureType;
+
+	if ((this->type == GL_TEXTURE_2D) || (this->type == GL_TEXTURE_2D_ARRAY))
+		this->textureType = TEXTURE_2D;
+	else
+		this->textureType = TEXTURE_CUBEMAP;
 
 	glEnable(this->type);
 	glCreateTextures(this->type, 1, &this->id);
 	glBindTexture(this->type, this->id);
 
-	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(this->type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	GLfloat borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	GLsizei width         = this->size.GetWidth();
+	GLsizei height        = this->size.GetHeight();
 
 	switch (this->type) {
 	case GL_TEXTURE_2D:
-		if (attachment == GL_DEPTH_ATTACHMENT)
-		{
-			glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-			glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		//glTexImage2D(this->type, 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
+		glTexStorage2D(this->type, 1, format, width, height);
 
-			// SET BORDER VALUES FOR CLAMP WRAPPING
-			GLfloat borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-			glTexParameterfv(this->type, GL_TEXTURE_BORDER_COLOR, borderColor);
-
-			glTexImage2D(this->type, 0, GL_DEPTH_COMPONENT, width, height, 0, GL_DEPTH_COMPONENT, dataType, nullptr);
-		}
-		else
-		{
-			glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-			glTexImage2D(this->type, 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
-		}
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 		break;
 	case GL_TEXTURE_CUBE_MAP:
+		for (GLenum i = 0; i < MAX_TEXTURES; i++)
+			//glTexImage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), 0, formatIn, width, height, 0, formatOut, dataType, nullptr);
+			glTexStorage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), 1, format, width, height);
+
 		glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(this->type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
-		for (GLenum i = 0; i < 6; i++)
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, attachment, width, height, 0, attachment, dataType, nullptr);
+		break;
+	case GL_TEXTURE_2D_ARRAY:
+		//glTexImage3D(this->type, 0, formatIn, width, height, MAX_LIGHT_SOURCES, 0, formatOut, dataType, nullptr);
+		glTexStorage3D(this->type, 1, format, width, height, MAX_LIGHT_SOURCES);
+
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+		// SET BORDER VALUES FOR CLAMP WRAPPING
+		glTexParameterfv(this->type, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		break;
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+		//glTexImage3D(this->type, 0, formatIn, width, height, (MAX_LIGHT_SOURCES * MAX_TEXTURES), 0, formatOut, dataType, nullptr);
+		glTexStorage3D(this->type, 1, format, width, height, (MAX_LIGHT_SOURCES * MAX_TEXTURES));
+
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->type, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 		break;
 	default:
 		throw;
 	}
 
-	// ATTACH THE TEXTURE TO THE FRAME BUFFER (MAKING THE FRAME BUFFER RENDER TO THE TEXTURE)
-	//glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, this->type, this->id, 0);
-	glFramebufferTexture(GL_FRAMEBUFFER, attachment, this->id, 0);
+	glTexParameteri(this->type, GL_TEXTURE_BASE_LEVEL, 0);
+	glTexParameteri(this->type, GL_TEXTURE_MAX_LEVEL,  0);
+
+	glTexParameteri(this->type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(this->type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glBindTexture(this->type, 0);
 }

@@ -632,7 +632,7 @@ int VKContext::createPipeline(
 		break;
 	}
 
-	if (shaderID == SHADER_ID_DEPTH)
+	if ((shaderID == SHADER_ID_DEPTH) || (shaderID == SHADER_ID_DEPTH_OMNI))
 		pipelineInfo.renderPass = this->renderPasses[RENDER_PASS_FBO_DEPTH];
 
 	pipelineInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -672,6 +672,7 @@ int VKContext::createPipeline(
 		rasterizationInfo.polygonMode = VK_POLYGON_MODE_LINE;
 		break;
 	case SHADER_ID_DEPTH:
+	case SHADER_ID_DEPTH_OMNI:
 		colorBlendInfo.attachmentCount     = 0;
 		rasterizationInfo.depthClampEnable = VK_TRUE;
 		rasterizationInfo.cullMode         = VK_CULL_MODE_FRONT_BIT;
@@ -906,8 +907,11 @@ int VKContext::createUniformBuffers(Buffer* buffer)
 	if (this->createBuffer(sizeof(CBDefault), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_DEFAULT], &buffer->Uniform.BufferMemories[UBO_VK_DEFAULT]) < 0)
 		return -3;
 
-	if (this->createBuffer(sizeof(CBHUD), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
+	if (this->createBuffer(sizeof(CBDepth), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_DEPTH], &buffer->Uniform.BufferMemories[UBO_VK_DEPTH]) < 0)
 		return -4;
+
+	if (this->createBuffer(sizeof(CBHUD), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
+		return -5;
 
 	return 0;
 }

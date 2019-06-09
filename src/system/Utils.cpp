@@ -211,27 +211,30 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
-	{ "resources/shaders/color.hlsl",   "color",     "" },
-	{ "resources/shaders/default.hlsl", "default",   "" },
-	{ "resources/shaders/depth.hlsl",   "depth",     "" },
-	{ "resources/shaders/hud.hlsl",     "hud",       "" },
-	{ "resources/shaders/skybox.hlsl",  "skybox",    "" },
-	{ "resources/shaders/color.hlsl",   "wireframe", "" }
+	{ "resources/shaders/color.hlsl",      "color",      "" },
+	{ "resources/shaders/default.hlsl",    "default",    "" },
+	{ "resources/shaders/depth.hlsl",      "depth",      "" },
+	{ "resources/shaders/depth.omni.hlsl", "depth.omni", "" },
+	{ "resources/shaders/hud.hlsl",        "hud",        "" },
+	{ "resources/shaders/skybox.hlsl",     "skybox",     "" },
+	{ "resources/shaders/color.hlsl",      "wireframe",  "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
-	{ "resources/shaders/color.vs.glsl",   "color_vs",     "" },
-	{ "resources/shaders/color.fs.glsl",   "color_fs",     "" },
-	{ "resources/shaders/default.vs.glsl", "default_vs",   "" },
-	{ "resources/shaders/default.fs.glsl", "default_fs",   "" },
-	{ "resources/shaders/depth.vs.glsl",   "depth_vs",     "" },
-	{ "resources/shaders/depth.fs.glsl",   "depth_fs",     "" },
-	{ "resources/shaders/hud.vs.glsl",     "hud_vs",       "" },
-	{ "resources/shaders/hud.fs.glsl",     "hud_fs",       "" },
-	{ "resources/shaders/skybox.vs.glsl",  "skybox_vs",    "" },
-	{ "resources/shaders/skybox.fs.glsl",  "skybox_fs",    "" },
-	{ "resources/shaders/color.vs.glsl",   "wireframe_vs", "" },
-	{ "resources/shaders/color.fs.glsl",   "wireframe_fs", "" }
+	{ "resources/shaders/color.vs.glsl",      "color_vs",      "" },
+	{ "resources/shaders/color.fs.glsl",      "color_fs",      "" },
+	{ "resources/shaders/default.vs.glsl",    "default_vs",    "" },
+	{ "resources/shaders/default.fs.glsl",    "default_fs",    "" },
+	{ "resources/shaders/depth.vs.glsl",      "depth_vs",      "" },
+	{ "resources/shaders/depth.fs.glsl",      "depth_fs",      "" },
+	{ "resources/shaders/depth.omni.vs.glsl", "depth.omni_vs", "" },
+	{ "resources/shaders/depth.omni.fs.glsl", "depth.omni_fs", "" },
+	{ "resources/shaders/hud.vs.glsl",        "hud_vs",        "" },
+	{ "resources/shaders/hud.fs.glsl",        "hud_fs",        "" },
+	{ "resources/shaders/skybox.vs.glsl",     "skybox_vs",     "" },
+	{ "resources/shaders/skybox.fs.glsl",     "skybox_fs",     "" },
+	{ "resources/shaders/color.vs.glsl",      "wireframe_vs",  "" },
+	{ "resources/shaders/color.fs.glsl",      "wireframe_fs",  "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)

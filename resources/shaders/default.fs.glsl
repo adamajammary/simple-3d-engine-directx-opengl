@@ -50,9 +50,20 @@ layout(binding = 1) uniform DefaultBuffer
 	vec4 WaterProps;
 } db;
 
-layout(binding = 2) uniform sampler2D   Textures[MAX_TEXTURES];
-layout(binding = 3) uniform sampler2D   DepthMapTextures2D[MAX_LIGHT_SOURCES];
-layout(binding = 4) uniform samplerCube DepthMapTexturesCube[MAX_LIGHT_SOURCES];
+layout(binding = 2) uniform sampler2D        Textures[MAX_TEXTURES];
+layout(binding = 3) uniform sampler2DArray   DepthMapTextures2D;
+layout(binding = 4) uniform samplerCubeArray DepthMapTexturesCube;
+
+const int NR_OF_POINT_OFFSETS = 20;
+
+vec3 shadowPointSampleOffsets[NR_OF_POINT_OFFSETS] = vec3[]
+(
+   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+);
 
 bool ClipFragment()
 {
@@ -157,15 +168,15 @@ vec4 GetMaterialColorWater(vec3 cameraView, out vec3 normal)
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional light
-float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTexture, vec4 positionLightSpace)
+float GetShadowFactorDir(int depthLayer, vec3 lightDirection, vec3 normal, vec4 positionLightSpace)
 {
 	// Convert shadow map UV and Depth coordinates
-	vec3 shadowMapCoordinates = vec3(positionLightSpace.xyz / positionLightSpace.w);	// Perspective projection divide
-	shadowMapCoordinates      = ((shadowMapCoordinates * 0.5) + 0.5);					// Convert coordinate range from [-1,1] to [0,1]
+	vec3 shadowMapCoordinates = vec3(positionLightSpace.xyz / positionLightSpace.w); // Perspective projection divide
+	shadowMapCoordinates      = ((shadowMapCoordinates * 0.5) + 0.5); // Convert coordinate range from [-1,1] to [0,1]
 
 	// Get shadow map depth coordinates
-	//float closestDepth = texture(depthMapTexture, shadowMapCoordinates.xy).r;	// Closest depth value from light's perspective
-	float currentDepth = shadowMapCoordinates.z;	// Depth of current fragment from light's perspective
+	//float closestDepth = texture(DepthMapTextures2D, vec3(shadowMapCoordinates.xy, i)).r;	// Closest depth value from light's perspective
+	float currentDepth = shadowMapCoordinates.z; // Depth of current fragment from light's perspective
 
 	// POBLEM:   Large dark region at the far end of the light source's frustum.
 	// REASON:   Coordinates outside the far plane of the light's orthographic frustum.
@@ -189,7 +200,7 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	float       shadowFactor  = 0.0;
 
 	// Pixel size of each texel in the sampler texture at mipmap level 0
-	vec2 texelSize = (1.0 / textureSize(depthMapTexture, 0));
+	vec2 texelSize = (1.0 / textureSize(DepthMapTextures2D, 0).xy);
 	
 	// Sample surrounding texels (9 samples)
 	for (float x = -SAMPLE_OFFSET; x <= SAMPLE_OFFSET; x += 1.0)
@@ -197,11 +208,12 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 		for (float y = -SAMPLE_OFFSET; y <= SAMPLE_OFFSET; y += 1.0)
 		{
 			vec2  texel        = vec2(shadowMapCoordinates.xy + (vec2(x, y) * texelSize));
-			float closestDepth = texture(depthMapTexture, texel).r;
+			float closestDepth = texture(DepthMapTextures2D, vec3(texel, depthLayer)).r;
 
 			// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
 			// Compare current fragment with the surrounding texel's depth.
-			shadowFactor += ((currentDepth - offsetBias) > closestDepth ? 1.0 : 0.0);
+			if ((currentDepth - offsetBias) > closestDepth)
+				shadowFactor += 1.0;
 		}
 	}
 	
@@ -212,6 +224,42 @@ float GetShadowFactor(vec3 lightDirection, vec3 normal, sampler2D depthMapTextur
 	const float MAX_INTENSITY = 0.75;
 	
 	return min(shadowFactor, MAX_INTENSITY);
+}
+
+// Shadow - the impact of the light on the the fragment from the perspective of the point light
+float GetShadowFactorPoint(int depthLayer, vec3 lightPosition)
+{
+	// PROBLEM:  Shadow acne.
+	// REASON:   Because the shadow map is limited by resolution,
+	//           multiple fragments can sample the same value from the depth map
+	//         	 when they're relatively far away from the light source.
+	// SOLUTION: Offset depth.
+    float offsetBias = 0.15;
+
+	// PCF - Percentage-Closer Filtering
+	// Produces softer shadows, making them appear less blocky or hard.
+	vec3  fragToLight  = (FragmentPosition.xyz - lightPosition);
+	float currentDepth = length(fragToLight);
+    float viewDistance = length(db.CameraPosition.xyz - FragmentPosition.xyz);
+    float offsetRadius = ((1.0 + (viewDistance / 25.0)) / 25.0);
+	float shadowFactor = 0.0;
+
+	// Add offsets to a radius around the original fragToLight direction vector to sample from the cubemap
+	for(int s = 0; s < NR_OF_POINT_OFFSETS; s++)
+    {
+		vec3  texel        = (fragToLight + shadowPointSampleOffsets[s] * offsetRadius);
+        float closestDepth = (texture(DepthMapTexturesCube, vec4(texel, depthLayer)).r * 25.0);
+
+		// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
+		// Compare current fragment with the surrounding texel's depth.
+		if ((currentDepth - offsetBias) > closestDepth)
+            shadowFactor += 1.0;
+    }
+
+	// Average the results
+    shadowFactor /= float(NR_OF_POINT_OFFSETS);
+
+    return shadowFactor;
 }
 
 // Specular - reflects/mirrors the light direction over the normal
@@ -250,7 +298,7 @@ vec4 GetDirectionalLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor
 	
 	// Shadow
 	vec4  positionLightSpace = (light.ViewProjection * vec4(FragmentPosition.xyz, 1.0));
-	float shadowFactor       = (1.0 - GetShadowFactor(lightDirection, normal, DepthMapTextures2D[i], positionLightSpace));
+	float shadowFactor       = (1.0 - GetShadowFactorDir(i, lightDirection, normal, positionLightSpace));
 
     // Combine the light calculations
     vec3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
@@ -278,16 +326,15 @@ vec4 GetPointLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4
 	float attenuationFactor = GetAttenuationFactor(light.Position.xyz, light.Attenuation.xyz);
 	
 	// Shadow
-	//float shadow = (1.0 - GetShadowFactor(light.Position, lightDirection, normal, DepthMapTexturesCube[i]));
+	float shadowFactor = (1.0 - GetShadowFactorPoint(i, light.Position.xyz));
 	
     // Combine the light calculations
     vec3 ambient  = (attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     vec3 diffuse  = (attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     vec3 specular = (attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
-    return vec4((ambient + diffuse + specular), materialColor.a);
-    //return vec4((ambient + (shadow * (diffuse + specular))), materialColor.a);
-	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
+    //return vec4((ambient + diffuse + specular), materialColor.a);
+    return vec4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 vec4 GetSpotLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 materialSpec)
@@ -309,13 +356,16 @@ vec4 GetSpotLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 
 	// Spotlight intensity
 	float spotLightFactor = GetSpotLightFactor(light, lightDirection);
 	
+	// Shadow
+	//float shadowFactor = (1.0 - GetShadowFactorSpot(i, light.Position.xyz));
+	
     // Combine the light calculations
     vec3 ambient  = (spotLightFactor * attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     vec3 diffuse  = (spotLightFactor * attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     vec3 specular = (spotLightFactor * attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
     return vec4((ambient + diffuse + specular), materialColor.a);
-    //return (vec4(ambient, 1.0) + ((1.0 - GetShadow()) * (diffuse + vec4(specular, 1.0))));
+    //return vec4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 // HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)

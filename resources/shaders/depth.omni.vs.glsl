@@ -16,5 +16,5 @@ layout(binding = 0) uniform MatrixBuffer {
 
 void main()
 {
-	gl_Position = (mb.MVP * vec4(VertexPosition, 1.0));
+	gl_Position = vec4(mb.Model * vec4(VertexPosition, 1.0));
 }

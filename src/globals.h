@@ -108,7 +108,7 @@ static const uint32_t  BUFFER_SIZE           = 1024;
 static const glm::vec4 CLEAR_VALUE_COLOR     = { 0.0f, 0.0f, 1.0f, 1.0f };
 static const glm::vec4 CLEAR_VALUE_DEFAULT   = { 0.0f, 0.2f, 0.4f, 1.0f };
 static const glm::vec4 CLEAR_VALUE_DEPTH     = { 1.0f, 1.0f, 1.0f, 1.0f };
-static const int       FBO_TEXTURE_SIZE      = 2048;
+static const int       FBO_TEXTURE_SIZE      = 1024;
 static const uint32_t  LZMA_OFFSET_ID        = 8;
 static const uint32_t  LZMA_OFFSET_SIZE      = 8;
 static const uint32_t  MAX_CONCURRENT_FRAMES = 2;
@@ -118,10 +118,8 @@ static const uint32_t  MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES
 static const uint32_t  NR_OF_FRAMEBUFFERS    = 2;
 
 #if defined _WINDOWS
-
 static const unsigned int BYTE_ALIGN_BUFFER_DATA = 65536;
 static const unsigned int BYTE_ALIGN_BUFFER_VIEW = 256;
-
 #endif
 
 enum Attrib
@@ -272,6 +270,7 @@ enum ShaderID
 	SHADER_ID_COLOR,
 	SHADER_ID_DEFAULT,
 	SHADER_ID_DEPTH,
+	SHADER_ID_DEPTH_OMNI,
 	SHADER_ID_HUD,
 	SHADER_ID_SKYBOX,
 	SHADER_ID_WIREFRAME,
@@ -293,13 +292,11 @@ enum UniformBufferTypeGL
 	UBO_GL_MATRIX,
 	UBO_GL_COLOR,
 	UBO_GL_DEFAULT,
+	UBO_GL_DEPTH,
 	UBO_GL_HUD,
-	UBO_GL_TEXTURES0,  UBO_GL_TEXTURES1,  UBO_GL_TEXTURES2,  UBO_GL_TEXTURES3,  UBO_GL_TEXTURES4,  UBO_GL_TEXTURES5,
-	UBO_GL_TEXTURES6,  UBO_GL_TEXTURES7,  UBO_GL_TEXTURES8,  UBO_GL_TEXTURES9,  UBO_GL_TEXTURES10, UBO_GL_TEXTURES11,
-	UBO_GL_TEXTURES12, UBO_GL_TEXTURES13, UBO_GL_TEXTURES14, UBO_GL_TEXTURES15, UBO_GL_TEXTURES16, UBO_GL_TEXTURES17,
-	UBO_GL_TEXTURES18, UBO_GL_TEXTURES19, UBO_GL_TEXTURES20, UBO_GL_TEXTURES21, UBO_GL_TEXTURES22, UBO_GL_TEXTURES23,
-	UBO_GL_TEXTURES24, UBO_GL_TEXTURES25, UBO_GL_TEXTURES26, UBO_GL_TEXTURES27, UBO_GL_TEXTURES28, UBO_GL_TEXTURES29,
-	UBO_GL_TEXTURES30, UBO_GL_TEXTURES31,
+	UBO_GL_TEXTURES0, UBO_GL_TEXTURES1, UBO_GL_TEXTURES2, UBO_GL_TEXTURES3, UBO_GL_TEXTURES4, UBO_GL_TEXTURES5,
+	UBO_GL_TEXTURES6,
+	UBO_GL_TEXTURES7,
 	NR_OF_UBOS_GL
 };
 
@@ -313,6 +310,7 @@ enum UniformBufferTypeVK
 	UBO_VK_MATRIX,
 	UBO_VK_COLOR,
 	UBO_VK_DEFAULT,
+	UBO_VK_DEPTH,
 	UBO_VK_HUD,
 	NR_OF_UBOS_VK
 };
@@ -321,6 +319,7 @@ struct DrawProperties
 {
 	glm::vec3       ClipMax            = {};
 	glm::vec3       ClipMin            = {};
+	int             DepthLayer         = 0;
 	bool            DrawBoundingVolume = false;
 	bool            DrawSelected       = false;
 	bool            EnableClipping     = false;

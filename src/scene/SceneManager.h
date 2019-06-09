@@ -12,6 +12,8 @@ public:
 	static LightSource* LightSources[];
 
 	static std::vector<Component*> Components;
+	static FrameBuffer*            DepthMap2D;
+	static FrameBuffer*            DepthMapCube;
 	static Texture*                EmptyCubemap;
 	static Texture*                EmptyTexture;
 	static bool                    Ready;

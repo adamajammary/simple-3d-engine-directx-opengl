@@ -1,6 +1,8 @@
 #include "SceneManager.h"
 
 std::vector<Component*> SceneManager::Components;
+FrameBuffer*            SceneManager::DepthMap2D        = nullptr;
+FrameBuffer*            SceneManager::DepthMapCube      = nullptr;
 Texture*                SceneManager::EmptyCubemap      = nullptr;
 Texture*                SceneManager::EmptyTexture      = nullptr;
 bool                    SceneManager::Ready             = true;

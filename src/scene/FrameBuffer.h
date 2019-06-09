@@ -19,7 +19,7 @@ private:
 	FBOType  type;
 
 public:
-	void     Bind();
+	void     Bind(int depthLayer = 0);
 	void     Unbind();
 	GLuint   FBO();
 	Texture* GetTexture();

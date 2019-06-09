@@ -10,28 +10,26 @@ class LightSource : public Component
 public:
 	LightSource(const wxString &modelFile, IconType type);
 	LightSource();
-	~LightSource();
+	~LightSource() {}
 
 private:
 	glm::vec4    color;
-	FrameBuffer* depthMapFBO;
 	Light        light;
 	glm::mat4    projection;
 	IconType     sourceType;
-	glm::mat4    view;
+	glm::mat4    views[MAX_TEXTURES];
 
 public:
 	bool         Active();
 	float        ConeInnerAngle();
 	float        ConeOuterAngle();
-	FrameBuffer* DepthMapFBO();
 	glm::vec3    Direction();
 	Attenuation  GetAttenuation();
 	Light        GetLight();
 	Material     GetMaterial();
 	void         MoveBy(const glm::vec3 &amount)      override;
 	void         MoveTo(const glm::vec3 &newPosition) override;
-	glm::mat4    MVP(Component* model);
+	glm::mat4    MVP(const glm::mat4 &model);
 	glm::mat4    Projection();
 	void         SetActive(bool active);
 	void         SetAmbient(const glm::vec3 &ambient);
@@ -46,11 +44,10 @@ public:
 	IconType     SourceType();
 	void         updateProjection();
 	void         updateView();
-	glm::mat4    View();
+	glm::mat4    View(int index);
 
 private:
-	FrameBuffer* initDepthMap();
-	Light        initLight();
+	Light initLight();
 
 };
 

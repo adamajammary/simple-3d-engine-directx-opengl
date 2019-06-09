@@ -81,6 +81,7 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 
 		break;
 	case SHADER_ID_DEPTH:
+	case SHADER_ID_DEPTH_OMNI:
 	case SHADER_ID_SKYBOX:
 		vertexBuffer->ConstantBufferSkybox = CBSkyboxDX(matrices);
 
@@ -104,6 +105,8 @@ ShaderID ShaderProgram::ID()
 		return SHADER_ID_DEFAULT;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEPTH].Name)
 		return SHADER_ID_DEPTH;
+	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_DEPTH_OMNI].Name)
+		return SHADER_ID_DEPTH_OMNI;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_HUD].Name)
 		return SHADER_ID_HUD;
 	else if (this->name == Utils::SHADER_RESOURCES_DX[SHADER_ID_SKYBOX].Name)
@@ -136,10 +139,6 @@ int ShaderProgram::Link()
 {
 	GLint resultLink;
 
-	#if defined _DEBUG
-		GLint resultValid;
-	#endif
-
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
 		glLinkProgram(this->program);
@@ -147,14 +146,6 @@ int ShaderProgram::Link()
 
 		if (resultLink != GL_TRUE)
 			return -1;
-
-		#if defined _DEBUG
-			glValidateProgram(this->program);
-			glGetProgramiv(this->program, GL_VALIDATE_STATUS, &resultValid);
-
-			if (resultValid != GL_TRUE)
-				return -1;
-		#endif
 
 		break;
 	case GRAPHICS_API_VULKAN:
@@ -189,18 +180,21 @@ int ShaderProgram::Load(const wxString &shaderFile)
 	return result;
 }
 
-int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
+int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs, const wxString& gs)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_OPENGL:
 		if (this->loadShaderGL(GL_VERTEX_SHADER, vs) < 0)
 			return -1;
 
-		if (this->loadShaderGL(GL_FRAGMENT_SHADER, fs) < 0)
+		if (!gs.empty() && (this->loadShaderGL(GL_GEOMETRY_SHADER, gs) < 0))
 			return -2;
 
-		if (this->Link() < 0)
+		if (this->loadShaderGL(GL_FRAGMENT_SHADER, fs) < 0)
 			return -3;
+
+		if (this->Link() < 0)
+			return -4;
 
 		this->setAttribsGL();
 		this->setUniformsGL();
@@ -208,10 +202,13 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, "vert", &this->vulkanVS) < 0)
-			return -4;
+			return -10;
+
+		if (!gs.empty() && (RenderEngine::Canvas.VK->CreateShaderModule(gs, "geom", &this->vulkanVS) < 0))
+			return -11;
 
 		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, "frag", &this->vulkanFS) < 0)
-			return -5;
+			return -12;
 
 		break;
 	default:
@@ -223,13 +220,16 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs)
 
 int ShaderProgram::loadShaderGL(GLuint type, const wxString &sourceText)
 {
-	if (((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER)) || (RenderEngine::SelectedGraphicsAPI != GRAPHICS_API_OPENGL))
+	if (RenderEngine::SelectedGraphicsAPI != GRAPHICS_API_OPENGL)
 		return -1;
+
+	if ((type != GL_VERTEX_SHADER) && (type != GL_FRAGMENT_SHADER) && (type != GL_GEOMETRY_SHADER))
+		return -2;
 
 	GLuint shader = glCreateShader(type);
 
 	if (shader < 1)
-		return -1;
+		return -3;
 
 	const GLchar* sourceTextGLchar = (const GLchar*)sourceText.c_str();
 	GLint         sourceTextGlint  = (const GLint)sourceText.size();
@@ -242,7 +242,7 @@ int ShaderProgram::loadShaderGL(GLuint type, const wxString &sourceText)
 
 	if (result != GL_TRUE) {
 		this->Log(shader);
-		return -1;
+		return -4;
 	}
 
 	glAttachShader(this->program, shader);
@@ -324,6 +324,10 @@ void ShaderProgram::setUniformsGL()
 	this->Uniforms[UBO_GL_DEFAULT] = glGetUniformBlockIndex(this->program, "DefaultBuffer");
 	glGenBuffers(1, &this->UniformBuffers[UBO_GL_DEFAULT]);
 
+	// DEPTH BUFFER
+	this->Uniforms[UBO_GL_DEPTH] = glGetUniformBlockIndex(this->program, "DepthBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_DEPTH]);
+
 	// HUD BUFFER
 	this->Uniforms[UBO_GL_HUD] = glGetUniformBlockIndex(this->program, "HUDBuffer");
 	glGenBuffers(1, &this->UniformBuffers[UBO_GL_HUD]);
@@ -333,12 +337,10 @@ void ShaderProgram::setUniformsGL()
 		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
 	
 	// DEPTH MAP 2D TEXTURES
-	for (int i = MAX_TEXTURES; i < (MAX_TEXTURES + MAX_LIGHT_SOURCES); i++)
-		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("DepthMapTextures2D[" + std::to_string(i - MAX_TEXTURES) + "]").c_str());
-	
+	this->Uniforms[UBO_GL_TEXTURES6] = glGetUniformLocation(this->program, wxString("DepthMapTextures2D").c_str());
+
 	// DEPTH MAP CUBE TEXTURES
-	for (int i = (MAX_TEXTURES + MAX_LIGHT_SOURCES); i < MAX_TEXTURE_SLOTS; i++)
-		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("DepthMapTexturesCube[" + std::to_string(i - MAX_TEXTURES - MAX_LIGHT_SOURCES) + "]").c_str());
+	this->Uniforms[UBO_GL_TEXTURES7] = glGetUniformLocation(this->program, wxString("DepthMapTexturesCube").c_str());
 
 	glUseProgram(0);
 }
@@ -373,8 +375,15 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 	// MATRIX BUFFER
 	GLint id = this->Uniforms[UBO_GL_MATRIX];
 
-	if (id >= 0) {
-		CBMatrix mb = (shaderID == SHADER_ID_DEPTH ? CBMatrix(properties.Light, mesh) : CBMatrix(mesh, (shaderID == SHADER_ID_SKYBOX)));
+	if (id >= 0)
+	{
+		CBMatrix mb;
+
+		if ((shaderID == SHADER_ID_DEPTH) || (shaderID == SHADER_ID_DEPTH_OMNI))
+			mb = CBMatrix(properties.Light, mesh);
+		else
+			mb = CBMatrix(mesh, (shaderID == SHADER_ID_SKYBOX));
+
 		this->updateUniformGL(id, UBO_GL_MATRIX, &mb, sizeof(mb));
 	}
 
@@ -394,6 +403,14 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_DEFAULT, &db, sizeof(db));
 	}
 
+	// DEPTH BUFFER
+	id = this->Uniforms[UBO_GL_DEPTH];
+
+	if (id >= 0) {
+		CBDepth db = CBDepth(properties.Light->GetLight().position, properties.DepthLayer);
+		this->updateUniformGL(id, UBO_GL_DEPTH, &db, sizeof(db));
+	}
+
 	// HUD BUFFER
 	id = this->Uniforms[UBO_GL_HUD];
 
@@ -402,46 +419,51 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_HUD, &hb, sizeof(hb));
 	}
 
-    // BIND MESH TEXTURES
-	switch (shaderID) {
-	case SHADER_ID_DEFAULT:
-	case SHADER_ID_HUD:
-	case SHADER_ID_SKYBOX:
-		for (int i = 0; i < MAX_TEXTURES; i++)
-		{
-			glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + i], i);
-			glActiveTexture(GL_TEXTURE0 + i);
-			glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
-		}
-		break;
-	default:
-		break;
-	}
-
-	// BIND DEPTH MAP TEXTURES
-	if (shaderID == SHADER_ID_DEFAULT)
+    // BIND MESH TEXTURES - Texture slots: [GL_TEXTURE0, GL_TEXTURE5]
+	for (int i = 0; i < MAX_TEXTURES; i++)
 	{
-		for (int n = 0; n < 2; n++) {				// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
-		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)	// Light sources
-		{
-			LightSource* lightSource = SceneManager::LightSources[i];
+		id = this->Uniforms[UBO_GL_TEXTURES0 + i];
 
-			if ((lightSource == nullptr) || (lightSource->DepthMapFBO() == nullptr))
-				continue;
-
-			Texture* texture = lightSource->DepthMapFBO()->GetTexture();
-
-			if (((n == 0) && (texture->Type() != GL_TEXTURE_2D)) || ((n == 1) && (texture->Type() != GL_TEXTURE_CUBE_MAP)))
-				continue;
-
-			int j = (MAX_TEXTURES + (n * MAX_LIGHT_SOURCES) + i);	// Texture slot: GL_TEXTURE0 -> GL_TEXTURE31
-
-			glUniform1i(this->Uniforms[UBO_GL_TEXTURES0 + j], j);
-			glActiveTexture(GL_TEXTURE0 + j);
-			glBindTexture(texture->Type(), texture->ID());
-		}
+		if (id >= 0) {
+			glActiveTexture(GL_TEXTURE0 + i);
+			glUniform1i(id, i);
+			glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
+		} else {
+			glBindTexture(GL_TEXTURE0 + i, 0);
 		}
 	}
+
+	// BIND DEPTH MAP - 2D TEXTURE ARRAY
+	id = this->Uniforms[UBO_GL_TEXTURES6];
+
+	if ((id >= 0) && (SceneManager::DepthMap2D != nullptr)) {
+		glActiveTexture(GL_TEXTURE6);
+		glUniform1i(this->Uniforms[UBO_GL_TEXTURES6], 6);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, SceneManager::DepthMap2D->GetTexture()->ID());
+	} else {
+		glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+	}
+
+	// BIND DEPTH MAP - CUBE MAP ARRAY
+	id = this->Uniforms[UBO_GL_TEXTURES7];
+
+	if ((id >= 0) && (SceneManager::DepthMapCube != nullptr)) {
+		glActiveTexture(GL_TEXTURE7);
+		glUniform1i(this->Uniforms[UBO_GL_TEXTURES7], 7);
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, SceneManager::DepthMapCube->GetTexture()->ID());
+	} else {
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+	}
+
+	#if defined _DEBUG
+		glValidateProgram(this->program);
+
+		GLint resultValid;
+		glGetProgramiv(this->program, GL_VALIDATE_STATUS, &resultValid);
+
+		if (resultValid != GL_TRUE)
+			return -2;
+	#endif
 
 	return 0;
 }
@@ -458,7 +480,12 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 	ShaderID shaderID = this->ID();
 
 	// MATRIX UNIFORM BUFFER
-	CBMatrix cbMatrices = (shaderID == SHADER_ID_DEPTH ? CBMatrix(properties.Light, mesh) : CBMatrix(mesh, (shaderID == SHADER_ID_SKYBOX)));
+	CBMatrix cbMatrices;
+
+	if ((shaderID == SHADER_ID_DEPTH) || (shaderID == SHADER_ID_DEPTH_OMNI))
+		cbMatrices = CBMatrix(properties.Light, mesh);
+	else
+		cbMatrices = CBMatrix(mesh, (shaderID == SHADER_ID_SKYBOX));
 
 	int result = ShaderProgram::updateUniformsVK(
 		UBO_VK_MATRIX, UBO_BINDING_MATRIX, uniform, &cbMatrices, sizeof(cbMatrices), deviceContext, mesh
@@ -470,6 +497,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 	// UNIFORM BUFFERS
 	CBColor   cbColor;
 	CBDefault cbDefault;
+	CBDepth   cbDepth;
 	CBHUD     cbHUD;
 
 	switch (this->ID()) {
@@ -489,6 +517,14 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 
 		result = ShaderProgram::updateUniformsVK(
 			UBO_VK_DEFAULT, UBO_BINDING_DEFAULT, uniform, &cbDefault, sizeof(cbDefault), deviceContext, mesh
+		);
+
+		break;
+	case SHADER_ID_DEPTH_OMNI:
+		cbDepth = CBDepth(properties.Light->Position(), properties.DepthLayer);
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_DEPTH, UBO_BINDING_DEFAULT, uniform, &cbDepth, sizeof(cbDepth), deviceContext, mesh
 		);
 
 		break;
@@ -625,10 +661,21 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
 			{
 				Texture*     texture;
-				LightSource* lightSource = SceneManager::LightSources[i];
+				FrameBuffer* fbo   = nullptr;
+				LightSource* light = SceneManager::LightSources[i];
 
-				if ((lightSource != nullptr) && (lightSource->DepthMapFBO() != nullptr))
-					texture = lightSource->DepthMapFBO()->GetTexture();
+				if (light != nullptr)
+				{
+					switch (light->SourceType()) {
+						case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+						case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
+						case ID_ICON_LIGHT_SPOT: break;
+						default: throw;
+					}
+				}
+
+				if ((light != nullptr) && (fbo != nullptr))
+					texture = fbo->GetTexture();
 				else
 					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
 				
@@ -672,7 +719,7 @@ int ShaderProgram::UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** c
 	// MATRIX UNIFORM BUFFER
 	CBMatrix matrices;
 
-	if (this->ID() == SHADER_ID_DEPTH)
+	if ((this->ID() == SHADER_ID_DEPTH) || (this->ID() == SHADER_ID_DEPTH_OMNI))
 		matrices = CBMatrix(properties.Light, mesh);
 	else
 		matrices = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));
@@ -702,7 +749,7 @@ int ShaderProgram::UpdateUniformsDX12(Component* mesh, const DrawProperties &pro
 	// MATRIX UNIFORM BUFFER
 	CBMatrix matrices;
 
-	if (this->ID() == SHADER_ID_DEPTH)
+	if ((this->ID() == SHADER_ID_DEPTH) || (this->ID() == SHADER_ID_DEPTH_OMNI))
 		matrices = CBMatrix(properties.Light, mesh);
 	else
 		matrices = CBMatrix(mesh, (this->ID() == SHADER_ID_SKYBOX));

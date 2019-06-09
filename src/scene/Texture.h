@@ -12,7 +12,8 @@ public:
 	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, int width, int height);
-	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height);
+	//Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height);
+	Texture(GLint format, GLenum textureType, const wxSize &size);
 	Texture();
 	~Texture();
 

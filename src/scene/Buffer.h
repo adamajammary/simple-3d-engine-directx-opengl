@@ -23,9 +23,6 @@ struct CBLight
 	glm::vec4 Position       = {};
 	glm::vec4 Specular       = {};
 	glm::mat4 ViewProjection = {};
-
-	//sampler2D   DepthMapTexture2D;
-	//samplerCube DepthMapTextureCube;
 };
 
 struct CBMatrix
@@ -34,11 +31,10 @@ struct CBMatrix
 	CBMatrix(LightSource* lightSource, Component* mesh);
 	CBMatrix() {}
 
-	glm::mat4 Normal     = {};
-	glm::mat4 Model      = {};
-	glm::mat4 View       = {};
-	glm::mat4 Projection = {};
-	glm::mat4 MVP        = {};
+	glm::mat4 Normal = {};
+	glm::mat4 Model  = {};
+	glm::mat4 VP[MAX_TEXTURES];
+	glm::mat4 MVP    = {};
 };
 
 struct CBColor
@@ -70,6 +66,14 @@ struct CBDefault
 	glm::vec4 ComponentType  = {};
 	glm::vec4 EnableSRGB     = {};
 	glm::vec4 WaterProps     = {}; // { MoveFactor, WaveStrength, 0, 0 }
+};
+
+struct CBDepth
+{
+	CBDepth(const glm::vec3 &lightPosition, int depthLayer);
+	CBDepth() {}
+
+	glm::vec4 lightPosition = {}; // { x, y, z, depthLayer }
 };
 
 struct CBHUD
@@ -105,11 +109,10 @@ struct CBMatrixDX
 	CBMatrixDX(const CBMatrix &matrices);
 	CBMatrixDX() {}
 
-	DirectX::XMMATRIX Normal     = {};
-	DirectX::XMMATRIX Model      = {};
-	DirectX::XMMATRIX View       = {};
-	DirectX::XMMATRIX Projection = {};
-	DirectX::XMMATRIX MVP        = {};
+	DirectX::XMMATRIX Normal = {};
+	DirectX::XMMATRIX Model  = {};
+	DirectX::XMMATRIX VP[MAX_TEXTURES];
+	DirectX::XMMATRIX MVP    = {};
 };
 
 struct CBColorDX
@@ -145,6 +148,14 @@ struct CBDefaultDX
 	DirectX::XMFLOAT4 ComponentType  = {};
 	DirectX::XMFLOAT4 EnableSRGB     = {};
 	DirectX::XMFLOAT4 WaterProps     = {}; // { MoveFactor, WaveStrength, 0, 0 }
+};
+
+struct CBDepthDX
+{
+	CBDepthDX(const glm::vec3 &lightPosition, int depthLayer);
+	CBDepthDX() {}
+
+	DirectX::XMFLOAT4 lightPosition = {}; // { x, y, z, depthLayer }
 };
 
 struct CBHUDDX

@@ -234,12 +234,13 @@ int DXContext::CreateConstantBuffers11(Buffer* buffer)
 
 	UINT bufferSizes[NR_OF_SHADERS];
 
-	bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
-	bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
-	bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
-	bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
-	bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
-	bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
+	bufferSizes[SHADER_ID_COLOR]      = sizeof(CBColorDX);
+	bufferSizes[SHADER_ID_DEFAULT]    = sizeof(CBDefaultDX);
+	bufferSizes[SHADER_ID_DEPTH]      = sizeof(CBSkyboxDX);
+	bufferSizes[SHADER_ID_DEPTH_OMNI] = sizeof(CBSkyboxDX);
+	bufferSizes[SHADER_ID_HUD]        = sizeof(CBHUDDX);
+	bufferSizes[SHADER_ID_SKYBOX]     = sizeof(CBSkyboxDX);
+	bufferSizes[SHADER_ID_WIREFRAME]  = sizeof(CBColorDX);
 
 	D3D11_BUFFER_DESC bufferDesc = {};
 	bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -310,12 +311,13 @@ int DXContext::CreateConstantBuffers12(Buffer* buffer)
 
 		UINT bufferSizes[NR_OF_SHADERS];
 
-		bufferSizes[SHADER_ID_COLOR]     = sizeof(CBColorDX);
-		bufferSizes[SHADER_ID_DEFAULT]   = sizeof(CBDefaultDX);
-		bufferSizes[SHADER_ID_DEPTH]     = sizeof(CBSkyboxDX);
-		bufferSizes[SHADER_ID_HUD]       = sizeof(CBHUDDX);
-		bufferSizes[SHADER_ID_SKYBOX]    = sizeof(CBSkyboxDX);
-		bufferSizes[SHADER_ID_WIREFRAME] = sizeof(CBColorDX);
+		bufferSizes[SHADER_ID_COLOR]      = sizeof(CBColorDX);
+		bufferSizes[SHADER_ID_DEFAULT]    = sizeof(CBDefaultDX);
+		bufferSizes[SHADER_ID_DEPTH]      = sizeof(CBSkyboxDX);
+		bufferSizes[SHADER_ID_DEPTH_OMNI] = sizeof(CBSkyboxDX);
+		bufferSizes[SHADER_ID_HUD]        = sizeof(CBHUDDX);
+		bufferSizes[SHADER_ID_SKYBOX]     = sizeof(CBSkyboxDX);
+		bufferSizes[SHADER_ID_WIREFRAME]  = sizeof(CBColorDX);
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC bufferDesc = {};
 
@@ -430,7 +432,7 @@ int DXContext::createPipeline(
 	if (fboType == FBO_COLOR)
 		pipelineStateDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
 
-	if (shaderID == SHADER_ID_DEPTH) {
+	if ((shaderID == SHADER_ID_DEPTH) || (shaderID == SHADER_ID_DEPTH_OMNI)) {
 		pipelineStateDesc.NumRenderTargets = 0;
 		pipelineStateDesc.RTVFormats[0]    = DXGI_FORMAT_UNKNOWN;
 	}
@@ -466,6 +468,7 @@ int DXContext::createPipeline(
 		pipelineStateDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 		break;
 	case SHADER_ID_DEPTH:
+	case SHADER_ID_DEPTH_OMNI:
 		pipelineStateDesc.RasterizerState.DepthClipEnable = FALSE;
 		pipelineStateDesc.RasterizerState.CullMode        = D3D12_CULL_MODE_FRONT;
 		break;
@@ -1036,6 +1039,7 @@ int DXContext::CreateVertexBuffer11(const std::vector<float> &vertices, const st
 			rasterizerDesc.FillMode = D3D11_FILL_WIREFRAME;
 			break;
 		case SHADER_ID_DEPTH:
+		case SHADER_ID_DEPTH_OMNI:
 			rasterizerDesc.DepthClipEnable = FALSE;
 			rasterizerDesc.CullMode        = D3D11_CULL_FRONT;
 			break;
@@ -1263,10 +1267,21 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
 			{
 				Texture*     texture;
-				LightSource* lightSource = SceneManager::LightSources[i];
+				FrameBuffer* fbo   = nullptr;
+				LightSource* light = SceneManager::LightSources[i];
 
-				if ((lightSource != nullptr) && (lightSource->DepthMapFBO() != nullptr)) {
-					texture                 = lightSource->DepthMapFBO()->GetTexture();
+				if (light != nullptr)
+				{
+					switch (light->SourceType()) {
+						case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+						case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
+						case ID_ICON_LIGHT_SPOT: break;
+						default: throw;
+					}
+				}
+
+				if ((light != nullptr) && (fbo != nullptr)) {
+					texture                 = fbo->GetTexture();
 					depthTextureSamplers[n] = texture->SamplerState11;
 				} else {
 					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
@@ -1400,10 +1415,21 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
 			{
 				Texture*     texture;
-				LightSource* lightSource = SceneManager::LightSources[i];
+				FrameBuffer* fbo   = nullptr;
+				LightSource* light = SceneManager::LightSources[i];
 
-				if ((lightSource != nullptr) && (lightSource->DepthMapFBO() != nullptr)) {
-					texture     = lightSource->DepthMapFBO()->GetTexture();
+				if (light != nullptr)
+				{
+					switch (light->SourceType()) {
+						case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+						case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
+						case ID_ICON_LIGHT_SPOT: break;
+						default: throw;
+					}
+				}
+
+				if ((light != nullptr) && (fbo != nullptr)) {
+					texture     = fbo->GetTexture();
 					samplerDesc = texture->SamplerDesc12;
 				} else {
 					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);

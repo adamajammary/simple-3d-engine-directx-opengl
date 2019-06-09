@@ -44,6 +44,9 @@ void RenderEngine::Close()
 	SceneManager::Clear();
 	ShaderManager::Close();
 
+	_DELETEP(SceneManager::DepthMap2D);
+	_DELETEP(SceneManager::DepthMapCube);
+
 	_DELETEP(SceneManager::EmptyCubemap);
 	_DELETEP(SceneManager::EmptyTexture);
 
@@ -60,16 +63,39 @@ void RenderEngine::Close()
 
 void RenderEngine::createDepthFBO()
 {
+	if (RenderEngine::Renderables.empty())
+		return;
+
+	bool cleared = false;
+
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
 	{
-		if ((SceneManager::LightSources[i] == nullptr) || RenderEngine::Renderables.empty())
+		if (SceneManager::LightSources[i] == nullptr)
 			continue;
 
-		// DIRECTIONAL LIGHT
-		LightSource* lightSource = dynamic_cast<LightSource*>(SceneManager::LightSources[i]);
+		FrameBuffer* fbo   = nullptr;
+		LightSource* light = SceneManager::LightSources[i];
 
-		if (lightSource->SourceType() != ID_ICON_LIGHT_DIRECTIONAL)
+		switch (light->SourceType()) {
+			case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+			case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
+			case ID_ICON_LIGHT_SPOT: break;
+			default: throw;
+		}
+
+		if (fbo == nullptr)
 			continue;
+
+		DrawProperties drawProperties = {};
+
+		drawProperties.DepthLayer = i;
+		drawProperties.FboType    = FBO_DEPTH;
+		drawProperties.Light      = light;
+
+		if (light->SourceType() == ID_ICON_LIGHT_POINT)
+			drawProperties.Shader = SHADER_ID_DEPTH_OMNI;
+		else
+			drawProperties.Shader = SHADER_ID_DEPTH;
 
 		// BIND
 		VkCommandBuffer cmdBuffer = nullptr;
@@ -77,19 +103,17 @@ void RenderEngine::createDepthFBO()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
 		else
-			lightSource->DepthMapFBO()->Bind();
+			fbo->Bind(drawProperties.DepthLayer);
 
-		// CLEAR
-		RenderEngine::clear(CLEAR_VALUE_DEPTH, lightSource->DepthMapFBO(), cmdBuffer);
-
-		// DRAW
-		DrawProperties drawProperties = {};
-
-		drawProperties.FboType         = FBO_DEPTH;
-		drawProperties.Light           = lightSource;
-		drawProperties.Shader          = SHADER_ID_DEPTH;
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
+		// CLEAR
+		if ((light->SourceType() == ID_ICON_LIGHT_DIRECTIONAL) || !cleared) {
+			RenderEngine::clear(CLEAR_VALUE_DEPTH, fbo, cmdBuffer);
+			cleared = true;
+		}
+
+		// DRAW
 		//RenderEngine::drawTerrains(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
 
@@ -97,7 +121,7 @@ void RenderEngine::createDepthFBO()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
 		else
-			lightSource->DepthMapFBO()->Unbind();
+			fbo->Unbind();
 	}
 }
 
@@ -108,9 +132,9 @@ void RenderEngine::createWaterFBOs()
 		if ((component == nullptr) || (component->Type() != COMPONENT_WATER))
 			continue;
 
-		Water* parent = dynamic_cast<Water*>(component->Parent);
+		Water* water = dynamic_cast<Water*>(component->Parent);
 
-		if (parent == nullptr)
+		if (water == nullptr)
 			continue;
 
 		glm::vec3       position       = component->Position();
@@ -125,7 +149,7 @@ void RenderEngine::createWaterFBOs()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
 		else
-			parent->FBO()->BindReflection();
+			water->FBO()->BindReflection();
 
 		DrawProperties drawProperties = {};
 
@@ -135,7 +159,7 @@ void RenderEngine::createWaterFBOs()
 		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
-		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->ReflectionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, water->FBO()->ReflectionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
@@ -143,7 +167,7 @@ void RenderEngine::createWaterFBOs()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
 		else
-			parent->FBO()->UnbindReflection();
+			water->FBO()->UnbindReflection();
 
 		RenderEngine::CameraMain->InvertPitch();
 		RenderEngine::CameraMain->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
@@ -152,12 +176,12 @@ void RenderEngine::createWaterFBOs()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
 		else
-			parent->FBO()->BindRefraction();
+			water->FBO()->BindRefraction();
 
 		drawProperties.ClipMax = glm::vec3(scale.x,  position.y, scale.z);
 		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
 
-		RenderEngine::clear(CLEAR_VALUE_COLOR, parent->FBO()->RefractionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, water->FBO()->RefractionFBO(), cmdBuffer);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
@@ -165,7 +189,7 @@ void RenderEngine::createWaterFBOs()
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
 		else
-			parent->FBO()->UnbindRefraction();
+			water->FBO()->UnbindRefraction();
 	}
 }
 
@@ -489,6 +513,12 @@ int RenderEngine::initResources()
 	if (!SceneManager::EmptyTexture->IsOK() || !SceneManager::EmptyCubemap->IsOK())
 		return -1;
 
+	SceneManager::DepthMap2D   = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D);
+	SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP);
+
+	if ((SceneManager::DepthMap2D->GetTexture() == nullptr) || (SceneManager::DepthMapCube->GetTexture() == nullptr))
+		return -2;
+
 	return 0;
 }
 
@@ -586,6 +616,7 @@ void RenderEngine::setDrawSettingsGL(ShaderID shaderID)
 		glDisable(GL_STENCIL_TEST);
 		break;
 	case SHADER_ID_DEPTH:
+	case SHADER_ID_DEPTH_OMNI:
 		glEnable(GL_CULL_FACE);  glCullFace(GL_FRONT); glFrontFace(GL_CCW);
 		glEnable(GL_DEPTH_CLAMP);
 		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
@@ -593,7 +624,7 @@ void RenderEngine::setDrawSettingsGL(ShaderID shaderID)
 		glDisable(GL_BLEND);
 		break;
 	default:
-		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK); glFrontFace(GL_CCW);
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK);  glFrontFace(GL_CCW);
 		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
 		glDisable(GL_BLEND);
 		glDisable(GL_DEPTH_CLAMP);

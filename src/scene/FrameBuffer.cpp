@@ -60,45 +60,36 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 {
 	glCreateFramebuffers(1, &this->fbo);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		wxString fboType;
-		switch (this->type) {
-			case FBO_COLOR: fboType = "color"; break;
-			case FBO_DEPTH: fboType = "depth"; break;
-			default: throw;
-		}
-		wxMessageBox("ERROR! Failed to create a " + fboType + " frame buffer", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		wxMessageBox("ERROR! Failed to create the frame buffer", RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
 		throw;
 	}
 
-	this->Bind();
+	glBindFramebuffer(GL_FRAMEBUFFER, this->fbo);
 
 	GLenum buffers[1];
-	GLenum texType;
-
-	switch (textureType) {
-		case TEXTURE_2D:      texType = GL_TEXTURE_2D;       break;
-		case TEXTURE_CUBEMAP: texType = GL_TEXTURE_CUBE_MAP; break;
-		default: throw;
-	}
+	GLenum glTextureType;
 
 	switch (this->type) {
 	case FBO_COLOR:
-		this->texture = new Texture(
-			GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, texType, GL_COLOR_ATTACHMENT0,
-			this->size.GetWidth(), this->size.GetHeight()
-		);
+		glTextureType = (textureType == TEXTURE_2D ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP);
+
+		this->texture = new Texture(GL_SRGB8, glTextureType, this->size);
+			//GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, glTextureType, GL_COLOR_ATTACHMENT0,
+
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->texture->ID(), 0);
 
 		buffers[0] = GL_COLOR_ATTACHMENT0;
 		glDrawBuffers(1, buffers);
 
 		break;
 	case FBO_DEPTH:
-		this->texture = new Texture(
-			GL_RGB8, GL_RGB, GL_FLOAT, texType, GL_DEPTH_ATTACHMENT,
-			this->size.GetWidth(), this->size.GetHeight()
-		);
+		glTextureType = (textureType == TEXTURE_2D ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_CUBE_MAP_ARRAY);
+
+		this->texture = new Texture(GL_DEPTH_COMPONENT16, glTextureType, this->size);
+			//GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_FLOAT, glTextureType, GL_DEPTH_ATTACHMENT,
+
+		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->texture->ID(), 0);
 
 		glDrawBuffer(GL_NONE);
 		glReadBuffer(GL_NONE);
@@ -108,7 +99,7 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 		throw;
 	}
 
-	this->Unbind();
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void FrameBuffer::createTextureVK(TextureType textureType)
@@ -129,7 +120,7 @@ void FrameBuffer::createTextureVK(TextureType textureType)
 	}
 }
 
-void FrameBuffer::Bind()
+void FrameBuffer::Bind(int depthLayer)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
@@ -141,11 +132,16 @@ void FrameBuffer::Bind()
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glBindTexture(GL_TEXTURE_2D,       0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+		glBindTexture(GL_TEXTURE_2D,             0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP,       0);
+		glBindTexture(GL_TEXTURE_2D_ARRAY,       0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
 
 		glViewport(0, 0, this->size.GetWidth(), this->size.GetHeight());
-		glBindFramebuffer(GL_FRAMEBUFFER,  this->fbo);
+		glBindFramebuffer(GL_FRAMEBUFFER, this->fbo);
+
+		if (this->texture->Type() == GL_TEXTURE_2D_ARRAY)
+			glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->texture->ID(), 0, depthLayer);
 
 		break;
 	case GRAPHICS_API_VULKAN:
@@ -167,8 +163,11 @@ void FrameBuffer::Unbind()
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glBindTexture(GL_TEXTURE_2D,       0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+		glBindTexture(GL_TEXTURE_2D,             0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP,       0);
+		glBindTexture(GL_TEXTURE_2D_ARRAY,       0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
+
 		glBindFramebuffer(GL_FRAMEBUFFER,  0);
 
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());

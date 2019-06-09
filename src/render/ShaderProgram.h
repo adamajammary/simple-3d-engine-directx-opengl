@@ -33,7 +33,7 @@ public:
 	bool           IsOK();
 	int            Link();
 	int            Load(const wxString &shaderFile);
-	int            LoadAndLink(const wxString &vs, const wxString &fs);
+	int            LoadAndLink(const wxString &vs, const wxString &fs, const wxString& gs = "");
 	void           Log();
 	void           Log(GLuint shader);
 	wxString       Name();
