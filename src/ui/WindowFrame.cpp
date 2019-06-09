@@ -853,10 +853,35 @@ int WindowFrame::UpdateComponents(wxPGProperty* property)
 	if (selected->Type() != COMPONENT_CAMERA)
 		dynamic_cast<Mesh*>(selected)->UpdateBoundingVolume();
 
-	return this->UpdateProperties();
+	//return this->UpdateProperties();
+	return 0;
 }
 
-int WindowFrame::UpdateProperties()
+int WindowFrame::UpdateProperties(bool autoRotate)
+{
+	Component* selected = (SceneManager::SelectedChild != nullptr ? SceneManager::SelectedChild : SceneManager::SelectedComponent);
+
+	if ((selected == nullptr) || (this->properties == nullptr))
+		return -1;
+
+	ComponentType selectedType = selected->Type();
+
+	if (selectedType == COMPONENT_CAMERA) {
+		glm::vec3 p = selected->Position();
+		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_LOCATION], p[0], p[1], p[2]);
+	}
+
+	if ((selectedType == COMPONENT_CAMERA) || 
+		(autoRotate && selected->AutoRotate && (selectedType == COMPONENT_MODEL)))
+	{
+		glm::vec3 r = selected->Rotation();
+		this->setPropertyXYZ(Utils::PROPERTY_IDS[PROPERTY_ID_ROTATION], r[0], r[1], r[2]);
+	}
+
+	return 0;
+}
+
+/*int WindowFrame::UpdateProperties()
 {
 	Component* selected = (SceneManager::SelectedChild != nullptr ? SceneManager::SelectedChild : SceneManager::SelectedComponent);
 
@@ -976,9 +1001,9 @@ int WindowFrame::UpdateProperties()
 	}
 
 	return 0;
-}
+}*/
 
-int WindowFrame::updatePropertiesLightSources(Component* selected)
+/*int WindowFrame::updatePropertiesLightSources(Component* selected)
 {
 	Attenuation  attenuation;
 	glm::vec3    direction;
@@ -1030,4 +1055,4 @@ int WindowFrame::updatePropertiesLightSources(Component* selected)
 	}
 
 	return 0;
-}
+}*/

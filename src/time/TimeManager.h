@@ -21,6 +21,7 @@ private:
 
 public:
 	static void Start();
+	static long TimeElapsedMS();
 	static void UpdateFPS();
 
 };

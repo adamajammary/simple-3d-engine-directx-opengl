@@ -38,8 +38,12 @@ void PhysicsEngine::Update()
 	for (auto component : SceneManager::Components)
 	{
 		for (auto child : component->Children) {
-			if ((child != nullptr) && child->AutoRotate)
+			if ((child != nullptr) && child->AutoRotate) {
 				child->RotateBy(child->AutoRotation);
+
+				if (TimeManager::TimeElapsedMS() % 100 < 20)
+					RenderEngine::Canvas.Window->UpdateProperties(true);
+			}
 		}
 	}
 }

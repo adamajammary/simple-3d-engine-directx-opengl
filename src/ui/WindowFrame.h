@@ -42,7 +42,7 @@ public:
 	void     SetCanvas(wxGLCanvas* canvas);
 	void     SetGraphicsAPI(int index);
 	int      UpdateComponents(wxPGProperty* property);
-	int      UpdateProperties();
+	int      UpdateProperties(bool autoRotate = false);
 
 private:
 	void          addAds(wxBoxSizer* sizer);
@@ -63,10 +63,10 @@ private:
 	void          addTextLabel(wxBoxSizer* sizer, wxString text, int flag, int border = 0);
 	int           init();
 	int           initPropertiesLightSources(Component* selected);
+	void          initPropertiesTextures(Component* selected);
 	void          setPropertyXYZ(const wxString &id, float x, float y, float z);
 	glm::vec3     updatePropertyXYZ(const wxString &id, float value, const glm::vec3 &values);
-	int           updatePropertiesLightSources(Component* selected);
-	void          initPropertiesTextures(Component* selected);
+	//int           updatePropertiesLightSources(Component* selected);
 
 	wxDECLARE_EVENT_TABLE();
 
