@@ -623,7 +623,7 @@ int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels
 	UINT        mipLevels;
 	UINT        arraySize   = (fboType == FBO_UNKNOWN ? (UINT)pixels.size() : 1);
 	UINT        bindFlags   = D3D11_BIND_SHADER_RESOURCE;
-	TextureType textureType = texture->GetTextureType();
+	TextureType textureType = texture->Type();
 
 	switch (fboType) {
 		case FBO_DEPTH: bindFlags |= D3D11_BIND_DEPTH_STENCIL; break;
@@ -778,7 +778,7 @@ int DXContext::CreateTexture12(FBOType fboType, const std::vector<BYTE*> &pixels
 	D3D12_RESOURCE_STATES shaderState   = (D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	D3D12_RESOURCE_STATES resourceState = shaderState;
 	D3D12_RESOURCE_FLAGS  resourceFlags = D3D12_RESOURCE_FLAG_NONE;
-	TextureType           textureType   = texture->GetTextureType();
+	TextureType           textureType   = texture->Type();
 
 	switch (fboType) {
 		case FBO_COLOR: resourceFlags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET; break;
@@ -1287,12 +1287,12 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
 				}
 				
-				if ((n == 0) && (texture->GetTextureType() != TEXTURE_2D)) {
+				if ((n == 0) && (texture->Type() != TEXTURE_2D)) {
 					texture                 = SceneManager::EmptyTexture;
 					depthTextureSamplers[n] = texture->SamplerState11;
 				}
 
-				if ((n == 1) && (texture->GetTextureType() != TEXTURE_CUBEMAP)) {
+				if ((n == 1) && (texture->Type() != TEXTURE_CUBEMAP)) {
 					texture                 = SceneManager::EmptyCubemap;
 					depthTextureSamplers[n] = texture->SamplerState11;
 				}
@@ -1435,12 +1435,12 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
 				}
 				
-				if ((n == 0) && (texture->GetTextureType() != TEXTURE_2D)) {
+				if ((n == 0) && (texture->Type() != TEXTURE_2D)) {
 					texture     = SceneManager::EmptyTexture;
 					samplerDesc = texture->SamplerDesc12;
 				}
 
-				if ((n == 1) && (texture->GetTextureType() != TEXTURE_CUBEMAP)) {
+				if ((n == 1) && (texture->Type() != TEXTURE_CUBEMAP)) {
 					texture     = SceneManager::EmptyCubemap;
 					samplerDesc = texture->SamplerDesc12;
 				}
@@ -1460,7 +1460,7 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	}
 
 	// SHADER ROOT SIGNATURES
-	switch (properties.FboType) {
+	switch (properties.FBO->Type()) {
 		case FBO_COLOR: this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesColorDX12[shaderID]); break;
 		case FBO_DEPTH: this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesDepthDX12[shaderID]); break;
 		default:        this->commandList->SetGraphicsRootSignature(vertexBuffer->RootSignaturesDX12[shaderID]);      break;
@@ -1481,7 +1481,7 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	this->commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 	this->commandList->IASetPrimitiveTopology((D3D_PRIMITIVE_TOPOLOGY)RenderEngine::GetDrawMode());
 
-	switch (properties.FboType) {
+	switch (properties.FBO->Type()) {
 		case FBO_COLOR: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesColorDX12[shaderID]); break;
 		case FBO_DEPTH: this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDepthDX12[shaderID]); break;
 		default:        this->commandList->SetPipelineState(vertexBuffer->PipelineStatesDX12[shaderID]);      break;

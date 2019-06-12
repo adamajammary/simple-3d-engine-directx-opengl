@@ -13,17 +13,17 @@ bool                    RenderEngine::Ready               = false;
 std::vector<Component*> RenderEngine::Renderables;
 GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
 
-void RenderEngine::clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
+void RenderEngine::clear(const glm::vec4 &colorRGBA, const DrawProperties &properties)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear11(colorRGBA, fbo);
+			RenderEngine::Canvas.DX->Clear11(colorRGBA, properties.FBO);
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear12(colorRGBA, fbo);
+			RenderEngine::Canvas.DX->Clear12(colorRGBA, properties.FBO);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
@@ -33,7 +33,7 @@ void RenderEngine::clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo, VkCommand
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK != nullptr)
-			RenderEngine::Canvas.VK->Clear(colorRGBA, fbo, cmdBuffer);
+			RenderEngine::Canvas.VK->Clear(colorRGBA, properties);
 		break;
 	}
 }
@@ -89,7 +89,7 @@ void RenderEngine::createDepthFBO()
 		DrawProperties drawProperties = {};
 
 		drawProperties.DepthLayer = i;
-		drawProperties.FboType    = FBO_DEPTH;
+		drawProperties.FBO        = fbo;
 		drawProperties.Light      = light;
 
 		if (light->SourceType() == ID_ICON_LIGHT_POINT)
@@ -108,13 +108,18 @@ void RenderEngine::createDepthFBO()
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
 		// CLEAR
-		if ((light->SourceType() == ID_ICON_LIGHT_DIRECTIONAL) || !cleared) {
-			RenderEngine::clear(CLEAR_VALUE_DEPTH, fbo, cmdBuffer);
-			cleared = true;
+		if ((RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL) &&
+			(light->SourceType() == ID_ICON_LIGHT_POINT))
+		{
+			if (!cleared) {
+				RenderEngine::clear(CLEAR_VALUE_DEPTH, drawProperties);
+				cleared = true;
+			}
+		} else {
+			RenderEngine::clear(CLEAR_VALUE_DEPTH, drawProperties);
 		}
 
 		// DRAW
-		//RenderEngine::drawTerrains(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
 
 		// UNBIND
@@ -154,12 +159,12 @@ void RenderEngine::createWaterFBOs()
 		DrawProperties drawProperties = {};
 
 		drawProperties.EnableClipping  = true;
-		drawProperties.FboType         = FBO_COLOR;
+		drawProperties.FBO             = water->FBO()->ReflectionFBO();
 		drawProperties.ClipMax         = glm::vec3(scale.x,  scale.y,    scale.z);
 		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
-		RenderEngine::clear(CLEAR_VALUE_COLOR, water->FBO()->ReflectionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
@@ -180,8 +185,9 @@ void RenderEngine::createWaterFBOs()
 
 		drawProperties.ClipMax = glm::vec3(scale.x,  position.y, scale.z);
 		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
+		drawProperties.FBO     = water->FBO()->RefractionFBO();
 
-		RenderEngine::clear(CLEAR_VALUE_COLOR, water->FBO()->RefractionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
 
 		RenderEngine::drawSkybox(drawProperties);
 		RenderEngine::drawRenderables(drawProperties);
@@ -198,7 +204,7 @@ void RenderEngine::Draw()
 	RenderEngine::createDepthFBO();
 	RenderEngine::createWaterFBOs();
 
-	RenderEngine::clear(CLEAR_VALUE_DEFAULT);
+	RenderEngine::clear(CLEAR_VALUE_DEFAULT, {});
 	RenderEngine::drawScene();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -420,7 +426,7 @@ void RenderEngine::drawMeshes(const std::vector<Component*> meshes, DrawProperti
 		}
 
 		// SKIP RENDERING WATER WHEN CREATING FBO
-		if ((properties.FboType != FBO_UNKNOWN) && (mesh->Type() == COMPONENT_WATER))
+		if ((mesh->Type() == COMPONENT_WATER) && (properties.FBO != nullptr) && (properties.FBO->Type() != FBO_UNKNOWN))
 			continue;
 
 		glm::vec4 oldColor = mesh->ComponentMaterial.diffuse;
@@ -513,8 +519,8 @@ int RenderEngine::initResources()
 	if (!SceneManager::EmptyTexture->IsOK() || !SceneManager::EmptyCubemap->IsOK())
 		return -1;
 
-	SceneManager::DepthMap2D   = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D);
-	SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP);
+	SceneManager::DepthMap2D   = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D_ARRAY);
+	SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP_ARRAY);
 
 	if ((SceneManager::DepthMap2D->GetTexture() == nullptr) || (SceneManager::DepthMapCube->GetTexture() == nullptr))
 		return -2;

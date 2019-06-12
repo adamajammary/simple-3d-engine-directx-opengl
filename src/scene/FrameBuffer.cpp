@@ -68,13 +68,10 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 	glBindFramebuffer(GL_FRAMEBUFFER, this->fbo);
 
 	GLenum buffers[1];
-	GLenum glTextureType;
 
 	switch (this->type) {
 	case FBO_COLOR:
-		glTextureType = (textureType == TEXTURE_2D ? GL_TEXTURE_2D : GL_TEXTURE_CUBE_MAP);
-
-		this->texture = new Texture(GL_SRGB8, glTextureType, this->size);
+		this->texture = new Texture(GL_SRGB8, textureType, this->size);
 			//GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, glTextureType, GL_COLOR_ATTACHMENT0,
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->texture->ID(), 0);
@@ -84,9 +81,7 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 
 		break;
 	case FBO_DEPTH:
-		glTextureType = (textureType == TEXTURE_2D ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_CUBE_MAP_ARRAY);
-
-		this->texture = new Texture(GL_DEPTH_COMPONENT16, glTextureType, this->size);
+		this->texture = new Texture(GL_DEPTH_COMPONENT16, textureType, this->size);
 			//GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_FLOAT, glTextureType, GL_DEPTH_ATTACHMENT,
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->texture->ID(), 0);
@@ -106,14 +101,10 @@ void FrameBuffer::createTextureVK(TextureType textureType)
 {
 	switch (this->type) {
 	case FBO_COLOR:
-		this->texture = new Texture(
-			this->type, textureType, VK_FORMAT_R8G8B8A8_SRGB, this->size.GetWidth(), this->size.GetHeight()
-		);
+		this->texture = new Texture(this->type, textureType, VK_FORMAT_R8G8B8A8_SRGB, this->size);
 		break;
 	case FBO_DEPTH:
-		this->texture = new Texture(
-			this->type, textureType, VK_FORMAT_R8G8B8A8_UNORM, this->size.GetWidth(), this->size.GetHeight()
-		);
+		this->texture = new Texture(this->type, textureType, VK_FORMAT_D16_UNORM, this->size);
 		break;
 	default:
 		throw;
@@ -140,7 +131,7 @@ void FrameBuffer::Bind(int depthLayer)
 		glViewport(0, 0, this->size.GetWidth(), this->size.GetHeight());
 		glBindFramebuffer(GL_FRAMEBUFFER, this->fbo);
 
-		if (this->texture->Type() == GL_TEXTURE_2D_ARRAY)
+		if (this->texture->Type() == TEXTURE_2D_ARRAY)
 			glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->texture->ID(), 0, depthLayer);
 
 		break;

@@ -20,6 +20,7 @@ private:
 	wxString       name;
 	GLuint         program;
 	VkShaderModule vulkanFS;
+	VkShaderModule vulkanGS;
 	VkShaderModule vulkanVS;
 
 	#if defined _WINDOWS
@@ -42,6 +43,7 @@ public:
 	int            UpdateUniformsGL(Component* mesh, const DrawProperties &properties = {});
 	int            UpdateUniformsVK(VkDevice deviceContext, Component* mesh, const VKUniform &uniform, const DrawProperties &properties = {});
 	VkShaderModule VulkanFS();
+	VkShaderModule VulkanGS();
 	VkShaderModule VulkanVS();
 
 	#if defined _WINDOWS

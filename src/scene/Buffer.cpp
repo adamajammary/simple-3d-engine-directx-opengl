@@ -343,8 +343,7 @@ Buffer::~Buffer()
 
 	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
 		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.Pipelines[i]);
-		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.PipelinesColorFBO[i]);
-		//RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.PipelinesDepthFBO[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&this->Pipeline.PipelinesFBO[i]);
 	}
 
 	RenderEngine::Canvas.VK->DestroyPipelineLayout(&this->Pipeline.Layout);
@@ -406,8 +405,7 @@ void Buffer::ResetPipelines()
 {
 	for (uint32_t i = 0; i < NR_OF_SHADERS; i++) {
 		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.Pipelines[i]);
-		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.PipelinesColorFBO[i]);
-		//RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.PipelinesDepthFBO[i]);
+		RenderEngine::Canvas.VK->DestroyPipeline(&Pipeline.PipelinesFBO[i]);
 	}
 
 	RenderEngine::Canvas.VK->DestroyBuffer(&this->VertexBuffer, &this->VertexBufferMemory);

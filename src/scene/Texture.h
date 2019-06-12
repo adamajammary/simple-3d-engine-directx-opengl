@@ -11,9 +11,8 @@ public:
 	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, int width, int height);
-	//Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum textureType, GLenum attachment, int width, int height);
-	Texture(GLint format, GLenum textureType, const wxSize &size);
+	Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, const wxSize &size);
+	Texture(GLint format, TextureType textureType, const wxSize &size);
 	Texture();
 	~Texture();
 
@@ -23,6 +22,8 @@ public:
 
 public:
 	VkFramebuffer       BufferVK;
+	VkFramebuffer       DepthBuffers[MAX_LIGHT_SOURCES];
+	VkImageView         DepthViews[MAX_LIGHT_SOURCES];
 	VkImage             Image;
 	VkDeviceMemory      ImageMemory;
 	VkImageView         ImageView;
@@ -52,9 +53,9 @@ private:
 	bool                  repeat;
 	wxSize                size;
 	bool                  srgb;
-	TextureType           textureType;
+	TextureType           type;
 	bool                  transparent;
-	GLenum                type;
+	GLenum                glType;
 
 	#if defined _WINDOWS
 		D3D11_VIEWPORT      bufferViewPort11;
@@ -65,7 +66,6 @@ private:
 public:
 	VkViewport  BufferViewPort();
 	bool        FlipY();
-	TextureType GetTextureType();
 	GLuint      ID();
 	wxString    ImageFile(int index = 0);
 	bool        IsOK();
@@ -77,7 +77,8 @@ public:
 	wxSize      Size();
 	bool        SRGB();
 	bool        Transparent();
-	GLenum      Type();
+	TextureType Type();
+	GLenum      TypeGL();
 
 	#if defined _WINDOWS
 		D3D11_VIEWPORT BufferViewPort11();

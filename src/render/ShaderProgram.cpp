@@ -5,6 +5,7 @@ ShaderProgram::ShaderProgram(const wxString &name)
 	this->name          = name;
 	this->program       = 0;
 	this->vulkanFS      = nullptr;
+	this->vulkanGS      = nullptr;
 	this->vulkanVS      = nullptr;
 
 	#if defined _WINDOWS
@@ -31,6 +32,7 @@ ShaderProgram::~ShaderProgram()
 		glDeleteProgram(this->program);
 
 	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanFS);
+	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanGS);
 	RenderEngine::Canvas.VK->DestroyShaderModule(&this->vulkanVS);
 }
 
@@ -204,7 +206,7 @@ int ShaderProgram::LoadAndLink(const wxString &vs, const wxString &fs, const wxS
 		if (RenderEngine::Canvas.VK->CreateShaderModule(vs, "vert", &this->vulkanVS) < 0)
 			return -10;
 
-		if (!gs.empty() && (RenderEngine::Canvas.VK->CreateShaderModule(gs, "geom", &this->vulkanVS) < 0))
+		if (!gs.empty() && (RenderEngine::Canvas.VK->CreateShaderModule(gs, "geom", &this->vulkanGS) < 0))
 			return -11;
 
 		if (RenderEngine::Canvas.VK->CreateShaderModule(fs, "frag", &this->vulkanFS) < 0)
@@ -521,7 +523,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 
 		break;
 	case SHADER_ID_DEPTH_OMNI:
-		cbDepth = CBDepth(properties.Light->Position(), properties.DepthLayer);
+		cbDepth = CBDepth(properties.Light->GetLight().position, -1);
 
 		result = ShaderProgram::updateUniformsVK(
 			UBO_VK_DEPTH, UBO_BINDING_DEFAULT, uniform, &cbDepth, sizeof(cbDepth), deviceContext, mesh
@@ -556,11 +558,6 @@ int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding bin
 	if ((deviceContext == nullptr) || (mesh == nullptr))
 		return -1;
 
-	//Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
-
-	//if (vertexBuffer == nullptr)
-	//	return -2;
-
 	void*                  bufferMemData       = nullptr;
 	VkBuffer               uniformBuffer       = uniform.Buffers[type];
 	VkDescriptorBufferInfo uniformBufferInfo   = {};
@@ -578,7 +575,6 @@ int ShaderProgram::updateUniformsVK(UniformBufferTypeVK type, UniformBinding bin
 	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uniformWriteSet.descriptorCount = 1;
 	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
-	//uniformWriteSet.dstArrayElement = 0;
 
 	// Copy values to device local buffer
 	VkResult result = vkMapMemory(deviceContext, uniformBufferMemory, 0, VK_WHOLE_SIZE, 0, &bufferMemData);
@@ -603,26 +599,16 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 	if ((deviceContext == nullptr) || (mesh == nullptr) || (uniformSet == nullptr))
 		return -1;
 
-	//Buffer* vertexBuffer = dynamic_cast<Mesh*>(mesh)->VertexBuffer();
-
-	//if (vertexBuffer == nullptr)
-	//	return -2;
-
-	ShaderID               shaderID                         = this->ID();
-	VkDescriptorBufferInfo uniformBufferInfo                = {};
-	VkDescriptorImageInfo  uniformTextureInfo[MAX_TEXTURES] = {};
-	VkWriteDescriptorSet   uniformWriteSet                  = {};
-
-	uniformBufferInfo.range = VK_WHOLE_SIZE;
+	ShaderID              shaderID                         = this->ID();
+	VkDescriptorImageInfo uniformTextureInfo[MAX_TEXTURES] = {};
+	VkWriteDescriptorSet  uniformWriteSet                  = {};
 
 	uniformWriteSet.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 	uniformWriteSet.dstSet          = uniformSet;
 	uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	uniformWriteSet.descriptorCount = 1;
-	uniformWriteSet.pBufferInfo     = &uniformBufferInfo;
-	//uniformWriteSet.dstArrayElement = 0;
 
-	// MESH TEXTURES
+	// BIND MESH TEXTURES
 	switch (shaderID) {
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
@@ -634,13 +620,11 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 			uniformTextureInfo[i].sampler     = mesh->Textures[i]->Sampler;
 		}
 
-		// BINDING 2: TEXTURE SAMPLERS
+		// BIND 2D TEXTURE
 		uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		uniformWriteSet.descriptorCount = MAX_TEXTURES;
 		uniformWriteSet.dstBinding      = UBO_BINDING_TEXTURES;
-		uniformWriteSet.pBufferInfo     = nullptr;
 		uniformWriteSet.pImageInfo      = uniformTextureInfo;
-		//uniformWriteSet.pTexelBufferView = nullptr;
 
 		vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
 
@@ -652,54 +636,31 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 	// BIND DEPTH MAP TEXTURES
 	if (shaderID == SHADER_ID_DEFAULT)
 	{
-		// n0: 2D textures (dir lights), n1: Cube Map textures (point lights)
-		for (int n = 0; n < 2; n++)
-		{
-			VkDescriptorImageInfo uniformDepthInfo[MAX_LIGHT_SOURCES] = {};
+		VkDescriptorImageInfo uniformDepthInfo = {};
 
-			// Light sources
-			for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
-			{
-				Texture*     texture;
-				FrameBuffer* fbo   = nullptr;
-				LightSource* light = SceneManager::LightSources[i];
+		// BIND DEPTH MAP - 2D TEXTURE ARRAY
+		uniformDepthInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		uniformDepthInfo.imageView   = SceneManager::DepthMap2D->GetTexture()->ImageView;
+		uniformDepthInfo.sampler     = SceneManager::DepthMap2D->GetTexture()->Sampler;
 
-				if (light != nullptr)
-				{
-					switch (light->SourceType()) {
-						case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
-						case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
-						case ID_ICON_LIGHT_SPOT: break;
-						default: throw;
-					}
-				}
+		uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		uniformWriteSet.descriptorCount = 1;
+		uniformWriteSet.dstBinding      = UBO_BINDING_DEPTH_2D;
+		uniformWriteSet.pImageInfo      = &uniformDepthInfo;
 
-				if ((light != nullptr) && (fbo != nullptr))
-					texture = fbo->GetTexture();
-				else
-					texture = (n == 0 ? SceneManager::EmptyTexture : SceneManager::EmptyCubemap);
-				
-				if ((n == 0) && (texture->GetTextureType() != TEXTURE_2D))
-					texture = SceneManager::EmptyTexture;
+		vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
 
-				if ((n == 1) && (texture->GetTextureType() != TEXTURE_CUBEMAP))
-					texture = SceneManager::EmptyCubemap;
+		// BIND DEPTH MAP - CUBE MAP ARRAY
+		uniformDepthInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		uniformDepthInfo.imageView   = SceneManager::DepthMapCube->GetTexture()->ImageView;
+		uniformDepthInfo.sampler     = SceneManager::DepthMapCube->GetTexture()->Sampler;
 
-				uniformDepthInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				uniformDepthInfo[i].imageView   = texture->ImageView;
-				uniformDepthInfo[i].sampler     = texture->Sampler;
-			}
+		uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		uniformWriteSet.descriptorCount = 1;
+		uniformWriteSet.dstBinding      = UBO_BINDING_DEPTH_CUBEMAPS;
+		uniformWriteSet.pImageInfo      = &uniformDepthInfo;
 
-			// BINDINGS 3-4: DEPTH MAP SAMPLERS (2D + CUBE MAPS)
-			uniformWriteSet.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			uniformWriteSet.descriptorCount = MAX_LIGHT_SOURCES;
-			uniformWriteSet.dstBinding      = (UBO_BINDING_DEPTH_2D + n);
-			uniformWriteSet.pBufferInfo     = nullptr;
-			uniformWriteSet.pImageInfo      = uniformDepthInfo;
-			//uniformWriteSet.pTexelBufferView = nullptr;
-
-			vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
-		}
+		vkUpdateDescriptorSets(deviceContext, 1, &uniformWriteSet, 0, nullptr);
 	}
 
 	return 0;
@@ -789,6 +750,11 @@ ID3DBlob* ShaderProgram::VS()
 VkShaderModule ShaderProgram::VulkanFS()
 {
 	return this->vulkanFS;
+}
+
+VkShaderModule ShaderProgram::VulkanGS()
+{
+	return this->vulkanGS;
 }
 
 VkShaderModule ShaderProgram::VulkanVS()

@@ -93,6 +93,7 @@ struct CBMatrix;
 class BoundingVolume;
 class Buffer;
 class Component;
+class FrameBuffer;
 class LightSource;
 class DXContext;
 class Mesh;
@@ -279,7 +280,12 @@ enum ShaderID
 
 enum TextureType
 {
-	TEXTURE_UNKNOWN = -1, TEXTURE_2D, TEXTURE_CUBEMAP, NR_OF_TEXTURE_TYPES
+	TEXTURE_UNKNOWN = -1,
+	TEXTURE_2D,
+	TEXTURE_2D_ARRAY,
+	TEXTURE_CUBEMAP,
+	TEXTURE_CUBEMAP_ARRAY,
+	NR_OF_TEXTURE_TYPES
 };
 
 enum RootSignatureTypeDX12
@@ -323,7 +329,7 @@ struct DrawProperties
 	bool            DrawBoundingVolume = false;
 	bool            DrawSelected       = false;
 	bool            EnableClipping     = false;
-	FBOType         FboType            = FBO_UNKNOWN;
+	FrameBuffer*    FBO                = nullptr;
 	LightSource*    Light              = nullptr;
 	ShaderID        Shader             = SHADER_ID_UNKNOWN;
 	VkCommandBuffer VKCommandBuffer    = nullptr;
@@ -373,8 +379,7 @@ struct VKPipeline
 {
 	VkPipelineLayout Layout;
 	VkPipeline       Pipelines[NR_OF_SHADERS];
-	VkPipeline       PipelinesColorFBO[NR_OF_SHADERS];
-	//VkPipeline       PipelinesDepthFBO[NR_OF_SHADERS];
+	VkPipeline       PipelinesFBO[NR_OF_SHADERS];
 };
 
 struct VKUniform

@@ -601,6 +601,17 @@ uint8_t Utils::ToByte(uint64_t number, int byteIndex)
 	return ((number >> (byteIndex * 8)) & 0xFF);
 }
 
+GLenum Utils::ToGlTextureType(TextureType textureType)
+{
+	switch (textureType) {
+		case TEXTURE_2D:            return GL_TEXTURE_2D;
+		case TEXTURE_2D_ARRAY:      return GL_TEXTURE_2D_ARRAY;
+		case TEXTURE_CUBEMAP:       return GL_TEXTURE_CUBE_MAP;
+		case TEXTURE_CUBEMAP_ARRAY: return GL_TEXTURE_CUBE_MAP_ARRAY;
+		default: throw;
+	}
+}
+
 float Utils::ToRadians(float degrees)
 {
     return (degrees * glm::pi<float>() / 180.0f);
@@ -753,6 +764,17 @@ std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices,
 	}
 
 	return data;
+}
+
+VkImageViewType Utils::ToVkImageViewType(TextureType textureType)
+{
+	switch (textureType) {
+		case TEXTURE_2D:            return VK_IMAGE_VIEW_TYPE_2D;
+		case TEXTURE_CUBEMAP:       return VK_IMAGE_VIEW_TYPE_CUBE;
+		case TEXTURE_2D_ARRAY:      return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		case TEXTURE_CUBEMAP_ARRAY: return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+		default: throw;
+	}
 }
 
 wxColour Utils::ToWxColour(const wxVariant &color)

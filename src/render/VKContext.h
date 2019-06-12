@@ -104,13 +104,13 @@ private:
 	#endif
 
 public:
-	void            Clear(const glm::vec4 &colorRGBA, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	void            Clear(const glm::vec4 &colorRGBA, const DrawProperties& properties);
 	VkCommandBuffer CommandBufferBegin();
 	void            CommandBufferEnd(VkCommandBuffer cmdBuffer);
 	int             CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* buffer);
 	int             CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
 	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture, VkFormat imageFormat);
-	int             CreateTextureBuffer(FBOType fboType, TextureType textureType, VkFormat imageFormat, Texture* texture);
+	int             CreateTextureBuffer(FBOType fboType, VkFormat imageFormat, Texture* texture);
 	int             CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	void            DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void            DestroyFramebuffer(VkFramebuffer* frameBuffer);
@@ -135,7 +135,7 @@ private:
 	int                                    createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, TextureType textureType, VkImage* image, VkDeviceMemory* imageMemory);
 	VkSampler                              createImageSampler(float mipLevels, float sampleCount, VkSamplerCreateInfo &samplerInfo);
-	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, TextureType textureType, VkImageAspectFlags aspectFlags);
+	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, VkImageAspectFlags aspectFlags, uint32_t mipLevels, VkImageViewType viewType, uint32_t layerCount = 1, uint32_t layer = 0);
 	int                                    createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
 	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, FBOType fboType, const std::vector<VkVertexInputAttributeDescription> &attribsDescs, const VkVertexInputBindingDescription &attribsBindingDesc);
 	int                                    createPipelineLayout(Buffer* buffer);
@@ -146,7 +146,7 @@ private:
 	bool                                   deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
 	bool                                   deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                               getApiVersion(VkPhysicalDevice device);
-	VkFormat                               getDepthBufferFormat();
+	//VkFormat                               getDepthBufferFormat();
 	VkPhysicalDevice                       getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
 	wxString                               getDeviceName(VkPhysicalDevice device);
 	std::vector<VKQueue*>                  getDeviceQueueSupport(VkPhysicalDevice device);

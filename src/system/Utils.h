@@ -75,6 +75,7 @@ public:
 	static int                      SaveDataToFile(const std::vector<uint8_t> &data, const wxString &file, uint64_t size = 0);
 	static int                      SaveTextToFile(const wxString &text, const wxString &file);
 	static uint8_t                  ToByte(uint64_t number, int byteIndex);
+	static GLenum                   ToGlTextureType(TextureType textureType);
 	static float                    ToRadians(float degrees);
 	static float                    ToDegrees(float radians);
 	static float                    ToFloat(bool boolean);
@@ -92,6 +93,7 @@ public:
 	static glm::vec4                ToVec4Float(bool boolean);
 	static glm::vec4                ToVec4Float(int integer);
 	static std::vector<float>       ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords);
+	static VkImageViewType          ToVkImageViewType(TextureType textureType);
 	static wxColour                 ToWxColour(const wxVariant &color);
 	static wxColour                 ToWxColour(const glm::vec3 &color);
 	static wxColour                 ToWxColour(const glm::vec4 &color);

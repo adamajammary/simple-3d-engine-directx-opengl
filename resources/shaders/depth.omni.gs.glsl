@@ -24,7 +24,8 @@ void main()
 {
 	for (int face = 0; face < MAX_TEXTURES; face++)
 	{
-		gl_Layer = (int(db.lightPosition.w) * MAX_TEXTURES + face);
+		int layer = int(db.lightPosition.w);
+		gl_Layer  = (layer >= 0 ? (layer * MAX_TEXTURES + face) : face);
 
 		for (int vertex = 0; vertex < VERTICES_PER_FACE; vertex++)
 		{
