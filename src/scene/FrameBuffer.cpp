@@ -41,15 +41,10 @@ void FrameBuffer::createTextureDX(TextureType textureType)
 {
 	switch (this->type) {
 	case FBO_COLOR:
-		this->texture = new Texture(
-			this->type, textureType, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size.GetWidth(), this->size.GetHeight()
-		);
+		this->texture = new Texture(this->type, textureType, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, this->size);
 		break;
 	case FBO_DEPTH:
-		//DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_D32_FLOAT_S8X24_UINT, DXGI_FORMAT_D24_UNORM_S8_UINT
-		this->texture = new Texture(
-			this->type, textureType, DXGI_FORMAT_R32_TYPELESS, this->size.GetWidth(), this->size.GetHeight()
-		);
+		this->texture = new Texture(this->type, textureType, DXGI_FORMAT_R16_TYPELESS, this->size);
 		break;
 	default:
 		throw;
@@ -72,7 +67,6 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 	switch (this->type) {
 	case FBO_COLOR:
 		this->texture = new Texture(GL_SRGB8, textureType, this->size);
-			//GL_SRGB8, GL_RGB, GL_UNSIGNED_BYTE, glTextureType, GL_COLOR_ATTACHMENT0,
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, this->texture->ID(), 0);
 
@@ -82,7 +76,6 @@ void FrameBuffer::createTextureGL(TextureType textureType)
 		break;
 	case FBO_DEPTH:
 		this->texture = new Texture(GL_DEPTH_COMPONENT16, textureType, this->size);
-			//GL_DEPTH_COMPONENT24, GL_DEPTH_COMPONENT, GL_FLOAT, glTextureType, GL_DEPTH_ATTACHMENT,
 
 		glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, this->texture->ID(), 0);
 
@@ -116,10 +109,10 @@ void FrameBuffer::Bind(int depthLayer)
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		RenderEngine::Canvas.DX->Bind11(this->type, this->texture);
+		RenderEngine::Canvas.DX->Bind11(this->type, this->texture, depthLayer);
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		RenderEngine::Canvas.DX->Bind12(this->type, this->texture);
+		RenderEngine::Canvas.DX->Bind12(this->type, this->texture, depthLayer);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:

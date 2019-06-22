@@ -155,14 +155,14 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 }
 
 // FRAMEBUFFER TEXTURE (DIRECTX)
-Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, int width, int height)
+Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, const wxSize &size)
 {
 	int                result;
 	D3D11_SAMPLER_DESC samplerDesc11 = {};
 
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
-	this->size        = { width, height };
+	this->size        = size;
 	this->srgb        = false;
 	this->type        = textureType;
 	this->transparent = false;
@@ -172,43 +172,30 @@ Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, i
 	case GRAPHICS_API_DIRECTX11:
 		this->bufferViewPort11.TopLeftX = 0.0f;
 		this->bufferViewPort11.TopLeftY = 0.0f;
-		this->bufferViewPort11.Width    = (FLOAT)width;
-		this->bufferViewPort11.Height   = (FLOAT)height;
+		this->bufferViewPort11.Width    = (FLOAT)this->size.GetWidth();
+		this->bufferViewPort11.Height   = (FLOAT)this->size.GetHeight();
 		this->bufferViewPort11.MinDepth = 0.0f;
 		this->bufferViewPort11.MaxDepth = 1.0f;
 
 		samplerDesc11.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
 
 		switch (this->type) {
-		case TEXTURE_2D:
-			switch (fboType) {
-			case FBO_COLOR:
-				samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-				samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-				samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		case TEXTURE_2D_ARRAY:
+			samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
+			samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
+			samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
 
-				break;
-			case FBO_DEPTH:
-				samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_BORDER;
-				samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_BORDER;
-				samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_BORDER;
-
-				// SET BORDER VALUES FOR CLAMP WRAPPING
-				for (int i = 0; i < 4; i++)
-					samplerDesc11.BorderColor[i] = 1.0f;
-
-				break;
-			}
+			// SET BORDER VALUES FOR CLAMP WRAPPING
+			for (int i = 0; i < 4; i++)
+				samplerDesc11.BorderColor[i] = 1.0f;
 
 			break;
-		case TEXTURE_CUBEMAP:
+		default:
 			samplerDesc11.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 			samplerDesc11.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 			samplerDesc11.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
 
 			break;
-		default:
-			throw;
 		}
 
 		result = RenderEngine::Canvas.DX->CreateTextureBuffer11(fboType, format, samplerDesc11, this);
@@ -220,43 +207,30 @@ Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, i
 	case GRAPHICS_API_DIRECTX12:
 		this->bufferViewPort12.TopLeftX = 0.0f;
 		this->bufferViewPort12.TopLeftY = 0.0f;
-		this->bufferViewPort12.Width    = (FLOAT)width;
-		this->bufferViewPort12.Height   = (FLOAT)height;
+		this->bufferViewPort12.Width    = (FLOAT)this->size.GetWidth();
+		this->bufferViewPort12.Height   = (FLOAT)this->size.GetHeight();
 		this->bufferViewPort12.MinDepth = 0.0f;
 		this->bufferViewPort12.MaxDepth = 1.0f;
 
 		this->SamplerDesc12.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
 
 		switch (this->type) {
-		case TEXTURE_2D:
-			switch (fboType) {
-			case FBO_COLOR:
-				this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-				this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-				this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		case TEXTURE_2D_ARRAY:
+			this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+			this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
 
-				break;
-			case FBO_DEPTH:
-				this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-				this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-				this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-
-				// SET BORDER VALUES FOR CLAMP WRAPPING
-				for (int i = 0; i < 4; i++)
-					this->SamplerDesc12.BorderColor[i] = 1.0f;
-
-				break;
-			}
+			// SET BORDER VALUES FOR CLAMP WRAPPING
+			for (int i = 0; i < 4; i++)
+				this->SamplerDesc12.BorderColor[i] = 1.0f;
 
 			break;
-		case TEXTURE_CUBEMAP:
+		default:
 			this->SamplerDesc12.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			this->SamplerDesc12.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 			this->SamplerDesc12.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
 
 			break;
-		default:
-			throw;
 		}
 
 		result = RenderEngine::Canvas.DX->CreateTextureBuffer12(fboType, format, this);
@@ -291,10 +265,11 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 	this->SamplerInfo.magFilter = VK_FILTER_NEAREST;
 	this->SamplerInfo.minFilter = VK_FILTER_NEAREST;
 
-	switch (textureType) {
+	switch (this->type) {
 	case TEXTURE_2D:
 		this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
 		break;
 	case TEXTURE_2D_ARRAY:
 		this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
@@ -302,12 +277,14 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 
 		// SET BORDER VALUES FOR CLAMP WRAPPING
 		this->SamplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
 		break;
 	case TEXTURE_CUBEMAP:
 	case TEXTURE_CUBEMAP_ARRAY:
 		this->SamplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		this->SamplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		this->SamplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
 		break;
 	default:
 		throw;
@@ -394,16 +371,20 @@ Texture::Texture()
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		this->ColorBuffer11  = nullptr;
-		this->DepthBuffer11  = nullptr;
 		this->Resource11     = nullptr;
 		this->samplerState11 = nullptr;
 		this->SRV11          = nullptr;
 
+		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			this->DepthBuffers11[i] = nullptr;
+
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		this->ColorBuffer12 = nullptr;
-		this->DepthBuffer12 = nullptr;
 		this->Resource12    = nullptr;
+
+		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			this->DepthBuffers12[i] = nullptr;
 
 		break;
 	#endif
@@ -436,14 +417,18 @@ Texture::~Texture()
 {
 	#if defined _WINDOWS
 		_RELEASEP(this->ColorBuffer11);
-		_RELEASEP(this->DepthBuffer11);
 		_RELEASEP(this->Resource11);
 		_RELEASEP(this->samplerState11);
 		_RELEASEP(this->SRV11);
 
+		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			_RELEASEP(this->DepthBuffers11[i]);
+
 		_RELEASEP(this->ColorBuffer12);
-		_RELEASEP(this->DepthBuffer12);
 		_RELEASEP(this->Resource12);
+
+		for (int i = 0; i < MAX_LIGHT_SOURCES; i++)
+			_RELEASEP(this->DepthBuffers12[i]);
 	#endif
 
 	if (this->id > 0)

@@ -42,20 +42,20 @@ private:
 	bool                       vSync;
 
 public:
-	void Bind11(FBOType fboType, Texture* texture);
-	void Bind12(FBOType fboType, Texture* texture);
+	void Bind11(FBOType fboType, Texture* texture, int depthLayer = 0);
+	void Bind12(FBOType fboType, Texture* texture, int depthLayer = 0);
 	void Unbind11();
 	void Unbind12(FBOType fboType, Texture* texture);
 	void Clear11(const glm::vec4 &colorRGBA);
 	void Clear12(const glm::vec4 &colorRGBA);
-	void Clear11(const glm::vec4 &colorRGBA, FrameBuffer* fbo);
-	void Clear12(const glm::vec4 &colorRGBA, FrameBuffer* fbo);
+	void Clear11(const glm::vec4 &colorRGBA, const DrawProperties &properties);
+	void Clear12(const glm::vec4 &colorRGBA, const DrawProperties &properties);
 	int  CreateConstantBuffers11(Buffer* buffer);
 	int  CreateConstantBuffers12(Buffer* buffer);
 	int  CreateIndexBuffer11(std::vector<unsigned int> &indices, Buffer* buffer);
 	int  CreateIndexBuffer12(std::vector<unsigned int> &indices, Buffer* buffer);
-	int  CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** fs, ID3D11VertexShader** shaderVS, ID3D11PixelShader** shaderFS);
-	int  CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
+	int  CreateShader11(const wxString &file, ID3DBlob** vs, ID3DBlob** gs, ID3DBlob** fs, ID3D11VertexShader** shaderVS, ID3D11GeometryShader** shaderGS, ID3D11PixelShader** shaderFS);
+	int  CreateShader12(const wxString &file, ID3DBlob** vs, ID3DBlob** gs, ID3DBlob** fs);
 	int  CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
 	int  CreateTexture12(FBOType fboType, const std::vector<BYTE*> &pixels, DXGI_FORMAT format, Texture* texture);
 	int  CreateTextureBuffer11(FBOType fboType, DXGI_FORMAT format, D3D11_SAMPLER_DESC &samplerDesc, Texture* texture);
@@ -72,7 +72,7 @@ public:
 private:
 	int                      commandsExecute();
 	int                      commandsInit();
-	int                      compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** fs);
+	int                      compileShader(const wxString &file, ID3DBlob** vs, ID3DBlob** gs, ID3DBlob** fs);
 	int                      createPipeline(ShaderProgram* shaderProgram, ID3D12PipelineState** pipeline, ID3D12RootSignature** rootSignature, FBOType fboType, const std::vector<D3D12_INPUT_ELEMENT_DESC> &attribsDescs);
 	int                      createRootSignature(ShaderProgram* shader, ID3D12RootSignature** rootSignature);
 	IDXGIAdapter*            getAdapter11(IDXGIFactory*  factory);

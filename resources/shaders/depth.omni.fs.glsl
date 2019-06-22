@@ -15,5 +15,5 @@ layout(binding = 1) uniform DepthBuffer {
 
 void main()
 {
-    gl_FragDepth = (length(FragmentPosition.xyz - db.lightPosition.xyz) / 25.0f);
+    gl_FragDepth = (length(FragmentPosition.xyz - db.lightPosition.xyz) / 25.0);
 }

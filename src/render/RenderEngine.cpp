@@ -19,11 +19,11 @@ void RenderEngine::clear(const glm::vec4 &colorRGBA, const DrawProperties &prope
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear11(colorRGBA, properties.FBO);
+			RenderEngine::Canvas.DX->Clear11(colorRGBA, properties);
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear12(colorRGBA, properties.FBO);
+			RenderEngine::Canvas.DX->Clear12(colorRGBA, properties);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:

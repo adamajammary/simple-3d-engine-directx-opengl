@@ -212,8 +212,9 @@ CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 	this->WaterProps     = Utils::ToXMFLOAT4(default.WaterProps);
 }
 
-CBDepthDX::CBDepthDX(const glm::vec3 &lightPosition, int depthLayer)
+CBDepthDX::CBDepthDX(const CBMatrix &matrices, const glm::vec3 &lightPosition, int depthLayer)
 {
+	this->MB            = CBMatrixDX(matrices);
 	this->lightPosition = Utils::ToXMFLOAT4(lightPosition, static_cast<float>(depthLayer));
 }
 
@@ -386,6 +387,7 @@ void Buffer::init()
 
 		this->ConstantBufferColor   = {};
 		this->ConstantBufferDefault = {};
+		this->ConstantBufferDepth   = {};
 		this->ConstantBufferHUD     = {};
 		this->ConstantBufferSkybox  = {};
 	#endif

@@ -17,7 +17,7 @@ public:
 	~Texture();
 
 	#if defined _WINDOWS
-		Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, int width, int height);
+		Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, const wxSize &size);
 	#endif
 
 public:
@@ -33,9 +33,9 @@ public:
 
 	#if defined _WINDOWS
 		ID3D11RenderTargetView*         ColorBuffer11;
-		ID3D11DepthStencilView*         DepthBuffer11;
+		ID3D11DepthStencilView*         DepthBuffers11[MAX_LIGHT_SOURCES];
 		ID3D12DescriptorHeap*           ColorBuffer12;
-		ID3D12DescriptorHeap*           DepthBuffer12;
+		ID3D12DescriptorHeap*           DepthBuffers12[MAX_LIGHT_SOURCES];
 		ID3D11Texture2D*                Resource11;
 		ID3D12Resource*                 Resource12;
 		D3D12_SAMPLER_DESC              SamplerDesc12;

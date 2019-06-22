@@ -47,11 +47,11 @@ cbuffer DefaultBuffer : register(b0)
 Texture2D    Textures[MAX_TEXTURES]        : register(t0);
 SamplerState TextureSamplers[MAX_TEXTURES] : register(s0);
 
-Texture2D    DepthMapTextures2D[MAX_LIGHT_SOURCES] : register(t6);
-SamplerState DepthMapTextures2DSampler             : register(s6);
+Texture2DArray DepthMapTextures2D        : register(t6);
+SamplerState   DepthMapTextures2DSampler : register(s6);
 
-TextureCube  DepthMapTexturesCube[MAX_LIGHT_SOURCES] : register(t19);
-SamplerState DepthMapTexturesCubeSampler             : register(s7);
+TextureCubeArray DepthMapTexturesCube        : register(t7);
+SamplerState     DepthMapTexturesCubeSampler : register(s7);
 
 struct VS_INPUT
 {
@@ -67,6 +67,17 @@ struct FS_INPUT
 	float4 FragmentPosition      : POSITION0;
 	float4 ClipSpace             : POSITION1;
 	float4 GL_Position           : SV_POSITION;
+};
+
+static const int NR_OF_POINT_OFFSETS = 20;
+
+float3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] =
+{
+	float3(1, 1,  1), float3( 1, -1,  1), float3(-1, -1,  1), float3(-1, 1,  1),
+	float3(1, 1, -1), float3( 1, -1, -1), float3(-1, -1, -1), float3(-1, 1, -1),
+	float3(1, 1,  0), float3( 1, -1,  0), float3(-1, -1,  0), float3(-1, 1,  0),
+	float3(1, 0,  1), float3(-1,  0,  1), float3( 1,  0, -1), float3(-1, 0, -1),
+	float3(0, 1,  1), float3( 0, -1,  1), float3( 0, -1, -1), float3( 0, 1, -1)
 };
 
 bool ClipFragment(float3 fragPos)
@@ -170,7 +181,7 @@ float4 GetMaterialColorWater(float2 fragTexCoords, float4 clipSpace, float3 came
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional light
-float GetShadowFactor(float3 lightDirection, float3 normal, Texture2D depthMapTexture, SamplerState depthMapTextureSampler, float4 positionLightSpace)
+float GetShadowFactorDir(int depthLayer, float3 lightDirection, float3 normal, float4 positionLightSpace)
 {
 	// Convert shadow map UV and Depth coordinates
     float3 shadowMapCoordinates = float3(positionLightSpace.xyz / positionLightSpace.w);    // Perspective projection divide
@@ -202,8 +213,10 @@ float GetShadowFactor(float3 lightDirection, float3 normal, Texture2D depthMapTe
 	float       shadowFactor  = 0.0;
 
 	// Width and height of the sampler texture at mipmap level 0
-    float2 texelSize;
-    depthMapTexture.GetDimensions(texelSize.x, texelSize.y);
+	float  arrayCount;
+	float2 texelSize;
+
+    DepthMapTextures2D.GetDimensions(texelSize.x, texelSize.y, arrayCount);
     texelSize = (1.0 / texelSize);
 	
 	// Sample surrounding texels (9 samples)
@@ -212,7 +225,7 @@ float GetShadowFactor(float3 lightDirection, float3 normal, Texture2D depthMapTe
         for (int y = -SAMPLE_OFFSET; y <= SAMPLE_OFFSET; y++)
 		{
             float2 texel        = float2(shadowMapCoordinates.xy + (float2(x, y) * texelSize));
-            float  closestDepth = depthMapTexture.Sample(depthMapTextureSampler, texel).r;
+            float  closestDepth = DepthMapTextures2D.Sample(DepthMapTextures2DSampler, float3(texel, depthLayer)).r;
 			
 			// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
 			// Compare current fragment with the surrounding texel's depth.
@@ -227,6 +240,42 @@ float GetShadowFactor(float3 lightDirection, float3 normal, Texture2D depthMapTe
 	const float MAX_INTENSITY = 0.75;
 	
 	return min(shadowFactor, MAX_INTENSITY);
+}
+
+// Shadow - the impact of the light on the the fragment from the perspective of the point light
+float GetShadowFactorPoint(int depthLayer, float3 fragPos, float3 lightPosition)
+{
+	// PROBLEM:  Shadow acne.
+	// REASON:   Because the shadow map is limited by resolution,
+	//           multiple fragments can sample the same value from the depth map
+	//         	 when they're relatively far away from the light source.
+	// SOLUTION: Offset depth.
+    float offsetBias = 0.15;
+
+	// PCF - Percentage-Closer Filtering
+	// Produces softer shadows, making them appear less blocky or hard.
+	float3 fragToLight  = (fragPos - lightPosition);
+	float  currentDepth = length(fragToLight);
+    float  viewDistance = length(CameraPosition.xyz - fragPos);
+    float  offsetRadius = ((1.0 + (viewDistance / 25.0)) / 25.0);
+	float  shadowFactor = 0.0;
+
+	// Add offsets to a radius around the original fragToLight direction vector to sample from the cubemap
+	for(int s = 0; s < NR_OF_POINT_OFFSETS; s++)
+    {
+		float3 texel        = (fragToLight + ShadowPointSampleOffsets[s] * offsetRadius);
+        float  closestDepth = (DepthMapTexturesCube.Sample(DepthMapTexturesCubeSampler, float4(texel, depthLayer)).r * 25.0);
+
+		// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
+		// Compare current fragment with the surrounding texel's depth.
+		if ((currentDepth - offsetBias) > closestDepth)
+            shadowFactor += 1.0;
+    }
+
+	// Average the results
+    shadowFactor /= float(NR_OF_POINT_OFFSETS);
+
+    return shadowFactor;
 }
 
 // Specular - reflects/mirrors the light direction over the normal
@@ -265,7 +314,7 @@ float4 GetDirectionalLight(int i, float3 fragPos, float3 normal, float3 viewDire
 	
 	// Shadow
     float4 positionLightSpace = mul(float4(fragPos, 1.0), light.ViewProjection);
-    float  shadowFactor       = (1.0 - GetShadowFactor(lightDirection, normal, DepthMapTextures2D[i], DepthMapTextures2DSampler, positionLightSpace));
+    float  shadowFactor       = (1.0 - GetShadowFactorDir(i, lightDirection, normal, positionLightSpace));
 	
     // Combine the light calculations
     float3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
@@ -293,16 +342,15 @@ float4 GetPointLight(int i, float3 fragPos, float3 normal, float3 viewDirection,
     float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragPos, light.Attenuation.xyz);
 	
 	// Shadow
-	//float shadow = (1.0 - GetShadow(light.Position, lightDirection, normal, light.ShadowMapTextureCube));
-	
+	float shadowFactor = (1.0 - GetShadowFactorPoint(i, fragPos, light.Position.xyz));
+
     // Combine the light calculations
     float3 ambient  = (attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     float3 diffuse  = (attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     float3 specular = (attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
-    return float4((ambient + diffuse + specular), materialColor.a);
-    //return float4((ambient + (shadow * (diffuse + specular))), materialColor.a);
-	//return GetShadow(light.position, lightDirection, normal, light.ShadowMapTextureCube);
+    //return float4((ambient + diffuse + specular), materialColor.a);
+    return float4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 float4 GetSpotLight(int i, float3 fragPos, float3 normal, float3 viewDirection, float4 materialColor, float4 materialSpec)
@@ -320,17 +368,20 @@ float4 GetSpotLight(int i, float3 fragPos, float3 normal, float3 viewDirection, 
 	
 	// Attenuation = 1 / (constant + linear * distanceToLight + quadratic * distanceToLight^2)
     float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragPos, light.Attenuation.xyz);
-	
+
 	// Spotlight intensity
     float spotLightFactor = GetSpotLightFactor(light, lightDirection);
-	
+
+	// Shadow
+	//float shadowFactor = (1.0 - GetShadowFactorSpot(i, fragPos, light.Position.xyz));
+
     // Combine the light calculations
     float3 ambient  = (spotLightFactor * attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     float3 diffuse  = (spotLightFactor * attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     float3 specular = (spotLightFactor * attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
     return float4((ambient + diffuse + specular), materialColor.a);
-    //return (float4(ambient, 1.0) + ((1.0 - GetShadow()) * (diffuse + float4(specular, 1.0))));
+	//return float4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 // HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)
@@ -398,7 +449,7 @@ FS_INPUT VS(VS_INPUT input)
 // FRAGMENT/PIXEL/COLOR SHADER
 float4 PS(FS_INPUT input) : SV_Target
 {
-	if (ClipFragment(input.FragmentPosition))
+	if (ClipFragment(input.FragmentPosition.xyz))
 		discard;
 	
 	float3 cameraView = normalize(CameraPosition.xyz - input.FragmentPosition.xyz);

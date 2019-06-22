@@ -10,8 +10,10 @@ ShaderProgram::ShaderProgram(const wxString &name)
 
 	#if defined _WINDOWS
 		this->shaderVS = nullptr;
+		this->shaderGS = nullptr;
 		this->shaderFS = nullptr;
 		this->vs       = nullptr;
+		this->gs       = nullptr;
 		this->fs       = nullptr;
 	#endif
 
@@ -23,8 +25,10 @@ ShaderProgram::~ShaderProgram()
 {
 	#if defined _WINDOWS
 		_RELEASEP(this->shaderVS);
+		_RELEASEP(this->shaderGS);
 		_RELEASEP(this->shaderFS);
 		_RELEASEP(this->vs);
+		_RELEASEP(this->gs);
 		_RELEASEP(this->fs);
 	#endif
 
@@ -45,6 +49,16 @@ ID3D11PixelShader* ShaderProgram::FragmentShader()
 ID3DBlob* ShaderProgram::FS()
 {
 	return this->fs;
+}
+
+ID3D11GeometryShader* ShaderProgram::GeometryShader()
+{
+	return this->shaderGS;
+}
+
+ID3DBlob* ShaderProgram::GS()
+{
+	return this->gs;
 }
 
 const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* mesh, const DrawProperties &properties, size_t &bufferSize)
@@ -73,6 +87,15 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		bufferValues = &vertexBuffer->ConstantBufferDefault;
 
 		break;
+	case SHADER_ID_DEPTH_OMNI:
+		vertexBuffer->ConstantBufferDepth = CBDepthDX(
+			matrices, properties.Light->GetLight().position, -1
+		);
+
+		bufferSize   = sizeof(vertexBuffer->ConstantBufferDepth);
+		bufferValues = &vertexBuffer->ConstantBufferDepth;
+
+		break;
 	case SHADER_ID_HUD:
 		vertexBuffer->ConstantBufferHUD = CBHUDDX(
 			matrices, mesh->ComponentMaterial.diffuse, dynamic_cast<HUD*>(mesh->Parent)->Transparent
@@ -82,17 +105,13 @@ const void* ShaderProgram::getBufferValues(const CBMatrix &matrices, Component* 
 		bufferValues = &vertexBuffer->ConstantBufferHUD;
 
 		break;
-	case SHADER_ID_DEPTH:
-	case SHADER_ID_DEPTH_OMNI:
-	case SHADER_ID_SKYBOX:
+	default:
 		vertexBuffer->ConstantBufferSkybox = CBSkyboxDX(matrices);
 
 		bufferSize   = sizeof(vertexBuffer->ConstantBufferSkybox);
 		bufferValues = &vertexBuffer->ConstantBufferSkybox;
 
 		break;
-	default:
-		throw;
 	}
 
 	return bufferValues;
@@ -166,10 +185,10 @@ int ShaderProgram::Load(const wxString &shaderFile)
 	#if defined _WINDOWS
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	case GRAPHICS_API_DIRECTX11:
-		result = RenderEngine::Canvas.DX->CreateShader11(shaderFile, &this->vs, &this->fs, &this->shaderVS, &this->shaderFS);
+		result = RenderEngine::Canvas.DX->CreateShader11(shaderFile, &this->vs, &this->gs, &this->fs, &this->shaderVS, &this->shaderGS, &this->shaderFS);
 		break;
 	case GRAPHICS_API_DIRECTX12:
-		result = RenderEngine::Canvas.DX->CreateShader12(shaderFile, &this->vs, &this->fs);
+		result = RenderEngine::Canvas.DX->CreateShader12(shaderFile, &this->vs, &this->gs, &this->fs);
 		break;
 	default:
 		throw;

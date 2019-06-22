@@ -24,10 +24,12 @@ private:
 	VkShaderModule vulkanVS;
 
 	#if defined _WINDOWS
-		ID3D11PixelShader*  shaderFS;
-		ID3D11VertexShader* shaderVS;
-		ID3DBlob*           fs;
-		ID3DBlob*           vs;
+		ID3D11PixelShader*    shaderFS;
+		ID3D11GeometryShader* shaderGS;
+		ID3D11VertexShader*   shaderVS;
+		ID3DBlob*             fs;
+		ID3DBlob*             gs;
+		ID3DBlob*             vs;
 	#endif
 
 public:
@@ -47,13 +49,15 @@ public:
 	VkShaderModule VulkanVS();
 
 	#if defined _WINDOWS
-		ShaderID            ID();
-		ID3DBlob*           FS();
-		ID3DBlob*           VS();
-		ID3D11PixelShader*  FragmentShader();
-		ID3D11VertexShader* VertexShader();
-		int                 UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Component* mesh, const DrawProperties &properties = {});
-		int                 UpdateUniformsDX12(Component* mesh, const DrawProperties &properties = {});
+		ShaderID              ID();
+		ID3DBlob*             FS();
+		ID3DBlob*             GS();
+		ID3DBlob*             VS();
+		ID3D11PixelShader*    FragmentShader();
+		ID3D11GeometryShader* GeometryShader();
+		ID3D11VertexShader*   VertexShader();
+		int                   UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Component* mesh, const DrawProperties &properties = {});
+		int                   UpdateUniformsDX12(Component* mesh, const DrawProperties &properties = {});
 	#endif
 
 private:

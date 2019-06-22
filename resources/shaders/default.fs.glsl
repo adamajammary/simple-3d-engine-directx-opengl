@@ -56,14 +56,14 @@ layout(binding = 4) uniform samplerCubeArray DepthMapTexturesCube;
 
 const int NR_OF_POINT_OFFSETS = 20;
 
-vec3 shadowPointSampleOffsets[NR_OF_POINT_OFFSETS] = vec3[]
-(
-   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
-   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
-   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
-   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
-   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
-);
+vec3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] =
+{
+	vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+	vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+	vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+	vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+	vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+};
 
 bool ClipFragment()
 {
@@ -247,7 +247,7 @@ float GetShadowFactorPoint(int depthLayer, vec3 lightPosition)
 	// Add offsets to a radius around the original fragToLight direction vector to sample from the cubemap
 	for(int s = 0; s < NR_OF_POINT_OFFSETS; s++)
     {
-		vec3  texel        = (fragToLight + shadowPointSampleOffsets[s] * offsetRadius);
+		vec3  texel        = (fragToLight + ShadowPointSampleOffsets[s] * offsetRadius);
         float closestDepth = (texture(DepthMapTexturesCube, vec4(texel, depthLayer)).r * 25.0);
 
 		// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).

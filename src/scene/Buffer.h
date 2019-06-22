@@ -152,9 +152,10 @@ struct CBDefaultDX
 
 struct CBDepthDX
 {
-	CBDepthDX(const glm::vec3 &lightPosition, int depthLayer);
+	CBDepthDX(const CBMatrix &matrices, const glm::vec3 &lightPosition, int depthLayer);
 	CBDepthDX() {}
 
+	CBMatrixDX        MB            = {};
 	DirectX::XMFLOAT4 lightPosition = {}; // { x, y, z, depthLayer }
 };
 
@@ -216,6 +217,7 @@ public:
 
 		CBColorDX   ConstantBufferColor;
 		CBDefaultDX ConstantBufferDefault;
+		CBDepthDX   ConstantBufferDepth;
 		CBHUDDX     ConstantBufferHUD;
 		CBSkyboxDX  ConstantBufferSkybox;
 

@@ -1,4 +1,5 @@
-static const int MAX_TEXTURES = 6;
+static const int MAX_TEXTURES      = 6;
+static const int VERTICES_PER_FACE = 3;
 
 struct CBMatrix
 {
@@ -21,35 +22,43 @@ struct VS_INPUT
 	float2 VertexTextureCoords : TEXCOORD;
 };
 
-/*
-struct GS_INPUT
+struct GS_OUTPUT
 {
-	//
+	float4 FragmentPosition : POSITION0;
+	float4 GL_Position      : SV_POSITION;
+	uint   Layer            : SV_RenderTargetArrayIndex;
 };
-
-struct FS_INPUT
-{
-	float4 position   : SV_Position;
-	float4 GL_FragPos : SV_POSITION;
-};
-*/
 
 // VERTEX SHADER
 float4 VS(VS_INPUT input) : SV_Position
 {
-    return mul(float4(input.VertexPosition, 1.0), MB.Model);
+	return mul(float4(input.VertexPosition, 1.0), MB.Model);
 }
 
 // GEOMETRY SHADER
-/*float4 GS(GS_INPUT input) : SV_Position
+[maxvertexcount(18)]
+void GS(triangle float4 inputPosition[3] : SV_Position, inout TriangleStream<GS_OUTPUT> outputStream)
 {
-	//
+	for (int face = 0; face < MAX_TEXTURES; face++)
+	{
+		GS_OUTPUT output;
+
+		output.Layer = face;
+
+		for (int vertex = 0; vertex < VERTICES_PER_FACE; vertex++)
+		{
+			output.FragmentPosition = inputPosition[vertex];
+			output.GL_Position      = mul(output.FragmentPosition, MB.VP[face]);
+
+			outputStream.Append(output);
+		}
+
+		outputStream.RestartStrip();
+	}
 }
-*/
 
 // FRAGMENT/PIXEL/COLOR SHADER
-//float PS(float4 position : SV_Position) : SV_Depth
-void PS(float4 position : SV_Position)
+float PS(GS_OUTPUT input) : SV_Depth
 {
-	//gl_FragDepth = (length(GL_FragPos.xyz - LightPosition.xyz) / 25.0f);
+	return (length(input.FragmentPosition.xyz - LightPosition.xyz) / 25.0);
 }
