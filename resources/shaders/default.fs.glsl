@@ -56,7 +56,7 @@ layout(binding = 4) uniform samplerCubeArray DepthMapTexturesCube;
 
 const int NR_OF_POINT_OFFSETS = 20;
 
-vec3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] =
+const vec3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] =
 {
 	vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
 	vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),

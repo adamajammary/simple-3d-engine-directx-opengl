@@ -71,7 +71,7 @@ struct FS_INPUT
 
 static const int NR_OF_POINT_OFFSETS = 20;
 
-float3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] =
+static const float3 ShadowPointSampleOffsets[NR_OF_POINT_OFFSETS] = 
 {
 	float3(1, 1,  1), float3( 1, -1,  1), float3(-1, -1,  1), float3(-1, 1,  1),
 	float3(1, 1, -1), float3( 1, -1, -1), float3(-1, -1, -1), float3(-1, 1, -1),
@@ -217,7 +217,7 @@ float GetShadowFactorDir(int depthLayer, float3 lightDirection, float3 normal, f
 	float2 texelSize;
 
     DepthMapTextures2D.GetDimensions(texelSize.x, texelSize.y, arrayCount);
-    texelSize = (1.0 / texelSize);
+	texelSize = (1.0 / texelSize);
 	
 	// Sample surrounding texels (9 samples)
     for (int x = -SAMPLE_OFFSET; x <= SAMPLE_OFFSET; x++)
@@ -226,10 +226,11 @@ float GetShadowFactorDir(int depthLayer, float3 lightDirection, float3 normal, f
 		{
             float2 texel        = float2(shadowMapCoordinates.xy + (float2(x, y) * texelSize));
             float  closestDepth = DepthMapTextures2D.Sample(DepthMapTextures2DSampler, float3(texel, depthLayer)).r;
-			
+
 			// Check if the fragment is in shadow (0 = not in shadow, 1 = in shadow).
 			// Compare current fragment with the surrounding texel's depth.
-			shadowFactor += ((currentDepth - offsetBias) > closestDepth ? 1.0 : 0.0);
+			if ((currentDepth - offsetBias) > closestDepth)
+				shadowFactor += 1.0;
         }
 	}
 	
@@ -434,7 +435,6 @@ FS_INPUT VS(VS_INPUT input)
 {
     FS_INPUT output;
 
-	// TODO: Calculate the normal matrix on the CPU and send it to the shaders via a uniform before drawing
 	//output.FragmentNormal = mul(float4(input.VertexNormal, 0.0), MB.Model).xyz;
 	//output.FragmentNormal = (float3)mul(float4(input.VertexNormal, 0.0), MB.Normal);
 	output.FragmentNormal        = mul(input.VertexNormal, (float3x3)MB.Normal);
@@ -451,18 +451,18 @@ float4 PS(FS_INPUT input) : SV_Target
 {
 	if (ClipFragment(input.FragmentPosition.xyz))
 		discard;
-	
+
 	float3 cameraView = normalize(CameraPosition.xyz - input.FragmentPosition.xyz);
 	float3 normal     = normalize(input.FragmentNormal);
 	float4 color      = float4(0.0, 0.0, 0.0, 0.0);
 	float4 specular   = float4(0.0, 0.0, 0.0, 0.0);
 
 	// COMPONENT_WATER = 6
-    if (ComponentType.x > 5.9) {
+	if (ComponentType.x > 5.9) {
 		color    = GetMaterialColorWater(input.FragmentTextureCoords, input.ClipSpace, cameraView, normal);
 		specular = MeshSpecular;
 	// COMPONENT_TERRAIN = 5
-    } else if (ComponentType.x > 4.9) {
+	} else if (ComponentType.x > 4.9) {
 		color    = GetMaterialColorTerrain(input.FragmentTextureCoords);
 		specular = MeshSpecular;
 	// COMPONENT_MODEL = 3, COMPONENT_MESH = 2
