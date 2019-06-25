@@ -167,8 +167,8 @@ vec4 GetMaterialColorWater(vec3 cameraView, out vec3 normal)
 	return mix(reflectionColor, refractionColor, refractionFactor);
 }
 
-// Shadow - the impact of the light on the the fragment from the perspective of the directional light
-float GetShadowFactorDir(int depthLayer, vec3 lightDirection, vec3 normal, vec4 positionLightSpace)
+// Shadow - the impact of the light on the the fragment from the perspective of the directional/spot light
+float GetShadowFactor(int depthLayer, vec3 lightDirection, vec3 normal, vec4 positionLightSpace)
 {
 	// Convert shadow map UV and Depth coordinates
 	vec3 shadowMapCoordinates = vec3(positionLightSpace.xyz / positionLightSpace.w); // Perspective projection divide
@@ -227,7 +227,7 @@ float GetShadowFactorDir(int depthLayer, vec3 lightDirection, vec3 normal, vec4 
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the point light
-float GetShadowFactorPoint(int depthLayer, vec3 lightPosition)
+float GetShadowFactorOmni(int depthLayer, vec3 lightPosition)
 {
 	// PROBLEM:  Shadow acne.
 	// REASON:   Because the shadow map is limited by resolution,
@@ -298,7 +298,7 @@ vec4 GetDirectionalLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor
 	
 	// Shadow
 	vec4  positionLightSpace = (light.ViewProjection * vec4(FragmentPosition.xyz, 1.0));
-	float shadowFactor       = (1.0 - GetShadowFactorDir(i, lightDirection, normal, positionLightSpace));
+	float shadowFactor       = (1.0 - GetShadowFactor(i, lightDirection, normal, positionLightSpace));
 
     // Combine the light calculations
     vec3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
@@ -326,7 +326,7 @@ vec4 GetPointLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4
 	float attenuationFactor = GetAttenuationFactor(light.Position.xyz, light.Attenuation.xyz);
 	
 	// Shadow
-	float shadowFactor = (1.0 - GetShadowFactorPoint(i, light.Position.xyz));
+	float shadowFactor = (1.0 - GetShadowFactorOmni(i, light.Position.xyz));
 	
     // Combine the light calculations
     vec3 ambient  = (attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
@@ -357,15 +357,16 @@ vec4 GetSpotLight(int i, vec3 normal, vec3 cameraView, vec4 materialColor, vec4 
 	float spotLightFactor = GetSpotLightFactor(light, lightDirection);
 	
 	// Shadow
-	//float shadowFactor = (1.0 - GetShadowFactorSpot(i, light.Position.xyz));
+	vec4  positionLightSpace = (light.ViewProjection * vec4(FragmentPosition.xyz, 1.0));
+	float shadowFactor       = (1.0 - GetShadowFactor(i, lightDirection, normal, positionLightSpace));
 	
     // Combine the light calculations
     vec3 ambient  = (spotLightFactor * attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     vec3 diffuse  = (spotLightFactor * attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     vec3 specular = (spotLightFactor * attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
-    return vec4((ambient + diffuse + specular), materialColor.a);
-    //return vec4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
+    //return vec4((ambient + diffuse + specular), materialColor.a);
+    return vec4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 // HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)
@@ -394,16 +395,15 @@ vec4 GetFragColorLight(vec4 materialColor, vec4 materialSpecular, vec3 cameraVie
     {
         if (db.LightSources[i].Active.x > 0.1)
 		{
-    		// SPOT LIGHT
-			if (db.LightSources[i].Angles.x > 0.1) {
+    		// ID_ICON_LIGHT_SPOT = 17
+			if (db.LightSources[i].Active.y > 16.9)
 				fragColor += GetSpotLight(i, normal, cameraView, materialColor, materialSpecular);
-    		// POINT LIGHT
-			} else if (db.LightSources[i].Attenuation.r > 0.1) {
+    		// ID_ICON_LIGHT_POINT = 16
+			else if (db.LightSources[i].Active.y > 15.9)
 				fragColor += GetPointLight(i, normal, cameraView, materialColor, materialSpecular);
-    		// DIRECTIONAL LIGHT
-			} else {
+			// ID_ICON_LIGHT_DIRECTIONAL = 15
+			else
 				fragColor += GetDirectionalLight(i, normal, cameraView, materialColor, materialSpecular);
-			}
 		}
     }
 

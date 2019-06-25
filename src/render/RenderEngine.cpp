@@ -79,7 +79,7 @@ void RenderEngine::createDepthFBO()
 		switch (light->SourceType()) {
 			case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
 			case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
-			case ID_ICON_LIGHT_SPOT: break;
+			case ID_ICON_LIGHT_SPOT:        fbo = SceneManager::DepthMap2D;   break;
 			default: throw;
 		}
 
@@ -642,7 +642,11 @@ void RenderEngine::setDrawSettingsGL(ShaderID shaderID)
 int RenderEngine::SetGraphicsAPI(const wxString &api)
 {
 	GraphicsAPI lastAPI = RenderEngine::SelectedGraphicsAPI;
-	int         result  = -1;
+
+	if (api == Utils::GetGraphicsAPI(lastAPI))
+		return 0;
+
+	int result = -1;
 
 	if (api == "DirectX 11")
 		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_DIRECTX11);

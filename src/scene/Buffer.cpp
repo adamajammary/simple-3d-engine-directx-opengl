@@ -4,7 +4,7 @@ CBLight::CBLight(LightSource* lightSource)
 {
 	Light light = lightSource->GetLight();
 
-	this->Active      = Utils::ToVec4Float(light.active);
+	this->Active      = Utils::ToVec4Float(light.active, (int)lightSource->SourceType());
 	this->Ambient     = glm::vec4(light.material.ambient, 0.0f);
 	this->Attenuation = glm::vec4(light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f);
 	this->Diffuse     = light.material.diffuse;
@@ -47,7 +47,12 @@ CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
 	case GRAPHICS_API_DIRECTX11:
 	case GRAPHICS_API_DIRECTX12:
 		depthTransform[1][1] *= -1.0f;
-		this->MVP             = (depthTransform * this->MVP);
+
+		this->MVP = (depthTransform * this->MVP);
+
+		for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+			this->VP[i] = (depthTransform * this->VP[i]);
+
 		break;
 	case GRAPHICS_API_VULKAN:
 		this->MVP = (depthTransform * this->MVP);
@@ -110,7 +115,7 @@ CBLightDX::CBLightDX(LightSource* lightSource)
 {
 	Light light = lightSource->GetLight();
 
-	this->Active      = Utils::ToXMFLOAT4(light.active);
+	this->Active      = Utils::ToXMFLOAT4(light.active, (int)lightSource->SourceType());
 	this->Ambient     = Utils::ToXMFLOAT4(light.material.ambient, 0.0f);
 	this->Attenuation = { light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f };
 	this->Diffuse     = Utils::ToXMFLOAT4(light.material.diffuse);

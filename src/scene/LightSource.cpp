@@ -216,20 +216,17 @@ IconType LightSource::SourceType()
 
 void LightSource::updateProjection()
 {
-	float  aspectRatio;
-	wxSize projSize;
-	float  orthoSize = 30.0f;
+	const float ORTHO_SIZE = 30.0f;
 
 	switch (this->sourceType) {
 	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->projection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 1.0f, orthoSize);
+		this->projection = glm::ortho(-ORTHO_SIZE, ORTHO_SIZE, -ORTHO_SIZE, ORTHO_SIZE, 1.0f, ORTHO_SIZE);
 		break;
 	case ID_ICON_LIGHT_POINT:
-		projSize         = SceneManager::DepthMapCube->Size();
-		aspectRatio      = (float)projSize.GetWidth() / (float)projSize.GetHeight();
-		this->projection = glm::perspective((glm::pi<float>() * 0.5f), aspectRatio, 1.0f, 25.0f);
+		this->projection = glm::perspective((glm::pi<float>() * 0.5f), 1.0f, 1.0f, 25.0f);
 		break;
 	case ID_ICON_LIGHT_SPOT:
+		this->projection = glm::perspective(std::acos(this->light.outerAngle), 1.0f, 1.0f, 20.0f);
 		break;
 	default:
 		throw;
@@ -238,11 +235,12 @@ void LightSource::updateProjection()
 
 void LightSource::updateView()
 {
+	glm::vec3 dir = this->light.direction;
 	glm::vec3 pos = this->light.position;
 
 	switch (this->sourceType) {
 	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->views[0] = glm::lookAt(pos, (pos + this->light.direction), RenderEngine::CameraMain->Up());
+		this->views[0] = glm::lookAt(pos, (pos + dir), RenderEngine::CameraMain->Up());
 		break;
 	case ID_ICON_LIGHT_POINT:
 		// 6 view directions: right, left, top, bottom, near, far
@@ -254,6 +252,7 @@ void LightSource::updateView()
 		this->views[5] = glm::lookAt(pos, (pos + glm::vec3(0.0, 0.0, -1.0)), glm::vec3(0.0, -1.0, 0.0));
 		break;
 	case ID_ICON_LIGHT_SPOT:
+		this->views[0] = glm::lookAt(pos, dir, RenderEngine::CameraMain->Up());
 		break;
 	default:
 		throw;

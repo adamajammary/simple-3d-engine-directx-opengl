@@ -96,6 +96,16 @@ void SceneManager::Clear()
 
 	if (RenderEngine::Canvas.Window != nullptr)
 		RenderEngine::Canvas.Window->ClearScene();
+
+	if ((SceneManager::DepthMap2D != nullptr) && RenderEngine::Ready) {
+		_DELETEP(SceneManager::DepthMap2D);
+		SceneManager::DepthMap2D = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D_ARRAY);
+	}
+
+	if ((SceneManager::DepthMapCube != nullptr) && RenderEngine::Ready) {
+		_DELETEP(SceneManager::DepthMapCube);
+		SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP_ARRAY);
+	}
 }
 
 int SceneManager::GetComponentIndex(Component* component)

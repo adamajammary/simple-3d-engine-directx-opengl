@@ -92,6 +92,7 @@ public:
 	static glm::vec4                ToVec4Color(const wxColour &color);
 	static glm::vec4                ToVec4Float(bool boolean);
 	static glm::vec4                ToVec4Float(int integer);
+	static glm::vec4                ToVec4Float(bool boolean, int integer);
 	static std::vector<float>       ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords);
 	static VkImageViewType          ToVkImageViewType(TextureType textureType);
 	static wxColour                 ToWxColour(const wxVariant &color);
@@ -104,6 +105,7 @@ public:
 		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(int integer);
+		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean, int integer);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec3 &vector, float w);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(const glm::vec4 &vector);
 		static DirectX::XMMATRIX ToXMMATRIX(const glm::mat4 &matrix);

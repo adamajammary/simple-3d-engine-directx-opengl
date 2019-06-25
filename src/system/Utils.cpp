@@ -302,19 +302,17 @@ DXGI_FORMAT Utils::GetImageFormatDXGI(const wxImage &image, bool srgb)
 
 wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 {
-	wxString apiString = "";
-
-	switch (RenderEngine::SelectedGraphicsAPI) {
+	switch (api) {
 		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11: apiString = "DirectX 11"; break;
-		case GRAPHICS_API_DIRECTX12: apiString = "DirectX 12"; break;
+		case GRAPHICS_API_DIRECTX11: return "DirectX 11";
+		case GRAPHICS_API_DIRECTX12: return "DirectX 12";
 		#endif
-		case GRAPHICS_API_OPENGL:    apiString = "OpenGL"; break;
-		case GRAPHICS_API_VULKAN:    apiString = "Vulkan"; break;
+		case GRAPHICS_API_OPENGL:    return "OpenGL";
+		case GRAPHICS_API_VULKAN:    return "Vulkan";
 		default: throw;
 	}
 
-	return apiString;
+	return "";
 }
 
 GLenum Utils::GetImageFormat(const wxImage &image, bool srgb, bool in)
@@ -739,6 +737,11 @@ glm::vec4 Utils::ToVec4Float(int integer)
 	return glm::vec4(value, value, value, value);
 }
 
+glm::vec4 Utils::ToVec4Float(bool boolean, int integer)
+{
+	return glm::vec4((boolean ? 1.0f : 0.0f), (float)integer, 0.0f, 0.0f);
+}
+
 std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
 {
 	std::vector<float> data;
@@ -830,6 +833,11 @@ DirectX::XMFLOAT4 Utils::ToXMFLOAT4(int integer)
 {
 	float value = static_cast<int>(integer);
 	return DirectX::XMFLOAT4(value, value, value, value);
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(bool boolean, int integer)
+{
+	return DirectX::XMFLOAT4((boolean ? 1.0f : 0.0f), (float)integer, 0.0f, 0.0f);
 }
 
 DirectX::XMMATRIX Utils::ToXMMATRIX(const glm::mat4 &matrix)

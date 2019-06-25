@@ -180,8 +180,8 @@ float4 GetMaterialColorWater(float2 fragTexCoords, float4 clipSpace, float3 came
 	return lerp(reflectionColor, refractionColor, refractionFactor);
 }
 
-// Shadow - the impact of the light on the the fragment from the perspective of the directional light
-float GetShadowFactorDir(int depthLayer, float3 lightDirection, float3 normal, float4 positionLightSpace)
+// Shadow - the impact of the light on the the fragment from the perspective of the directional/spot light
+float GetShadowFactor(int depthLayer, float3 lightDirection, float3 normal, float4 positionLightSpace)
 {
 	// Convert shadow map UV and Depth coordinates
     float3 shadowMapCoordinates = float3(positionLightSpace.xyz / positionLightSpace.w);    // Perspective projection divide
@@ -244,7 +244,7 @@ float GetShadowFactorDir(int depthLayer, float3 lightDirection, float3 normal, f
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the point light
-float GetShadowFactorPoint(int depthLayer, float3 fragPos, float3 lightPosition)
+float GetShadowFactorOmni(int depthLayer, float3 fragPos, float3 lightPosition)
 {
 	// PROBLEM:  Shadow acne.
 	// REASON:   Because the shadow map is limited by resolution,
@@ -315,7 +315,7 @@ float4 GetDirectionalLight(int i, float3 fragPos, float3 normal, float3 viewDire
 	
 	// Shadow
     float4 positionLightSpace = mul(float4(fragPos, 1.0), light.ViewProjection);
-    float  shadowFactor       = (1.0 - GetShadowFactorDir(i, lightDirection, normal, positionLightSpace));
+    float  shadowFactor       = (1.0 - GetShadowFactor(i, lightDirection, normal, positionLightSpace));
 	
     // Combine the light calculations
     float3 ambientFinal  = (light.Ambient.rgb  * materialColor.rgb);
@@ -343,7 +343,7 @@ float4 GetPointLight(int i, float3 fragPos, float3 normal, float3 viewDirection,
     float attenuationFactor = GetAttenuationFactor(light.Position.xyz, fragPos, light.Attenuation.xyz);
 	
 	// Shadow
-	float shadowFactor = (1.0 - GetShadowFactorPoint(i, fragPos, light.Position.xyz));
+	float shadowFactor = (1.0 - GetShadowFactorOmni(i, fragPos, light.Position.xyz));
 
     // Combine the light calculations
     float3 ambient  = (attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
@@ -374,15 +374,16 @@ float4 GetSpotLight(int i, float3 fragPos, float3 normal, float3 viewDirection, 
     float spotLightFactor = GetSpotLightFactor(light, lightDirection);
 
 	// Shadow
-	//float shadowFactor = (1.0 - GetShadowFactorSpot(i, fragPos, light.Position.xyz));
+    float4 positionLightSpace = mul(float4(fragPos, 1.0), light.ViewProjection);
+    float  shadowFactor       = (1.0 - GetShadowFactor(i, lightDirection, normal, positionLightSpace));
 
     // Combine the light calculations
     float3 ambient  = (spotLightFactor * attenuationFactor * light.Ambient.rgb  * materialColor.rgb);
     float3 diffuse  = (spotLightFactor * attenuationFactor * light.Diffuse.rgb  * materialColor.rgb * diffuseFactor);
     float3 specular = (spotLightFactor * attenuationFactor * light.Specular.rgb * materialSpec.rgb  * specularFactor);
 	
-    return float4((ambient + diffuse + specular), materialColor.a);
-	//return float4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
+    //return float4((ambient + diffuse + specular), materialColor.a);
+	return float4((ambient + (shadowFactor * (diffuse + specular))), materialColor.a);
 }
 
 // HDR (HIGH DYNAMIC RANGE) - TONE MAPPING (REINHARD)
@@ -411,16 +412,15 @@ float4 GetFragColorLight(float3 fragPos, float4 materialColor, float4 materialSp
     {
         if (LightSources[i].Active.x > 0.1)
 		{
-    		// SPOT LIGHT
-			if (LightSources[i].Angles.x > 0.1) {
+    		// ID_ICON_LIGHT_SPOT = 17
+			if (LightSources[i].Active.y > 16.9)
 				fragColor += GetSpotLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
-    		// POINT LIGHT
-			} else if (LightSources[i].Attenuation.r > 0.1) {
+			// ID_ICON_LIGHT_POINT = 16
+			else if (LightSources[i].Active.y > 15.9)
 				fragColor += GetPointLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
-    		// DIRECTIONAL LIGHT
-			} else {
+			// ID_ICON_LIGHT_DIRECTIONAL = 15
+			else
 				fragColor += GetDirectionalLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
-			}
 		}
     }
 

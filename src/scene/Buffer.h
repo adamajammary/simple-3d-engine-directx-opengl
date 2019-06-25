@@ -14,7 +14,7 @@ struct CBLight
 	CBLight(LightSource* lightSource);
 	CBLight() {}
 
-	glm::vec4 Active         = {};
+	glm::vec4 Active         = {}; // { Bool<float>, Type<IconType>, 0, 0 }
 	glm::vec4 Ambient        = {};
 	glm::vec4 Angles         = {};
 	glm::vec4 Attenuation    = {};
@@ -93,7 +93,7 @@ struct CBLightDX
 	CBLightDX(const CBLight &light);
 	CBLightDX() {}
 
-	DirectX::XMFLOAT4 Active         = {};
+	DirectX::XMFLOAT4 Active         = {}; // { Bool<float>, Type<IconType>, 0, 0 }
 	DirectX::XMFLOAT4 Ambient        = {};
 	DirectX::XMFLOAT4 Angles         = {};
 	DirectX::XMFLOAT4 Attenuation    = {};
