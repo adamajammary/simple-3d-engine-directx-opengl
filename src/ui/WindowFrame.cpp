@@ -14,13 +14,16 @@ WindowFrame::WindowFrame(const wxString &title, const wxPoint &pos, const wxSize
 
 void WindowFrame::addAds(wxBoxSizer* sizer)
 {
-	// ADS
+	// FEATURE_BROWSER_EMULATION = IE11
+	#if defined _WINDOWS
+		wxRegKey regKey(Utils::REGKEY_MSIE_EMULATION);
+		regKey.SetValue("Simple3DEngine.exe", 11000);
+	#endif
+
 	wxStaticBoxSizer* sizerAds = new wxStaticBoxSizer(wxHORIZONTAL, this->Parent->GetTopWindow(), "Google Ad");
-	wxWebView*        webView  = nullptr;
+	wxWebView*        webView  = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, Utils::UI_ADS_SIZE, wxWebViewBackendDefault, wxBORDER_NONE);
 
-	webView = wxWebView::New(this, wxID_ANY, Utils::GOOGLE_ADS_URL, wxDefaultPosition, Utils::UI_ADS_SIZE, wxWebViewBackendDefault, wxBORDER_NONE);
 	sizerAds->Add(webView, 0, wxALL, 10);
-
 	sizer->Add(sizerAds, 0, (wxALIGN_CENTER_HORIZONTAL | wxALL), 10);
 }
 
@@ -266,7 +269,9 @@ int WindowFrame::init()
 	this->SetSizer(sizer);
 
 	// ADS
-	//this->addAds(sizer);
+	#if !defined _DEBUG
+		this->addAds(sizer);
+	#endif
 
 	// TABS
 	wxNotebook* tabs = new wxNotebook(this, ID_TABS, wxDefaultPosition, Utils::UI_TABS_SIZE, wxNB_TOP);

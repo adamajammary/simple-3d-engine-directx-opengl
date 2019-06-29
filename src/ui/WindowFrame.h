@@ -24,6 +24,7 @@ private:
 	wxPropertyGrid* properties;
 	wxBoxSizer*     sizerMiddle;
 	wxBoxSizer*     sizerProperties;
+	wxWebView*      webView;
 
 public:
 	void     AddListComponent(Component* component);

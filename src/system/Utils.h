@@ -56,6 +56,10 @@ public:
 	static const wxSize                 UI_PROPS_SIZE;
 	static const wxSize                 UI_TABS_SIZE;
 
+#if defined _WINDOWS
+	static const wxString REGKEY_MSIE_EMULATION;
+#endif
+
 public:
 	static std::vector<uint8_t>     Compress(const std::vector<uint8_t>   &data);
 	static std::vector<uint8_t>     Decompress(const std::vector<uint8_t> &data);

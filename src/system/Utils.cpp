@@ -21,18 +21,22 @@ const wxString Utils::APP_VERSION        = "1.0.2";
 const wxString Utils::ASPECT_RATIOS[]    = { "16:9", "4:3" };
 const wxChar*  Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
 const wxString Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
-const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
-const wxString Utils::GOOGLE_ADS_URL     = "http://jammary.com/google_ad_horizontal.html";
 const wxString Utils::DRAW_MODES[]       = { "Filled", "Wireframe" };
 const wxString Utils::FOVS[]             = { "45\u00B0", "60\u00B0", "75\u00B0", "90\u00B0" };
+const wxString Utils::GOOGLE_ADS_URL     = "http://jammary.com/google_ad_horizontal.html";
 const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
+const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
 const wxSize   Utils::UI_ADS_SIZE        = wxSize(730,  90);
 const wxSize   Utils::UI_LIST_BOX_SIZE   = wxSize(290,  150);
 const wxSize   Utils::UI_RENDER_SIZE     = wxSize(640,  360);
 const wxSize   Utils::UI_WINDOW_SIZE     = wxSize(1280, 875);
 const wxSize   Utils::UI_PROPS_SIZE      = wxSize(590,  280);
 const wxSize   Utils::UI_TABS_SIZE       = wxSize(1245, 85);
+
+#if defined _WINDOWS
+	const wxString Utils::REGKEY_MSIE_EMULATION = "HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION";
+#endif
 
 #if defined _WINDOWS
 	const size_t Utils::NR_OF_GRAPHICS_APIS = 4;

@@ -88,6 +88,10 @@
 #include <wx/stopwatch.h>
 #include <wx/webview.h>
 
+#if defined _WINDOWS
+	#include <wx/msw/registry.h>
+#endif
+
 struct CBMatrix;
 
 class BoundingVolume;
