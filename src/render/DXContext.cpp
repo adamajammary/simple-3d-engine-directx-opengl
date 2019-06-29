@@ -684,7 +684,7 @@ int DXContext::CreateTexture11(FBOType fboType, const std::vector<BYTE*> &pixels
 
 	if (fboType == FBO_UNKNOWN)
 	{
-		std::vector<D3D11_SUBRESOURCE_DATA> textureData(textureDesc.ArraySize);
+		std::vector<D3D11_SUBRESOURCE_DATA> textureData(pixels.size() * textureDesc.MipLevels);
 
 		for (size_t i = 0; i < pixels.size(); i++)
 		{

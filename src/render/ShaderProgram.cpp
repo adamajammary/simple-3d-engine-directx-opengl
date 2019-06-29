@@ -448,7 +448,7 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		if (id >= 0) {
 			glActiveTexture(GL_TEXTURE0 + i);
 			glUniform1i(id, i);
-			glBindTexture(mesh->Textures[i]->Type(), mesh->Textures[i]->ID());
+			glBindTexture(mesh->Textures[i]->TypeGL(), mesh->Textures[i]->ID());
 		} else {
 			glBindTexture(GL_TEXTURE0 + i, 0);
 		}

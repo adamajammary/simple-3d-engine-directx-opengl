@@ -734,27 +734,29 @@ int VKContext::CreateShaderModule(const wxString &shaderFile, const wxString &st
 
 int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture, VkFormat imageFormat)
 {
-	if (texture == nullptr)
+	if ((texture == nullptr) || imagePixels.empty())
 		return -1;
 
 	VkBufferUsageFlags    bufferUseFlags      = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	VkMemoryPropertyFlags bufferMemFlags      = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	TextureType           textureType         = (imagePixels.size() > 1 ? TEXTURE_CUBEMAP : TEXTURE_2D);
-	void*                 imageMemData        = nullptr;
-	VkMemoryPropertyFlags imageUseFlags       = (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-	VkMemoryPropertyFlags imageMemFlags       = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 	wxSize                textureSize         = texture->Size();
 	int                   colorComponents     = ((imageFormat == VK_FORMAT_R8G8B8A8_UNORM || imageFormat == VK_FORMAT_R8G8B8A8_SRGB) ? 4 : 3);
 	VkDeviceSize          imageSize           = (textureSize.GetWidth() * textureSize.GetHeight() * colorComponents);
-	uint32_t              mipLevels           = (textureType == TEXTURE_CUBEMAP ? 1 : texture->MipLevels());
 	VkBuffer              stagingBuffer       = nullptr;
 	VkDeviceMemory        stagingBufferMemory = nullptr;
 
 	// STAGING BUFFER
-	if (!imagePixels.empty() && this->createBuffer((imagePixels.size() * imageSize), bufferUseFlags, bufferMemFlags, &stagingBuffer, &stagingBufferMemory) < 0)
+	int result = this->createBuffer(
+		(imagePixels.size() * imageSize), bufferUseFlags, bufferMemFlags,
+		&stagingBuffer, &stagingBufferMemory
+	);
+
+	if (result < 0)
 		return -2;
 
 	// COPY IMAGE DATA TO STAGE BUFFER
+	void* imageMemData = nullptr;
+
 	for (size_t i = 0; i < imagePixels.size(); i++)
 	{
 		vkMapMemory(this->deviceContext, stagingBufferMemory, (i * imageSize), imageSize, 0, &imageMemData);
@@ -763,7 +765,12 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	}
 
 	// CREATE IMAGE
-	int result = this->createImage(
+	VkMemoryPropertyFlags imageUseFlags = (VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+	VkMemoryPropertyFlags imageMemFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+	TextureType           textureType   = (imagePixels.size() > 1 ? TEXTURE_CUBEMAP : TEXTURE_2D);
+	uint32_t              mipLevels     = (textureType == TEXTURE_CUBEMAP ? 1 : texture->MipLevels());
+
+	result = this->createImage(
 		(uint32_t)textureSize.GetWidth(), (uint32_t)textureSize.GetHeight(),
 		mipLevels, VK_SAMPLE_COUNT_1_BIT, imageFormat, VK_IMAGE_TILING_OPTIMAL,
 		imageUseFlags, imageMemFlags, textureType, &texture->Image, &texture->ImageMemory
@@ -796,13 +803,19 @@ int VKContext::CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* 
 	vkDestroyBuffer(this->deviceContext, stagingBuffer,       nullptr);
 
 	// SAMPLER
-	texture->Sampler = this->createImageSampler((float)mipLevels, (float)this->multiSampleCount, texture->SamplerInfo);
+	texture->Sampler = this->createImageSampler(
+		(float)mipLevels, (float)this->multiSampleCount, texture->SamplerInfo
+	);
 
 	if (texture->Sampler == nullptr)
 		return -7;
 
 	// IMAGE VIEW
-	texture->ImageView = this->createImageView(texture->Image, imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels, VK_IMAGE_VIEW_TYPE_2D);
+	VkImageViewType viewType = Utils::ToVkImageViewType(textureType);
+
+	texture->ImageView = this->createImageView(
+		texture->Image, imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, mipLevels, viewType
+	);
 
 	if (texture->ImageView == nullptr)
 		return -8;
