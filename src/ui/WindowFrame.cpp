@@ -24,7 +24,7 @@ void WindowFrame::addAds(wxBoxSizer* sizer)
 	sizer->Add(sizerAds, 0, (wxALIGN_CENTER_HORIZONTAL | wxALL), 10);
 }
 
-void WindowFrame::addButton(wxWindow* parent, void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position, const wxSize &size)
+void WindowFrame::addButton(wxWindow* parent, void(*eventHandler)(const wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position, const wxSize &size)
 {
 	wxButton* button = new wxButton(parent, id, label, position, size);
 

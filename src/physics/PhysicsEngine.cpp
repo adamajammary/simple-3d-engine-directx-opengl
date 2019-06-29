@@ -1,6 +1,6 @@
 #include "PhysicsEngine.h"
 
-void PhysicsEngine::CheckRayCasts(wxMouseEvent &event)
+void PhysicsEngine::CheckRayCasts(const wxMouseEvent &event)
 {
 	auto ray      = new RayCast(event.GetX(), event.GetY());
 	auto selected = false;

@@ -46,7 +46,7 @@ public:
 
 private:
 	void          addAds(wxBoxSizer* sizer);
-	void          addButton(wxWindow* parent, void(*eventHandler)(wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position = wxDefaultPosition, const wxSize &size = wxDefaultSize);
+	void          addButton(wxWindow* parent, void(*eventHandler)(const wxCommandEvent &e), wxBoxSizer* sizer, IconType id, wxString label, int flag, const wxPoint &position = wxDefaultPosition, const wxSize &size = wxDefaultSize);
 	wxCheckBox*   addCheckBox(wxGridBagSizer* sizer, IconType id, wxGBPosition position, bool default = false);
 	wxChoice*     addDropDown(wxGridBagSizer* sizer, IconType id, wxGBPosition position, int nrOfChoices, const wxString* choices);
 	void          addIcon(wxWindow* parent, wxBoxSizer* sizer, const Icon &icon, int flag);

@@ -12,7 +12,7 @@ private:
 	~PhysicsEngine() {}
 
 public:
-	static void CheckRayCasts(wxMouseEvent &event);
+	static void CheckRayCasts(const wxMouseEvent &event);
 	static void Update();
 
 };

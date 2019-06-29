@@ -1,6 +1,8 @@
 #include "InputManager.h"
 
-MouseState InputManager::mouseState;
+long       InputManager::loadTimeStart = 0;
+long       InputManager::loadTimeEnd   = 0;
+MouseState InputManager::mouseState    = {};
 
 int InputManager::Init()
 {
@@ -26,7 +28,21 @@ int InputManager::Init()
 	return 0;
 }
 
-void InputManager::OnGraphicsMenu(wxCommandEvent &event)
+bool InputManager::isValidEventTime(const wxMouseEvent &event)
+{
+	if (InputManager::loadTimeStart == 0)
+		return true;
+	else if (InputManager::loadTimeEnd == 0)
+		return false;
+
+	long timestamp     = event.GetTimestamp();
+	long timestampDiff = (time(nullptr) - timestamp);
+
+	return (event.GetTimestamp() > (InputManager::loadTimeEnd - timestampDiff));
+
+}
+
+void InputManager::OnGraphicsMenu(const wxCommandEvent &event)
 {
 	switch (event.GetId()) {
 		case ID_ASPECT_RATIO:  RenderEngine::SetAspectRatio(event.GetString());      break;
@@ -39,7 +55,7 @@ void InputManager::OnGraphicsMenu(wxCommandEvent &event)
 	}
 }
 
-void InputManager::OnIcon(wxCommandEvent &event)
+void InputManager::OnIcon(const wxCommandEvent &event)
 {
 	IconType iconType = (IconType)event.GetId();
 
@@ -84,7 +100,7 @@ void InputManager::OnKeyboard(wxKeyEvent &event)
 		event.Skip();
 }
 
-void InputManager::OnList(wxCommandEvent &event)
+void InputManager::OnList(const wxCommandEvent &event)
 {
 	switch (event.GetId()) {
 		case ID_COMPONENTS:
@@ -103,7 +119,9 @@ void InputManager::OnList(wxCommandEvent &event)
 
 			break;
 		case ID_SCENE_LOAD:
+			InputManager::loadTimeStart = time(nullptr);
 			SceneManager::LoadScene(Utils::OpenFile(Utils::SCENE_FILE_FORMAT));
+			InputManager::loadTimeEnd   = time(nullptr);
 			break;
 		case ID_SCENE_SAVE:
 			SceneManager::SaveScene(Utils::SaveFile(Utils::SCENE_FILE_FORMAT));
@@ -125,7 +143,7 @@ void InputManager::OnList(wxCommandEvent &event)
 	}
 }
 
-void InputManager::OnMouseDown(wxMouseEvent &event)
+void InputManager::OnMouseDown(const wxMouseEvent &event)
 {
 	InputManager::mouseState.Position = event.GetPosition();
 
@@ -133,7 +151,7 @@ void InputManager::OnMouseDown(wxMouseEvent &event)
 	RenderEngine::Canvas.Canvas->CaptureMouse();
 }
 
-void InputManager::OnMouseMove(wxMouseEvent &event)
+void InputManager::OnMouseMove(const wxMouseEvent &event)
 {
 	if (event.Dragging() && (event.MiddleIsDown() || event.RightIsDown()) && (RenderEngine::CameraMain != nullptr))
 	{
@@ -161,26 +179,26 @@ void InputManager::OnMouseScroll(wxMouseEvent &event)
 	}
 }
 
-void InputManager::OnMouseUp(wxMouseEvent &event)
+void InputManager::OnMouseUp(const wxMouseEvent &event)
 {
 	if (RenderEngine::Canvas.Canvas->HasCapture()) {
 		RenderEngine::Canvas.Canvas->ReleaseMouse();
 		wxSetCursor(wxNullCursor);
 	}
 
-	if (event.GetButton() == wxMOUSE_BTN_LEFT)
+	if ((event.GetButton() == wxMOUSE_BTN_LEFT) && InputManager::isValidEventTime(event))
 		PhysicsEngine::CheckRayCasts(event);
 
 	RenderEngine::Canvas.Window->DeactivateProperties();
 }
 
-void InputManager::OnPropertyChanged(wxPropertyGridEvent &event)
+void InputManager::OnPropertyChanged(const wxPropertyGridEvent &event)
 {
 	if (event.GetId() == ID_SCENE_DETAILS)
 		RenderEngine::Canvas.Window->UpdateComponents(event.GetProperty());
 }
 
-void InputManager::OnWindowResize(wxSizeEvent &event)
+void InputManager::OnWindowResize(const wxSizeEvent &event)
 {
 	RenderEngine::SetCanvasSize(RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
 }
