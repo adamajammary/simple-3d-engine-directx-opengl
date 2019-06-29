@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_SHADERPROGRAM_H
-#define GE3D_SHADERPROGRAM_H
+#ifndef S3DE_SHADERPROGRAM_H
+#define S3DE_SHADERPROGRAM_H
 
 class ShaderProgram
 {
@@ -20,38 +20,44 @@ private:
 	wxString       name;
 	GLuint         program;
 	VkShaderModule vulkanFS;
+	VkShaderModule vulkanGS;
 	VkShaderModule vulkanVS;
 
 	#if defined _WINDOWS
-		ID3D11PixelShader*  shaderFS;
-		ID3D11VertexShader* shaderVS;
-		ID3DBlob*           fs;
-		ID3DBlob*           vs;
+		ID3D11PixelShader*    shaderFS;
+		ID3D11GeometryShader* shaderGS;
+		ID3D11VertexShader*   shaderVS;
+		ID3DBlob*             fs;
+		ID3DBlob*             gs;
+		ID3DBlob*             vs;
 	#endif
 
 public:
 	bool           IsOK();
 	int            Link();
 	int            Load(const wxString &shaderFile);
-	int            LoadAndLink(const wxString &vs, const wxString &fs);
+	int            LoadAndLink(const wxString &vs, const wxString &fs, const wxString& gs = "");
 	void           Log();
 	void           Log(GLuint shader);
 	wxString       Name();
 	GLuint         Program();
-	int            UpdateAttribsGL(Mesh* mesh);
-	int            UpdateUniformsGL(Mesh* mesh, const DrawProperties &properties = {});
-	int            UpdateUniformsVK(VkDevice deviceContext, Mesh* mesh, const VKUniform &uniform, const DrawProperties &properties = {});
+	int            UpdateAttribsGL(Component* mesh);
+	int            UpdateUniformsGL(Component* mesh, const DrawProperties &properties = {});
+	int            UpdateUniformsVK(VkDevice deviceContext, Component* mesh, const VKUniform &uniform, const DrawProperties &properties = {});
 	VkShaderModule VulkanFS();
+	VkShaderModule VulkanGS();
 	VkShaderModule VulkanVS();
 
 	#if defined _WINDOWS
-		ShaderID            ID();
-		ID3DBlob*           FS();
-		ID3DBlob*           VS();
-		ID3D11PixelShader*  FragmentShader();
-		ID3D11VertexShader* VertexShader();
-		int                 UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Mesh* mesh, const DrawProperties &properties = {});
-		int                 UpdateUniformsDX12(Mesh* mesh, const DrawProperties &properties = {});
+		ShaderID              ID();
+		ID3DBlob*             FS();
+		ID3DBlob*             GS();
+		ID3DBlob*             VS();
+		ID3D11PixelShader*    FragmentShader();
+		ID3D11GeometryShader* GeometryShader();
+		ID3D11VertexShader*   VertexShader();
+		int                   UpdateUniformsDX11(ID3D11Buffer** constBuffer, const void** constBufferValues, Component* mesh, const DrawProperties &properties = {});
+		int                   UpdateUniformsDX12(Component* mesh, const DrawProperties &properties = {});
 	#endif
 
 private:
@@ -59,13 +65,11 @@ private:
 	void setAttribsGL();
 	void setUniformsGL();
 	void updateUniformGL(GLint id, UniformBufferTypeGL buffer, void* values, size_t valuesSize);
-	int  updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Mesh* mesh);
-	int  updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Mesh* mesh);
+	int  updateUniformsVK(UniformBufferTypeVK type, UniformBinding binding, const VKUniform &uniform, void* values, size_t valuesSize, VkDevice deviceContext, Component* mesh);
+	int  updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice deviceContext, Component* mesh);
 
 	#if defined _WINDOWS
-		DXLightBuffer  getBufferLight();
-		DXMatrixBuffer getBufferMatrices(Mesh* mesh, bool removeTranslation = false);
-		const void*    getBufferValues(const DXMatrixBuffer &matrices, const DXLightBuffer &sunLight, Mesh* mesh, const DrawProperties &properties = {});
+		const void* getBufferValues(const CBMatrix &matrices, Component* mesh, const DrawProperties &properties, size_t &bufferSize);
 	#endif
 };
 

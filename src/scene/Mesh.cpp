@@ -12,8 +12,8 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 	this->type                = parent->Type();
 	this->vertexBuffer        = nullptr;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
+	//for (int i = 0; i < MAX_TEXTURES; i++)
+	//	this->Textures[i] = nullptr;
 }
 
 Mesh::Mesh() : Component("")
@@ -27,8 +27,8 @@ Mesh::Mesh() : Component("")
 	this->type                = COMPONENT_MESH;
 	this->vertexBuffer        = nullptr;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
+	//for (int i = 0; i < MAX_TEXTURES; i++)
+	//	this->Textures[i] = nullptr;
 }
 
 Mesh::~Mesh()
@@ -102,6 +102,8 @@ bool Mesh::IsOK()
 		return ((this->IBO() > 0) && (this->VBO() > 0));
 	case GRAPHICS_API_VULKAN:
 		return ((this->IndexBuffer() != nullptr) && (this->VertexBuffer() != nullptr));
+	default:
+		throw;
 	}
 
 	return false;
@@ -181,7 +183,7 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	if (mesh == nullptr)
 		return false;
 
-    this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
+    //this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
 
 	if (!this->loadModelData(mesh))
 		return false;
@@ -195,6 +197,12 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	aiVector3D position, rotation, scale;
 	transformMatrix.Decompose(scale, rotation, position);
 
+	//if (this->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE])
+	if (this->type == COMPONENT_WATER) {
+		scale.z = 10.0f;
+		this->ComponentMaterial.specular.shininess = 20.0f;
+	}
+
 	this->updateModelData(position, scale, rotation);
 	this->setMaxScale();
 	this->SetBoundingVolume(BOUNDING_VOLUME_BOX);
@@ -203,11 +211,11 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
 	return this->isValid;
 }
-
-void Mesh::LoadTexture(Texture* texture, int index)
-{
-    this->Textures[index] = texture;
-}
+//
+//void Mesh::LoadTexture(Texture* texture, int index)
+//{
+//    this->Textures[index] = texture;
+//}
 
 int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 {
@@ -216,7 +224,7 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 		return -1;
 	}
 
-	this->Textures[index] = new Texture(imageFile);
+	this->Textures[index] = new Texture(imageFile, (index == 0));
 
     return 0;
 }
@@ -267,8 +275,10 @@ void Mesh::SetBoundingVolume(BoundingVolumeType type)
 	if (this->boundingVolume != nullptr)
 		_DELETEP(this->boundingVolume);
 
-	if (type != BOUNDING_VOLUME_NONE)
+	if (type != BOUNDING_VOLUME_NONE) {
 		this->boundingVolume = new BoundingVolume(this, type, (this->maxScale + 0.01f));
+		this->boundingVolume->Update();
+	}
 }
 
 void Mesh::setMaxScale()
@@ -314,10 +324,16 @@ bool Mesh::setModelData()
 
 		break;
 	default:
-		return false;
+		throw;
 	}
 
 	return true;
+}
+
+void Mesh::UpdateBoundingVolume()
+{
+	if (this->boundingVolume != nullptr)
+		this->boundingVolume->Update();
 }
 
 void Mesh::updateModelData()
@@ -338,7 +354,11 @@ void Mesh::updateModelData(const aiVector3D &position, const aiVector3D &scale, 
 	this->ScaleTo(glm::vec3(scale.x,     scale.y,    scale.z));
 	this->RotateTo(glm::vec3(rotation.x, rotation.y, rotation.z));
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
+	for (int i = 0; i < MAX_TEXTURES; i++)
+	{
+		if (!this->ComponentMaterial.textures[i].empty())
+			this->LoadTextureImage(this->ComponentMaterial.textures[i], i);
+
 		if (this->Textures[i] == nullptr)
 			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}

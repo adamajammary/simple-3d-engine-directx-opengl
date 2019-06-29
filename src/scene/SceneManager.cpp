@@ -1,13 +1,16 @@
 #include "SceneManager.h"
 
-glm::vec3               SceneManager::AmbientLightIntensity = glm::vec3(0.2f,  0.2f,  0.2f);
 std::vector<Component*> SceneManager::Components;
-Texture*                SceneManager::EmptyCubemap          = nullptr;
-Texture*                SceneManager::EmptyTexture          = nullptr;
-Mesh*                   SceneManager::SelectedChild         = nullptr;
-Component*              SceneManager::SelectedComponent     = nullptr;
-glm::vec4               SceneManager::SelectColor           = glm::vec4(1.0f, 0.5f, 0.0f, 1.0f);
-Light                   SceneManager::SunLight              = {};
+FrameBuffer*            SceneManager::DepthMap2D        = nullptr;
+FrameBuffer*            SceneManager::DepthMapCube      = nullptr;
+Texture*                SceneManager::EmptyCubemap      = nullptr;
+Texture*                SceneManager::EmptyTexture      = nullptr;
+bool                    SceneManager::Ready             = true;
+Component*              SceneManager::SelectedChild     = nullptr;
+Component*              SceneManager::SelectedComponent = nullptr;
+glm::vec4               SceneManager::SelectColor       = { 1.0f, 0.5f, 0.0f, 1.0f };
+
+LightSource* SceneManager::LightSources[MAX_LIGHT_SOURCES] = {};
 
 int SceneManager::AddComponent(Component* component)
 {
@@ -16,7 +19,7 @@ int SceneManager::AddComponent(Component* component)
 
 	switch (component->Type()) {
 	case COMPONENT_CAMERA:
-        RenderEngine::Camera = (Camera*)component;
+        RenderEngine::CameraMain = (Camera*)component;
 		break;
 	case COMPONENT_HUD:
         for (auto child : component->Children)
@@ -24,15 +27,17 @@ int SceneManager::AddComponent(Component* component)
 		break;
 	case COMPONENT_SKYBOX:
 		if (!component->Children.empty())
-			RenderEngine::Skybox = component->Children[0];
+			RenderEngine::Skybox = dynamic_cast<Mesh*>(component->Children[0]);
 		break;
-	case COMPONENT_TERRAIN:
-		for (auto child : component->Children)
-			RenderEngine::Terrains.push_back(child);
-		break;
-	case COMPONENT_WATER:
-		for (auto child : component->Children)
-			RenderEngine::Waters.push_back(child);
+	case COMPONENT_LIGHTSOURCE:
+		if (SceneManager::AddLightSource(component) < 0)
+			return -2;
+
+		if (dynamic_cast<LightSource*>(component)->SourceType() != ID_ICON_LIGHT_DIRECTIONAL) {
+			for (auto child : component->Children)
+				RenderEngine::LightSources.push_back(child);
+		}
+
 		break;
 	default:
 		for (auto child : component->Children)
@@ -44,38 +49,69 @@ int SceneManager::AddComponent(Component* component)
 	SceneManager::Components.push_back(component);
 	RenderEngine::Canvas.Window->AddListComponent(component);
 	RenderEngine::Canvas.Window->AddListChildren(SceneManager::SelectedComponent->Children);
-	RenderEngine::Canvas.Window->InitDetails();
+
+	if (SceneManager::Ready)
+		RenderEngine::Canvas.Window->InitProperties();
 
 	return 0;
 }
 
-void SceneManager::Clear()
+int SceneManager::AddLightSource(Component* component)
 {
-	RenderEngine::Skybox = nullptr;
+	LightSource* lightSource = dynamic_cast<LightSource*>(component);
 
-	RenderEngine::HUDs.clear();
-    RenderEngine::Terrains.clear();
-    RenderEngine::Waters.clear();
-    RenderEngine::Renderables.clear();
+	if (lightSource == nullptr)
+		return -1;
 
-	if (SceneManager::Components.size() > 1) {
-		for (auto it = SceneManager::Components.begin() + 1; it != SceneManager::Components.end(); it++)
-			_DELETEP(*it);
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] == nullptr) {
+			SceneManager::LightSources[i] = lightSource;
+			return 0;
+		}
 	}
 
+	wxMessageBox(("WARNING: Max " + std::to_wstring(MAX_LIGHT_SOURCES) + " light sources are supported in the scene."), RenderEngine::Canvas.Window->GetTitle().c_str(), wxOK | wxICON_ERROR);
+
+	return -2;
+}
+
+void SceneManager::Clear()
+{
+	RenderEngine::CameraMain        = nullptr;
 	SceneManager::SelectedComponent = nullptr;
 	SceneManager::SelectedChild     = nullptr;
+	RenderEngine::Skybox            = nullptr;
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
+		SceneManager::LightSources[i] = nullptr;
+
+	RenderEngine::HUDs.clear();
+	RenderEngine::LightSources.clear();
+	RenderEngine::Renderables.clear();
+
+	for (auto it = SceneManager::Components.begin(); it != SceneManager::Components.end(); it++)
+		_DELETEP(*it);
 
 	SceneManager::Components.clear();
 
 	if (RenderEngine::Canvas.Window != nullptr)
 		RenderEngine::Canvas.Window->ClearScene();
+
+	if ((SceneManager::DepthMap2D != nullptr) && RenderEngine::Ready) {
+		_DELETEP(SceneManager::DepthMap2D);
+		SceneManager::DepthMap2D = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D_ARRAY);
+	}
+
+	if ((SceneManager::DepthMapCube != nullptr) && RenderEngine::Ready) {
+		_DELETEP(SceneManager::DepthMapCube);
+		SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP_ARRAY);
+	}
 }
 
 int SceneManager::GetComponentIndex(Component* component)
 {
 	for (int i = 0; i < (int)SceneManager::Components.size(); i++) {
-		if (SceneManager::Components[i] == component)
+		if (SceneManager::Components[i]->ID() == component->ID())
 			return i;
 	}
 
@@ -94,6 +130,19 @@ HUD* SceneManager::LoadHUD()
 	return hud;
 }
 
+LightSource* SceneManager::LoadLightSource(IconType type)
+{
+	LightSource* light = new LightSource(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE], type);
+
+	if ((light == nullptr) || !light->IsValid())
+		return nullptr;
+
+	if (SceneManager::AddComponent(light) < 0)
+		_DELETEP(light);
+
+	return light;
+}
+
 Model* SceneManager::LoadModel(const wxString &file)
 {
 	if (file.empty())
@@ -109,11 +158,12 @@ Model* SceneManager::LoadModel(const wxString &file)
 	return model;
 }
 
-
 int SceneManager::LoadScene(const wxString &file)
 {
 	if (file.empty())
 		return -1;
+
+	SceneManager::Ready = false;
 
 	std::vector<uint8_t> sceneFile   = Utils::LoadDataFile(file);
 	std::vector<uint8_t> sceneBuffer = Utils::Decompress(sceneFile);
@@ -121,10 +171,14 @@ int SceneManager::LoadScene(const wxString &file)
 
 	if (sceneData.empty()) {
 		RenderEngine::Canvas.Window->SetStatusText("Failed to load the scene '" + file + "'");
-		return -1;
+		return -2;
 	}
 
 	SceneManager::Clear();
+	RenderEngine::Draw();
+
+	if (RenderEngine::CameraMain == nullptr)
+		SceneManager::AddComponent(new Camera());
 
 	std::string error;
 	auto        sceneDataJSON = json11::Json::parse(sceneData, error);
@@ -137,14 +191,15 @@ int SceneManager::LoadScene(const wxString &file)
 
 		switch (type) {
 		case COMPONENT_CAMERA:
-			RenderEngine::Camera->Name = componentJSON["name"].string_value();
-			RenderEngine::Camera->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
-			RenderEngine::Camera->RotateTo(Utils::ToVec3(componentJSON["rotation"].array_items()));
+			RenderEngine::CameraMain->Name = componentJSON["name"].string_value();
+			RenderEngine::CameraMain->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
+			RenderEngine::CameraMain->RotateTo(Utils::ToVec3(componentJSON["rotation"].array_items()));
 
 			break;
 		case COMPONENT_HUD:
-			component                                  = SceneManager::LoadHUD();
-			component->Name                            = componentJSON["name"].string_value();
+			component       = SceneManager::LoadHUD();
+			component->Name = componentJSON["name"].string_value();
+
 			dynamic_cast<HUD*>(component)->Transparent = componentJSON["transparent"].bool_value();
 			dynamic_cast<HUD*>(component)->TextAlign   = componentJSON["text_align"].string_value();
 			dynamic_cast<HUD*>(component)->TextFont    = componentJSON["text_font"].string_value();
@@ -170,16 +225,31 @@ int SceneManager::LoadScene(const wxString &file)
 			
 			break;
 		case COMPONENT_WATER:
-			component                                            = SceneManager::LoadWater();
-			component->Name                                      = componentJSON["name"].string_value();
+			component       = SceneManager::LoadWater();
+			component->Name = componentJSON["name"].string_value();
+
 			dynamic_cast<Water*>(component)->FBO()->Speed        = componentJSON["speed"].number_value();
 			dynamic_cast<Water*>(component)->FBO()->WaveStrength = componentJSON["wave_strength"].number_value();
 			
 			break;
-		//case COMPONENT_MATERIAL:
-		//	break;
-		//case COMPONENT_LIGHT:
-		//	break;
+		case COMPONENT_LIGHTSOURCE:
+			component       = SceneManager::LoadLightSource((IconType)componentJSON["source_type"].int_value());
+			component->Name = componentJSON["name"].string_value();
+
+			dynamic_cast<LightSource*>(component)->SetActive(componentJSON["active"].bool_value());
+			dynamic_cast<LightSource*>(component)->SetAmbient(Utils::ToVec3(componentJSON["ambient"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetColor(Utils::ToVec4(componentJSON["diffuse"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetSpecularIntensity(Utils::ToVec3(componentJSON["spec_intensity"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetSpecularShininess(componentJSON["spec_shininess"].number_value());
+			dynamic_cast<LightSource*>(component)->SetDirection(Utils::ToVec3(componentJSON["direction"].array_items()));
+			dynamic_cast<LightSource*>(component)->SetAttenuationLinear(componentJSON["att_linear"].number_value());
+			dynamic_cast<LightSource*>(component)->SetAttenuationQuadratic(componentJSON["att_quadratic"].number_value());
+			dynamic_cast<LightSource*>(component)->SetConeInnerAngle(componentJSON["inner_angle"].number_value());
+			dynamic_cast<LightSource*>(component)->SetConeOuterAngle(componentJSON["outer_angle"].number_value());
+
+			break;
+		default:
+			throw;
 		}
 
 		// CHILDREN
@@ -187,8 +257,11 @@ int SceneManager::LoadScene(const wxString &file)
 
 		for (int i = 0; i < (int)childrenJSON.size(); i++)
 		{
+			if (component == nullptr)
+				continue;
+
 			auto  childJSON = childrenJSON[i];
-			Mesh* child     = component->Children[i];
+			Mesh* child     = dynamic_cast<Mesh*>(component->Children[i]);
 			
 			if ((childJSON == nullptr) || (child == nullptr))
 				continue;
@@ -213,7 +286,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
 			child->AutoRotate   = childJSON["auto_rotate"].bool_value();
-			child->Color        = Utils::ToVec4(childJSON["color"].array_items());
+			child->ComponentMaterial.diffuse            = Utils::ToVec4(childJSON["color"].array_items());
+			child->ComponentMaterial.specular.intensity = Utils::ToVec3(childJSON["spec_intensity"].array_items());
+			child->ComponentMaterial.specular.shininess = childJSON["spec_shininess"].number_value();
 
 			if (child->Type() == COMPONENT_HUD)
 				dynamic_cast<HUD*>(child->Parent)->Update();
@@ -225,8 +300,8 @@ int SceneManager::LoadScene(const wxString &file)
 
 			for (int j = 0; j < (int)texturesJSON.size(); j++)
 			{
-				auto     textureJSON = texturesJSON[i];
-				Texture* texture     = ((type == COMPONENT_WATER) ? dynamic_cast<Water*>(component)->FBO()->Textures[i] : child->Textures[i]);
+				auto     textureJSON = texturesJSON[j];
+				Texture* texture     = ((type == COMPONENT_WATER) ? dynamic_cast<Water*>(component)->FBO()->Textures[j] : child->Textures[j]);
 
 				if ((textureJSON == nullptr) || (texture == nullptr))
 					continue;
@@ -247,11 +322,12 @@ int SceneManager::LoadScene(const wxString &file)
 
 					wxString imageFile = textureJSON["image_file"].string_value();
 
-					if (imageFile.IsEmpty())
+					if (imageFile.empty())
 						continue;
 
 					texture = new Texture(
 						imageFile,
+						textureJSON["srgb"].bool_value(),
 						textureJSON["repeat"].bool_value(),
 						textureJSON["flip"].bool_value(),
 						textureJSON["transparent"].bool_value(),
@@ -262,15 +338,24 @@ int SceneManager::LoadScene(const wxString &file)
 				}
 			}
 		}
+
+		if ((component != nullptr) && (component->Type() == COMPONENT_LIGHTSOURCE))
+			dynamic_cast<LightSource*>(component)->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
 	}
 
+	RenderEngine::Canvas.Window->InitProperties();
 	RenderEngine::Canvas.Window->SetStatusText("Finished loading the scene '" + file + "'");
+
+	SceneManager::Ready = true;
 
 	return 0;
 }
 
 Skybox* SceneManager::LoadSkybox()
 {
+	if (RenderEngine::Skybox != nullptr)
+		return nullptr;
+
 	std::vector<wxString> imageFiles;
 
 	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxRight"]);
@@ -284,14 +369,6 @@ Skybox* SceneManager::LoadSkybox()
 
     if ((skybox == nullptr) || !skybox->IsValid())
 		return nullptr;
-
-	if (RenderEngine::Skybox != nullptr)
-	{
-		int index = SceneManager::GetComponentIndex(RenderEngine::Skybox);
-
-		SceneManager::Components.erase(SceneManager::Components.begin() + index);
-		RenderEngine::Canvas.Window->RemoveComponent(index);
-	}
 
 	SceneManager::AddComponent(skybox);
 
@@ -331,40 +408,57 @@ Water* SceneManager::LoadWater()
 	return water;
 }
 
-void SceneManager::RemoveSelectedComponent()
+int SceneManager::RemoveSelectedComponent()
 {
-	if ((SceneManager::SelectedComponent != nullptr) && (SceneManager::SelectedComponent->Type() != COMPONENT_CAMERA))
-	{
-		for (auto child : SceneManager::SelectedComponent->Children)
-			RenderEngine::RemoveMesh(child);
+	if ((SceneManager::SelectedComponent == nullptr) || (SceneManager::SelectedComponent->Type() == COMPONENT_CAMERA))
+		return -1;
 
-		int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
+	for (auto child : SceneManager::SelectedComponent->Children)
+		RenderEngine::RemoveMesh(child);
 
-		SceneManager::SelectComponent(index - 1);
-		SceneManager::Components.erase(SceneManager::Components.begin() + index);
-		RenderEngine::Canvas.Window->RemoveComponent(index);
-	}
+	if (SceneManager::SelectedComponent->Type() == COMPONENT_LIGHTSOURCE)
+		SceneManager::removeSelectedLightSource();
+
+	int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
+
+	SceneManager::SelectComponent(index - 1);
+	SceneManager::Components.erase(SceneManager::Components.begin() + index);
+	RenderEngine::Canvas.Window->RemoveComponent(index);
+
+	return 0;
 }
 
-void SceneManager::RemoveSelectedChild()
+int SceneManager::RemoveSelectedChild()
 {
-	if (SceneManager::SelectedChild != nullptr)
+	if (SceneManager::SelectedChild == nullptr)
+		return -1;
+
+	RenderEngine::RemoveMesh(SceneManager::SelectedChild);
+
+	int index = SceneManager::SelectedComponent->GetChildIndex(SceneManager::SelectedChild);
+
+	SceneManager::SelectedComponent->Children.erase(SceneManager::SelectedComponent->Children.begin() + index);
+	RenderEngine::Canvas.Window->RemoveChild(index);
+
+	if (!SceneManager::SelectedComponent->Children.empty())
 	{
-		RenderEngine::RemoveMesh(SceneManager::SelectedChild);
+		if (index == (int)SceneManager::SelectedComponent->Children.size())
+			SceneManager::SelectChild(index - 1);
+		else
+			SceneManager::SelectChild(index);
+	} else {
+		SceneManager::RemoveSelectedComponent();
+	}
 
-		int index = SceneManager::SelectedComponent->GetChildIndex(SceneManager::SelectedChild);
+	return 0;
+}
 
-		SceneManager::SelectedComponent->Children.erase(SceneManager::SelectedComponent->Children.begin() + index);
-		RenderEngine::Canvas.Window->RemoveChild(index);
-
-		if (!SceneManager::SelectedComponent->Children.empty())
-		{
-			if (index == (int)SceneManager::SelectedComponent->Children.size())
-				SceneManager::SelectChild(index - 1);
-			else
-				SceneManager::SelectChild(index);
-		} else {
-			SceneManager::RemoveSelectedComponent();
+void SceneManager::removeSelectedLightSource()
+{
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::SelectedComponent == SceneManager::LightSources[i]) {
+			_DELETEP(SceneManager::LightSources[i]);
+			break;
 		}
 	}
 }
@@ -382,62 +476,65 @@ int SceneManager::SaveScene(const wxString &file)
 	{
 		json11::Json::array childrenJSON;
 
-		if (component->Type() != COMPONENT_CAMERA)
+		// CHILDREN
+		for (auto child : component->Children)
 		{
-			// CHILDREN
-			for (auto child : component->Children)
+			if (child->Type() == COMPONENT_CAMERA)
+				continue;
+
+			json11::Json        childJSON;
+			json11::Json::array texturesJSON;
+
+			for (int i = 0; i < MAX_TEXTURES; i++)
 			{
-				json11::Json        childJSON;
-				json11::Json::array texturesJSON;
+				json11::Json textureJSON;
+				Texture*     texture;
 
-				for (int i = 0; i < MAX_TEXTURES; i++)
-				{
-					json11::Json textureJSON;
-					Texture*     texture;
+				if (component->Type() == COMPONENT_WATER)
+					texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
+				else
+					texture = child->Textures[i];
 
-					if (component->Type() == COMPONENT_WATER)
-						texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
-					else
-						texture = child->Textures[i];
-
-					textureJSON = json11::Json::object {
-						{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
-						{ "repeat",      texture->Repeat() },
-						{ "flip",        texture->FlipY() },
-						{ "transparent", texture->Transparent() },
-						{ "scale",       Utils::ToJsonArray(texture->Scale) }
-					};
-
-					texturesJSON.push_back(textureJSON);
-				}
-
-				BoundingVolume* boundingVolume = child->GetBoundingVolume();
-				glm::vec3       position       = child->Position();
-				glm::vec3       scale          = child->Scale();
-
-				if (child->Type() == COMPONENT_HUD)
-				{
-					// Invert Y-axis for both mesh and vertex positions on Vulkan
-					if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
-						position.y *= -1;
-						scale.y    *= -1;
-					}
-				}
-
-				childJSON = json11::Json::object {
-					{ "name",            static_cast<std::string>(child->Name) },
-					{ "position",        Utils::ToJsonArray(position) },
-					{ "scale",           Utils::ToJsonArray(scale) },
-					{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
-					{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
-					{ "auto_rotate",     child->AutoRotate },
-					{ "color",           Utils::ToJsonArray(child->Color) },
-					{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
-					{ "textures",        texturesJSON }
+				textureJSON = json11::Json::object {
+					{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
+					{ "srgb",        texture->SRGB() },
+					{ "repeat",      texture->Repeat() },
+					{ "flip",        texture->FlipY() },
+					{ "transparent", texture->Transparent() },
+					{ "scale",       Utils::ToJsonArray(texture->Scale) }
 				};
-                
-				childrenJSON.push_back(childJSON);
+
+				texturesJSON.push_back(textureJSON);
 			}
+
+			BoundingVolume* boundingVolume = dynamic_cast<Mesh*>(child)->GetBoundingVolume();
+			glm::vec3       position       = child->Position();
+			glm::vec3       scale          = child->Scale();
+
+			if (child->Type() == COMPONENT_HUD)
+			{
+				// Invert Y-axis for both mesh and vertex positions on Vulkan
+				if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
+					position.y *= -1;
+					scale.y    *= -1;
+				}
+			}
+
+			childJSON = json11::Json::object {
+				{ "name",            static_cast<std::string>(child->Name) },
+				{ "position",        Utils::ToJsonArray(position) },
+				{ "scale",           Utils::ToJsonArray(scale) },
+				{ "rotation",        Utils::ToJsonArray(child->Rotation()) },
+				{ "auto_rotation",   Utils::ToJsonArray(child->AutoRotation) },
+				{ "auto_rotate",     child->AutoRotate },
+				{ "color",           Utils::ToJsonArray(child->ComponentMaterial.diffuse) },
+				{ "spec_intensity",  Utils::ToJsonArray(child->ComponentMaterial.specular.intensity) },
+				{ "spec_shininess",  child->ComponentMaterial.specular.shininess },
+				{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
+				{ "textures",        texturesJSON }
+			};
+                
+			childrenJSON.push_back(childJSON);
 		}
 
 		json11::Json componentJSON;
@@ -498,10 +595,28 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "children",       childrenJSON }
 			};
 			break;
-		//case COMPONENT_MATERIAL:
-		//	break;
-		//case COMPONENT_LIGHT:
-		//	break;
+		case COMPONENT_LIGHTSOURCE:
+			componentJSON = json11::Json::object{
+				{ "type",           (int)component->Type() },
+				{ "name",           static_cast<std::string>(component->Name) },
+				{ "source_type",    (int)dynamic_cast<LightSource*>(component)->SourceType() },
+				{ "active",         dynamic_cast<LightSource*>(component)->Active() },
+				{ "position",       Utils::ToJsonArray(component->Children[0]->Position()) },
+				{ "ambient",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().ambient) },
+				{ "diffuse",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().diffuse) },
+				{ "spec_intensity", Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().specular.intensity) },
+				{ "spec_shininess", dynamic_cast<LightSource*>(component)->GetMaterial().specular.shininess },
+				{ "direction",      Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->Direction()) },
+				{ "att_linear",     dynamic_cast<LightSource*>(component)->GetAttenuation().linear },
+				{ "att_quadratic",  dynamic_cast<LightSource*>(component)->GetAttenuation().quadratic },
+				{ "inner_angle",    dynamic_cast<LightSource*>(component)->ConeInnerAngle() },
+				{ "outer_angle",    dynamic_cast<LightSource*>(component)->ConeOuterAngle() },
+				{ "children",       childrenJSON }
+			};
+
+			break;
+		default:
+			throw;
 		}
 
 		componentsJSON.push_back(componentJSON);
@@ -520,24 +635,30 @@ int SceneManager::SaveScene(const wxString &file)
 	return result;
 }
 
-void SceneManager::SelectComponent(int index)
+int SceneManager::SelectComponent(int index)
 {
-	if ((index >= 0) && (index < (int)SceneManager::Components.size()))
-	{
-		SceneManager::SelectedChild     = nullptr;
-		SceneManager::SelectedComponent = SceneManager::Components[index];
-		RenderEngine::Canvas.Window->SelectComponent(index);
-		RenderEngine::Canvas.Window->InitDetails();
-	}
+	if ((index < 0) || (index >= (int)SceneManager::Components.size()))
+		return -1;
+
+	SceneManager::SelectedChild     = nullptr;
+	SceneManager::SelectedComponent = SceneManager::Components[index];
+	RenderEngine::Canvas.Window->SelectComponent(index);
+	RenderEngine::Canvas.Window->InitProperties();
+
+	return 0;
 }
 
-void SceneManager::SelectChild(int index)
+int SceneManager::SelectChild(int index)
 {
-	if ((SceneManager::SelectedComponent != nullptr) && 
-		(index >= 0) && (index < (int)SceneManager::SelectedComponent->Children.size()))
+	if ((SceneManager::SelectedComponent == nullptr) ||
+		(index < 0) || (index >= (int)SceneManager::SelectedComponent->Children.size()))
 	{
-		SceneManager::SelectedChild = SceneManager::SelectedComponent->Children[index];
-		RenderEngine::Canvas.Window->SelectChild(index);
-		RenderEngine::Canvas.Window->InitDetails();
+		return -1;
 	}
+
+	SceneManager::SelectedChild = SceneManager::SelectedComponent->Children[index];
+	RenderEngine::Canvas.Window->SelectChild(index);
+	RenderEngine::Canvas.Window->InitProperties();
+
+	return 0;
 }

@@ -129,6 +129,15 @@
     <ClCompile Include="3rd\json11-1.0.0\json11.cpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClCompile>
+    <ClCompile Include="src\scene\Light.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\Material.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scene\LightSource.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\globals.h">
@@ -218,11 +227,17 @@
     <ClInclude Include="3rd\json11-1.0.0\json11.hpp">
       <Filter>Resource Files\Libraries</Filter>
     </ClInclude>
+    <ClInclude Include="src\scene\Light.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\Material.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="src\scene\LightSource.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\shaders\water.vs.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
     <None Include="resources\shaders\default.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
@@ -241,25 +256,25 @@
     <None Include="resources\shaders\skybox.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\terrain.fs.glsl">
+    <None Include="resources\shaders\color.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\terrain.vs.glsl">
+    <None Include="resources\shaders\color.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\water.fs.glsl">
+    <None Include="resources\shaders\depth.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\test.vs.glsl">
+    <None Include="resources\shaders\depth.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\test.fs.glsl">
+    <None Include="resources\shaders\depth.omni.vs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\wireframe.fs.glsl">
+    <None Include="resources\shaders\depth.omni.fs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="resources\shaders\wireframe.vs.glsl">
+    <None Include="resources\shaders\depth.omni.gs.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
   </ItemGroup>
@@ -270,16 +285,16 @@
     <FxCompile Include="resources\shaders\skybox.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\terrain.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="resources\shaders\water.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="resources\shaders\hud.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="resources\shaders\wireframe.hlsl">
+    <FxCompile Include="resources\shaders\color.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\depth.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="resources\shaders\depth.omni.hlsl">
       <Filter>Resource Files\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

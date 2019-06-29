@@ -13,7 +13,7 @@ Skybox::Skybox(const wxString &modelFile, const std::vector<wxString> &textureIm
 	{
 		this->Children[0]->Name = "Skybox";
 
-		Texture* texture = new Texture(textureImageFiles, "");
+		Texture* texture = new Texture(textureImageFiles);
 		this->Children[0]->LoadTexture(texture, 0);
 
 		for (int i = 1; i < MAX_TEXTURES; i++)

@@ -15,8 +15,7 @@ layout(location = 0) out vec4 GL_FragColor;
 layout(binding = 1) uniform HUDBuffer
 {
 	vec4 MaterialColor;
-	vec3 Padding1;
-	bool IsTransparent;
+	vec4 IsTransparent;
 } hb;
 
 layout(binding = 2) uniform sampler2D Textures[MAX_TEXTURES];
@@ -25,7 +24,7 @@ void main()
 {
 	vec4 sampledColor = texture(Textures[5], FragmentTextureCoords);
 
-	if (hb.IsTransparent)
+	if (hb.IsTransparent.x > 0.1)
 		GL_FragColor = sampledColor;
 	else
 		GL_FragColor = vec4(sampledColor.rgb, hb.MaterialColor.a);

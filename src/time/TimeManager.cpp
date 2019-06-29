@@ -14,6 +14,11 @@ void TimeManager::Start()
 	TimeManager::totalTimer.Start();
 }
 
+long TimeManager::TimeElapsedMS()
+{
+	return totalTimer.Time();
+}
+
 void TimeManager::UpdateFPS()
 {
 	if (TimeManager::deltaTimer.Time() >= 1000)

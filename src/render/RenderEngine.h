@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_RENDERENGINE_H
-#define GE3D_RENDERENGINE_H
+#ifndef S3DE_RENDERENGINE_H
+#define S3DE_RENDERENGINE_H
 
 class RenderEngine
 {
@@ -12,26 +12,27 @@ private:
 	~RenderEngine() {}
 
 public:
-	//static uint16_t           DrawMode;
-	static DrawModeType       DrawMode;
-	static Camera*            Camera;
-	static GLCanvas           Canvas;
-	static GPUDescription     GPU;
-	static bool               DrawBoundingVolume;
-	static std::vector<Mesh*> HUDs;
-	static bool               Ready;
-	static std::vector<Mesh*> Renderables;
-	static GraphicsAPI        SelectedGraphicsAPI;
-	static Mesh*              Skybox;
-	static std::vector<Mesh*> Terrains;
-	static std::vector<Mesh*> Waters;
+	static Camera*                 CameraMain;
+	static GLCanvas                Canvas;
+	static GPUDescription          GPU;
+	static bool                    DrawBoundingVolume;
+	static bool                    EnableSRGB;
+	static std::vector<Component*> HUDs;
+	static std::vector<Component*> LightSources;
+	static bool                    Ready;
+	static std::vector<Component*> Renderables;
+	static GraphicsAPI             SelectedGraphicsAPI;
+	static Mesh*                   Skybox;
+
+private:
+	static DrawModeType drawMode;
 
 public:
 	static void     Close();
 	static void     Draw();
 	static uint16_t GetDrawMode();
 	static int      Init(WindowFrame* window, const wxSize &size);
-	static void     RemoveMesh(Mesh* mesh);
+	static int      RemoveMesh(Component* mesh);
 	static void     SetAspectRatio(const wxString &ratio);
 	static void     SetCanvasSize(int width, int height);
 	static void     SetDrawMode(DrawModeType mode);
@@ -40,23 +41,24 @@ public:
 	static void     SetVSync(bool enable);
 
 private:
-	static void           clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	static void           clear(const glm::vec4 &colorRGBA, const DrawProperties &properties);
+	static void           createDepthFBO();
 	static void           createWaterFBOs();
 	static int            drawBoundingVolumes();
 	static int            drawSelected();
-	static int            drawHUDs(const DrawProperties        &properties = {});
-	static int            drawRenderables(const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static int            drawSkybox(const DrawProperties      &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static int            drawTerrains(const DrawProperties    &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static int            drawWaters(const DrawProperties      &properties = {});
-	static int            drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshGL(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
-	static int            drawMeshVK(Mesh*   mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static void           drawMesh(Mesh*     mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static void           drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
-	static void           drawScene(const DrawProperties &properties = {});
+	static int            drawHUDs();
+	static int            drawLightSources();
+	static int            drawRenderables(DrawProperties &properties = DrawProperties());
+	static int            drawSkybox(DrawProperties      &properties = DrawProperties());
+	static int            drawMeshDX11(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
+	static int            drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
+	static int            drawMeshGL(Component*   mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
+	static int            drawMeshVK(Component*   mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
+	static void           drawMesh(Component*     mesh, ShaderProgram* shaderProgram, DrawProperties &properties);
+	static void           drawMeshes(const std::vector<Component*> meshes, DrawProperties &properties);
+	static void           drawScene();
 	static int            initResources();
+	static void           setDrawSettingsGL(ShaderID shaderID);
 	static int            setGraphicsAPI(GraphicsAPI api);
 	static int            setGraphicsApiCanvas();
 	static int            setGraphicsApiDX(GraphicsAPI api);

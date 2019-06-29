@@ -1,29 +1,35 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_FRAMEBUFFER_H
-#define GE3D_FRAMEBUFFER_H
+#ifndef S3DE_FRAMEBUFFER_H
+#define S3DE_FRAMEBUFFER_H
 
 class FrameBuffer
 {
 public:
-	FrameBuffer(int width, int height);
+	FrameBuffer(const wxSize &size, FBOType fboType, TextureType textureType);
 	FrameBuffer();
 	~FrameBuffer();
 
 private:
-	Texture* colorTexture;
-	GLuint   colorBuffer;
+	Texture* texture;
+	GLuint   fbo;
 	wxSize   size;
+	FBOType  type;
 
 public:
-	void     Bind();
+	void     Bind(int depthLayer = 0);
 	void     Unbind();
-	void     CreateColorTexture();
-	Texture* ColorTexture();
-	GLuint   ColorBuffer();
+	GLuint   FBO();
+	Texture* GetTexture();
 	wxSize   Size();
+	FBOType  Type();
+
+private:
+	void createTextureDX(TextureType textureType);
+	void createTextureGL(TextureType textureType);
+	void createTextureVK(TextureType textureType);
 
 };
 

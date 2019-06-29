@@ -19,7 +19,6 @@ int Window::OnExit()
 	RenderEngine::Canvas.Window = nullptr;
 
 	RenderEngine::Close();
-	_DELETEP(RenderEngine::Camera);
 
 	return 0;
 }
@@ -32,14 +31,14 @@ bool Window::OnInit()
 	// WINDOW
 	wxString title = wxString(Utils::APP_NAME).append(" ").append(Utils::APP_VERSION);
 
-	this->frame = new WindowFrame(title, wxDefaultPosition, Utils::WINDOW_SIZE, this);
+	this->frame = new WindowFrame(title, wxDefaultPosition, Utils::UI_WINDOW_SIZE, this);
 	this->frame->Show(true);
 	//this->frame->Maximize(true);
 
 	// RENDER ENGINE
 	this->frame->SetStatusText("Initializing the Render Engine ...");
 
-	int result = RenderEngine::Init(this->frame, Utils::RENDER_SIZE);
+	int result = RenderEngine::Init(this->frame, Utils::UI_RENDER_SIZE);
 
 	if (result < 0)
 	{
@@ -50,21 +49,22 @@ bool Window::OnInit()
 	}
 
 	// CAMERA
-	this->frame->SetStatusText("Creating the Camera ...");
-
-	Camera* camera = new Camera(
-		glm::vec3(0.0f, 2.5f, 10.0f), glm::vec3(0.0f, 0.0f, 0.0f), (glm::pi<float>() / 4.0f), 0.1f, 100.0f
-	);
-
-	if ((camera == nullptr) || !camera->IsValid())
+	if ((RenderEngine::CameraMain == nullptr) || !RenderEngine::CameraMain->IsValid())
 	{
 		wxMessageBox("ERROR: Failed to create the Camera.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
-		this->frame->SetStatusText("Creating the Camera ... FAIL");
+		this->frame->SetStatusText("ERROR: Failed to create the Camera.");
 
 		return false;
 	}
 
-	SceneManager::AddComponent(camera);
+	// DIRECTIONAL LIGHT
+	if ((SceneManager::LightSources[0] == nullptr) || !SceneManager::LightSources[0]->IsValid())
+	{
+		wxMessageBox("ERROR: Failed to create the directional light source.", this->frame->GetTitle().c_str(), wxOK | wxICON_ERROR);
+		this->frame->SetStatusText("ERROR: Failed to create the directional light source.");
+
+		return false;
+	}
 
 	// INPUT MANAGER
 	this->frame->SetStatusText("Initializing the Input Manager ...");

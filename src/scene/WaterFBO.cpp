@@ -11,32 +11,25 @@ WaterFBO::WaterFBO(const std::vector<wxString> &textureImageFiles)
 	for (int i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
 
-	// WATER REFLECTION - ABOVE WATER
-	this->reflectionFBO = new FrameBuffer(320, (int)(320.0f * RenderEngine::Canvas.AspectRatio));
+	int FBO_TEXTURE_HEIGHT = static_cast<int>(
+		static_cast<float>(FBO_TEXTURE_SIZE) * RenderEngine::Canvas.AspectRatio
+	);
 
-	if (this->reflectionFBO != nullptr)
-		this->reflectionFBO->CreateColorTexture();
+	// WATER REFLECTION - ABOVE WATER
+	//this->reflectionFBO = new FrameBuffer(wxSize(320, (int)(320.0f * RenderEngine::Canvas.AspectRatio)), FBO_COLOR, TEXTURE_2D);
+	this->reflectionFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_HEIGHT), FBO_COLOR, TEXTURE_2D);
 
     // WATER REFRACTION - BELOW WATER
-	this->refractionFBO = new FrameBuffer(1280, (int)(1280.0f * RenderEngine::Canvas.AspectRatio));
-
-	if (this->refractionFBO != nullptr)
-		this->refractionFBO->CreateColorTexture();
+	this->refractionFBO = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_HEIGHT), FBO_COLOR, TEXTURE_2D);
 
     // TEXTURES
-	if ((this->reflectionFBO != nullptr) && (this->refractionFBO != nullptr))
-	{
-		this->Textures[0] = this->reflectionFBO->ColorTexture();
-		this->Textures[1] = this->refractionFBO->ColorTexture();
-		this->Textures[2] = new Texture(textureImageFiles[0], "duDvMap.png",   true);
-		this->Textures[3] = new Texture(textureImageFiles[1], "normalMap.png", true);
+	this->Textures[0] = this->reflectionFBO->GetTexture();
+	this->Textures[1] = this->refractionFBO->GetTexture();
+	this->Textures[2] = new Texture(textureImageFiles[0], false, true);
+	this->Textures[3] = new Texture(textureImageFiles[1], false, true);
 
-		for (int i = 4; i < MAX_TEXTURES; i++)
-			this->Textures[i] = SceneManager::EmptyTexture;
-	} else {
-		for (int i = 0; i < MAX_TEXTURES; i++)
-			this->Textures[i] = SceneManager::EmptyTexture;
-	}
+	for (int i = 4; i < MAX_TEXTURES; i++)
+		this->Textures[i] = SceneManager::EmptyTexture;
 }
 
 WaterFBO::WaterFBO()
@@ -53,15 +46,20 @@ WaterFBO::WaterFBO()
 
 WaterFBO::~WaterFBO()
 {
-	_DELETEP(this->reflectionFBO);
-	_DELETEP(this->refractionFBO);
-
 	this->moveFactor   = 0.0f;
 	this->Speed        = 0.0f;
 	this->WaveStrength = 0.0f;
 
+	if ((this->reflectionFBO != nullptr) && (this->refractionFBO != nullptr))
+	{
+		_DELETEP(this->reflectionFBO);
+		_DELETEP(this->refractionFBO);
+		_DELETEP(this->Textures[2]);
+		_DELETEP(this->Textures[3]);
+	}
+
 	for (int i = 0; i < MAX_TEXTURES; i++)
-		_DELETEP(this->Textures[i]);
+		this->Textures[i] = nullptr;
 }
 
 void WaterFBO::BindReflection()

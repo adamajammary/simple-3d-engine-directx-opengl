@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_VKCONTEXT_H
-#define GE3D_VKCONTEXT_H
+#ifndef S3DE_VKCONTEXT_H
+#define S3DE_VKCONTEXT_H
 
 enum VKAttachmentDesc
 {
@@ -104,13 +104,13 @@ private:
 	#endif
 
 public:
-	void            Clear(float r, float g, float b, float a, FrameBuffer* fbo = nullptr, VkCommandBuffer cmdBuffer = nullptr);
+	void            Clear(const glm::vec4 &colorRGBA, const DrawProperties& properties);
 	VkCommandBuffer CommandBufferBegin();
 	void            CommandBufferEnd(VkCommandBuffer cmdBuffer);
 	int             CreateIndexBuffer(const std::vector<uint32_t> &indices, Buffer* buffer);
 	int             CreateShaderModule(const wxString &shaderFile, const wxString &stage, VkShaderModule* shaderModule);
-	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture);
-	int             CreateTextureBuffer(VkFormat format, Texture* texture);
+	int             CreateTexture(const std::vector<uint8_t*> &imagePixels, Texture* texture, VkFormat imageFormat);
+	int             CreateTextureBuffer(FBOType fboType, VkFormat imageFormat, Texture* texture);
 	int             CreateVertexBuffer(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords, Buffer* buffer);
 	void            DestroyBuffer(VkBuffer* buffer, VkDeviceMemory* bufferMemory);
 	void            DestroyFramebuffer(VkFramebuffer* frameBuffer);
@@ -119,7 +119,7 @@ public:
 	void            DestroyShaderModule(VkShaderModule* shaderModule);
 	void            DestroyTexture(VkImage* image, VkDeviceMemory* imageMemory, VkImageView* textureImageView, VkSampler* sampler);
 	void            DestroyUniformSet(VkDescriptorPool* uniformPool, VkDescriptorSetLayout* uniformLayout);
-	int             Draw(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {}, VkCommandBuffer cmdBuffer = nullptr);
+	int             Draw(Component* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties = {});
 	int             InitPipelines(Buffer* buffer);
 	bool            IsOK();
 	void            Present(VkCommandBuffer cmdBuffer = nullptr);
@@ -130,14 +130,14 @@ public:
 private:
 	void                                   blitImage(VkCommandBuffer cmdBuffer, VkImage image, int mipWidth, int mipHeight, int index);
 	int                                    copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize bufferSize);
-	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t index = 0);
-	int                                    copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageLayout oldLayout, VkImageLayout newLayout);
+	int                                    copyBufferToImage(VkBuffer buffer, VkImage image, int colorComponents, uint32_t width, uint32_t height, uint32_t index = 0);
+	int                                    copyImage(VkImage image, VkFormat imageFormat, uint32_t mipLevels, TextureType textureType, VkImageLayout oldLayout, VkImageLayout newLayout);
 	int                                    createBuffer(VkDeviceSize size, VkBufferUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, VkBuffer* buffer, VkDeviceMemory* bufferMemory);
-	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, bool cubeMap, VkImage* image, VkDeviceMemory* imageMemory);
-	VkSampler                              createImageSampler(float mipLevels, float sampleCount, bool cubeMap, VkSamplerCreateInfo &samplerInfo);
-	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, uint32_t mipLevels, bool cubeMap, VkImageAspectFlags aspectFlags);
+	int                                    createImage(uint32_t width, uint32_t height, uint32_t mipLevels, uint32_t sampleCount, VkFormat format, VkImageTiling tiling, VkImageUsageFlags useFlags, VkMemoryPropertyFlags memoryFlags, TextureType textureType, VkImage* image, VkDeviceMemory* imageMemory);
+	VkSampler                              createImageSampler(float mipLevels, float sampleCount, VkSamplerCreateInfo &samplerInfo);
+	VkImageView                            createImageView(VkImage image, VkFormat imageFormat, VkImageAspectFlags aspectFlags, uint32_t mipLevels, VkImageViewType viewType, uint32_t layerCount = 1, uint32_t layer = 0);
 	int                                    createMipMaps(VkImage image, VkFormat imageFormat, int width, int height, uint32_t mipLevels);
-	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, bool fbo, const std::vector<VkVertexInputAttributeDescription> &attribsDescs, const VkVertexInputBindingDescription &attribsBindingDesc);
+	int                                    createPipeline(ShaderProgram* shaderProgram, VkPipeline* pipeline, VkPipelineLayout pipelineLayout, FBOType fboType, const std::vector<VkVertexInputAttributeDescription> &attribsDescs, const VkVertexInputBindingDescription &attribsBindingDesc);
 	int                                    createPipelineLayout(Buffer* buffer);
 	int                                    createUniformBuffers(Buffer* buffer);
 	int                                    createUniformLayout(VkDescriptorSetLayout* uniformLayout);
@@ -146,7 +146,7 @@ private:
 	bool                                   deviceSupportsExtensions(VkPhysicalDevice device, const std::vector<const char*> &extensions);
 	bool                                   deviceSupportsFeatures(VkPhysicalDevice device, const VkPhysicalDeviceFeatures &features);
 	wxString                               getApiVersion(VkPhysicalDevice device);
-	VkFormat                               getDepthBufferFormat();
+	//VkFormat                               getDepthBufferFormat();
 	VkPhysicalDevice                       getDevice(const std::vector<const char*> &extensions, const VkPhysicalDeviceFeatures &features);
 	wxString                               getDeviceName(VkPhysicalDevice device);
 	std::vector<VKQueue*>                  getDeviceQueueSupport(VkPhysicalDevice device);
@@ -168,7 +168,7 @@ private:
 	VkInstance                             initInstance();
 	VkPipelineMultisampleStateCreateInfo   initMultisampling(uint32_t sampleCount);
 	VkPipelineRasterizationStateCreateInfo initRasterizer(VkCullModeFlags cullMode = VK_CULL_MODE_BACK_BIT, VkPolygonMode polyMode = VK_POLYGON_MODE_FILL);
-	VkRenderPass                           initRenderPass(VkFormat format, uint32_t sampleCount, size_t attachmentCount);
+	VkRenderPass                           initRenderPass(VkFormat format, uint32_t sampleCount, VKAttachmentDesc attachmentDesc);
 	VkSurfaceKHR                           initSurface();
 	VKSwapchain*                           initSwapChain();
 	bool                                   initSync();

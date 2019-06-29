@@ -3,26 +3,33 @@
 Camera::Camera(const glm::vec3 &position, const glm::vec3 &lookAt, float fovRadians, float near, float far)
 	: Component("Camera", position)
 {
-	this->far        = far;
 	this->fovRadians = fovRadians;
 	this->near       = near;
-	this->pitch      = 0.0f;
-	this->yaw        = -(glm::pi<float>() / 2.0f);
+	this->far        = far;
+	this->pitch      = 0;
+	this->yaw        = -(glm::pi<float>() * 0.5f);
 	this->type       = COMPONENT_CAMERA;
+	this->isValid    = true;
 
 	this->init(position, lookAt);
 
-	this->isValid = true;
+	this->Children = { this };
 }
 
-Camera::Camera()
+Camera::Camera() : Component("Camera")
 {
-	this->far        = 0.0f;
-	this->fovRadians = 0.0f;
-	this->near       = 0.0f;
-	this->pitch      = 0.0f;
-	this->yaw        = 0.0f;
-	this->type       = COMPONENT_CAMERA;
+	this->Reset();
+	this->Children = { this };
+}
+
+void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
+{
+	this->forward = glm::normalize(lookAt - position);
+	this->right   = glm::normalize(glm::cross(this->up, this->forward));
+
+	this->UpdateProjection();
+	this->updatePosition();
+	this->updateRotation();
 }
 
 float Camera::Far()
@@ -30,22 +37,12 @@ float Camera::Far()
 	return far;
 }
 
-void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
-{
-	this->forward = glm::normalize(lookAt - position);
-	this->right   = glm::normalize(glm::cross(glm::vec3(0.0, 1.0, 0.0), this->forward));
-
-	this->UpdateProjection();
-	this->updatePosition();
-	this->updateRotation();
-}
-
 bool Camera::InputKeyboard(char key)
 {
 	glm::vec3    moveVector;
 	const double MOVE_SPEED   = 20.0;
 	float        moveModifier = (TimeManager::DeltaTime * MOVE_SPEED);
-	glm::vec3    moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
+	glm::vec3    moveAmount   = { moveModifier, moveModifier, moveModifier };
 	bool         result       = false;
 
 	switch (toupper(key)) {
@@ -54,7 +51,7 @@ bool Camera::InputKeyboard(char key)
 		result     = true;
 		break;
 	case 'A':
-		moveVector  = glm::normalize(glm::cross(this->forward, glm::vec3(0.0, 1.0, 0.0)));
+		moveVector  = glm::normalize(glm::cross(this->forward, this->up));
 		moveVector *= -moveAmount;
 		result      = true;
 		break;
@@ -63,9 +60,11 @@ bool Camera::InputKeyboard(char key)
 		result     = true;
 		break;
 	case 'D':
-		moveVector  = glm::normalize(glm::cross(this->forward, glm::vec3(0.0, 1.0, 0.0)));
+		moveVector  = glm::normalize(glm::cross(this->forward, this->up));
 		moveVector *= moveAmount;
 		result      = true;
+		break;
+	default:
 		break;
 	}
 
@@ -79,25 +78,25 @@ void Camera::InputMouseMove(const wxMouseEvent &event, const MouseState &mouseSt
 {
 	glm::vec3    moveVector;
 	const double MOVE_SPEED    = 3.0;
-	glm::vec2    mouseMovement = glm::vec2((event.GetX() - mouseState.Position.x), (event.GetY() - mouseState.Position.y));
-	glm::vec2    moveModifier  = glm::vec2((mouseMovement.x * TimeManager::DeltaTime * MOVE_SPEED), (mouseMovement.y * TimeManager::DeltaTime * MOVE_SPEED));
-	glm::vec3    moveAmountX   = glm::vec3(-moveModifier.x, -moveModifier.x, -moveModifier.x);
-	glm::vec3    moveAmountY   = glm::vec3(-moveModifier.y, -moveModifier.y, -moveModifier.y);
+	glm::vec2    mouseMovement = { (event.GetX() - mouseState.Position.x), (event.GetY() - mouseState.Position.y) };
+	glm::vec2    moveModifier  = { (mouseMovement.x * TimeManager::DeltaTime * MOVE_SPEED), (mouseMovement.y * TimeManager::DeltaTime * MOVE_SPEED) };
+	glm::vec3    moveAmountX   = { -moveModifier.x, -moveModifier.x, -moveModifier.x };
+	glm::vec3    moveAmountY   = { -moveModifier.y, -moveModifier.y, -moveModifier.y };
 
 	// MOVE/PAN HORIZONTAL/VERTICAL
 	if (event.GetModifiers() == wxMOD_SHIFT)
 	{
-		moveVector  = glm::normalize(glm::cross(this->forward, glm::vec3(0.0, 1.0, 0.0)));
+		moveVector  = glm::normalize(glm::cross(this->forward, this->up));
 		moveVector *= moveAmountX;
 
 		this->MoveBy(moveVector);
-		this->MoveBy(glm::vec3(0.0, moveModifier.y, 0.0));
+		this->MoveBy({ 0, moveModifier.y, 0 });
 	// MOVE/PAN FORWARD/BACK (Z)
 	} else if (event.GetModifiers() == wxMOD_CONTROL) {
 		this->MoveBy(this->forward * moveAmountY);
 	// ROTATE HORIZONTAL/VERTICAL (YAW/PITCH)
 	} else {
-		this->RotateBy(glm::vec3(-(moveModifier.y * 0.01), (moveModifier.x * 0.01), 0.0));
+		this->RotateBy({ -(moveModifier.y * 0.01f), (moveModifier.x * 0.01f), 0 });
 	}
 }
 
@@ -106,14 +105,14 @@ void Camera::InputMouseScroll(const wxMouseEvent &event)
 	glm::vec3    moveVector;
 	const double MOVE_SPEED   = 20.0;
 	float        moveModifier = ((std::signbit((float)event.GetWheelRotation()) ? -1.0 : 1.0) * TimeManager::DeltaTime * MOVE_SPEED);
-    glm::vec3    moveAmount   = glm::vec3(moveModifier, moveModifier, moveModifier);
+	glm::vec3    moveAmount   = { moveModifier, moveModifier, moveModifier };
 
     // UP / DOWN (Y)
 	if (event.GetModifiers() == wxMOD_SHIFT) {
-		moveVector = glm::vec3(0.0, moveModifier, 0.0);
+		moveVector = { 0, moveModifier, 0 };
     // LEFT / RIGHT (X)
 	} else if (event.GetModifiers() == wxMOD_CONTROL) {
-		moveVector  = glm::normalize(glm::cross(this->forward, glm::vec3(0.0, 1.0, 0.0)));
+		moveVector  = glm::normalize(glm::cross(this->forward, this->up));
 		moveVector *= moveAmount;
     // FORWARD / BACK (Z)
     } else {
@@ -126,12 +125,7 @@ void Camera::InputMouseScroll(const wxMouseEvent &event)
 void Camera::InvertPitch()
 {
 	this->pitch = -this->pitch;
-	this->RotateTo(glm::vec3(this->pitch, this->yaw, 0.0f));
-}
-
-bool Camera::IsRenderable()
-{
-	return false;
+	this->RotateTo({ this->pitch, this->yaw, 0 });
 }
 
 void Camera::MoveBy(const glm::vec3 &amount)
@@ -165,19 +159,35 @@ void Camera::RotateBy(const glm::vec3 &amountRadians)
 {
 	this->pitch += amountRadians.x;
 	this->yaw   += amountRadians.y;
+
 	this->updateRotation();
 }
 
-void Camera::RotateTo(const glm::vec3 &newRotationRadions)
+void Camera::RotateTo(const glm::vec3 &newRotationRadians)
 {
-	this->pitch = newRotationRadions.x;
-	this->yaw   = newRotationRadions.y;
+	this->pitch = newRotationRadians.x;
+	this->yaw   = newRotationRadians.y;
+
 	this->updateRotation();
 }
 
 glm::mat4 Camera::Projection()
 {
 	return projection;
+}
+
+void Camera::Reset()
+{
+	this->position   = { 0.0f, 2.5f, 10.0f };
+	this->fovRadians = (glm::pi<float>() * 0.25f);
+	this->near       = 0.1f;
+	this->far        = 100.0f;
+	this->pitch      = 0;
+	this->yaw        = -(glm::pi<float>() * 0.5f);
+	this->type       = COMPONENT_CAMERA;
+	this->isValid    = true;
+
+	this->init(this->position, {});
 }
 
 void Camera::SetFOV(const wxString &fov)
@@ -193,29 +203,36 @@ void Camera::UpdateProjection()
 
 	// Flip Y-axis on Vulkan
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
-		this->projection[1][1] *= -1;
+		this->projection[1][1] *= -1.0f;
 }
 
 void Camera::updatePosition()
 {
-	this->center = (this->position + this->forward);
-	this->view   = glm::lookAt(this->position, this->center, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::vec3 center = (this->position + this->forward);
+	this->view       = glm::lookAt(this->position, center, this->up);
 }
 
 void Camera::updateRotation()
 {
 	// https://learnopengl.com/#!Getting-started/Camera
-	this->pitch    = std::max(std::min(this->pitch, (glm::pi<float>() / 2.0f)), -(glm::pi<float>() / 2.0f));
-	this->rotation = glm::vec3(this->pitch, this->yaw, 0.0f);
+	this->pitch    = std::max(std::min(this->pitch, (glm::pi<float>() * 0.5f)), -(glm::pi<float>() * 0.5f));
+	this->rotation = { this->pitch, this->yaw, 0 };
 
-	this->center.x = (std::cos(this->pitch) * std::cos(this->yaw));
-	this->center.y = std::sin(this->pitch);
-	this->center.z = (std::cos(this->pitch) * std::sin(this->yaw));
+	glm::vec3 center = {
+		(std::cos(this->pitch) * std::cos(this->yaw)),	// X
+		std::sin(this->pitch),							// Y
+		(std::cos(this->pitch) * std::sin(this->yaw))	// Z
+	};
 
-	this->forward  = glm::normalize(this->center);
+	this->forward = glm::normalize(center);
 
-	this->center = (this->position + this->forward);
-	this->view   = glm::lookAt(this->position, this->center, glm::vec3(0.0f, 1.0f, 0.0f));
+	center     = (this->position + this->forward);
+	this->view = glm::lookAt(this->position, center, this->up);
+}
+
+glm::vec3 Camera::Up()
+{
+	return this->up;
 }
 
 glm::mat4 Camera::View(bool removeTranslation)

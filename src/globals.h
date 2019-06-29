@@ -1,5 +1,5 @@
-#ifndef GE3D_GLOBALS_H
-#define GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
+#define S3DE_GLOBALS_H
 
 #define _CRT_SECURE_NO_WARNINGS
 #define UNICODE
@@ -38,7 +38,7 @@
 
 // GLM - OpenGL Mathematics
 #define GLM_FORCE_RADIANS
-//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
@@ -67,6 +67,7 @@
 #include <wx/button.h>
 #include <wx/checkbox.h>
 #include <wx/choice.h>
+#include <wx/dataview.h>
 #include <wx/dcmemory.h>
 #include <wx/dcgraph.h>
 #include <wx/event.h>
@@ -78,6 +79,7 @@
 #include <wx/listbox.h>
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
+#include <wx/notebook.h>
 #include <wx/propgrid/propgrid.h>
 #include <wx/propgrid/advprops.h>
 #include <wx/sizer.h>
@@ -86,39 +88,44 @@
 #include <wx/stopwatch.h>
 #include <wx/webview.h>
 
+#if defined _WINDOWS
+	#include <wx/msw/registry.h>
+#endif
+
+struct CBMatrix;
+
 class BoundingVolume;
 class Buffer;
-class Camera;
 class Component;
+class FrameBuffer;
+class LightSource;
 class DXContext;
-class HUD;
-class InputManager;
 class Mesh;
-class Model;
-class Noise;
-class PhysicsEngine;
-class RayCast;
-class RenderEngine;
-class SceneManager;
-class ShaderManager;
 class ShaderProgram;
 class Skybox;
 class Terrain;
 class Texture;
-class TimeManager;
-class Utils;
 class VKContext;
 class Water;
-class WaterFBO;
-class Window;
 class WindowFrame;
 
-static const uint32_t BUFFER_SIZE           = 1024;
-static const uint32_t LZMA_OFFSET_ID        = 8;
-static const uint32_t LZMA_OFFSET_SIZE      = 8;
-static const uint32_t MAX_CONCURRENT_FRAMES = 2;
-static const uint32_t MAX_TEXTURES          = 6;
-static const uint32_t NR_OF_FRAMEBUFFERS    = 2;
+static const uint32_t  BUFFER_SIZE           = 1024;
+static const glm::vec4 CLEAR_VALUE_COLOR     = { 0.0f, 0.0f, 1.0f, 1.0f };
+static const glm::vec4 CLEAR_VALUE_DEFAULT   = { 0.0f, 0.2f, 0.4f, 1.0f };
+static const glm::vec4 CLEAR_VALUE_DEPTH     = { 1.0f, 1.0f, 1.0f, 1.0f };
+static const int       FBO_TEXTURE_SIZE      = 1024;
+static const uint32_t  LZMA_OFFSET_ID        = 8;
+static const uint32_t  LZMA_OFFSET_SIZE      = 8;
+static const uint32_t  MAX_CONCURRENT_FRAMES = 2;
+static const uint32_t  MAX_LIGHT_SOURCES     = 13;
+static const uint32_t  MAX_TEXTURES          = 6;
+static const uint32_t  MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES + MAX_LIGHT_SOURCES);
+static const uint32_t  NR_OF_FRAMEBUFFERS    = 2;
+
+#if defined _WINDOWS
+static const unsigned int BYTE_ALIGN_BUFFER_DATA = 65536;
+static const unsigned int BYTE_ALIGN_BUFFER_VIEW = 256;
+#endif
 
 enum Attrib
 {
@@ -139,7 +146,8 @@ enum ComponentType
 	COMPONENT_MODEL,
 	COMPONENT_SKYBOX,
 	COMPONENT_TERRAIN,
-	COMPONENT_WATER
+	COMPONENT_WATER,
+	COMPONENT_LIGHTSOURCE
 };
 
 enum DrawModeType
@@ -147,13 +155,18 @@ enum DrawModeType
 	DRAW_MODE_UNKNOWN = -1, DRAW_MODE_FILLED, DRAW_MODE_WIREFRAME, NR_OF_DRAW_MODES
 };
 
+enum FBOType
+{
+	FBO_UNKNOWN = -1, FBO_COLOR, FBO_DEPTH, NR_OF_FBO_TYPES
+};
+
 enum GraphicsAPI
 {
 	GRAPHICS_API_UNKNOWN = -1,
-	GRAPHICS_API_DIRECTX11,
-	GRAPHICS_API_DIRECTX12,
 	GRAPHICS_API_OPENGL,
 	GRAPHICS_API_VULKAN,
+	GRAPHICS_API_DIRECTX11,
+	GRAPHICS_API_DIRECTX12,
 	NR_OF_GRAPHICS_ENGINES
 };
 
@@ -174,6 +187,9 @@ enum IconType
 	ID_ICON_WATER,
 	ID_ICON_HUD,
 	ID_ICON_QUAD,
+	ID_ICON_LIGHT_DIRECTIONAL,
+	ID_ICON_LIGHT_POINT,
+	ID_ICON_LIGHT_SPOT,
 	ID_CANVAS,
 	ID_ASPECT_RATIO,
 	ID_FOV,
@@ -181,6 +197,7 @@ enum IconType
 	ID_DRAW_BOUNDING,
 	ID_GRAPHICS_API,
 	ID_VSYNC,
+	ID_SRGB,
 	ID_COMPONENTS,
 	ID_CHILDREN,
 	ID_SCENE_DETAILS,
@@ -189,71 +206,137 @@ enum IconType
 	ID_SCENE_SAVE,
 	ID_REMOVE_COMPONENT,
 	ID_REMOVE_CHILD,
+	ID_RESET_CAMERA,
+	ID_TABS,
+	ID_TABS_GEOMETRY,
+	ID_TABS_LIGHTS
+};
+
+enum PropertyID
+{
+	PROPERTY_ID_NAME,
+	PROPERTY_ID_LOCATION,
+	PROPERTY_ID_LOCATION_,
+	PROPERTY_ID_ROTATION,
+	PROPERTY_ID_ROTATION_,
+	PROPERTY_ID_SCALE,
+	PROPERTY_ID_SCALE_,
+	PROPERTY_ID_AUTO_ROTATION,
+	PROPERTY_ID_AUTO_ROTATION_,
+	PROPERTY_ID_ENABLE_AUTO_ROTATION,
+	PROPERTY_ID_COLOR,
+	PROPERTY_ID_SPEC_INTENSITY,
+	PROPERTY_ID_SPEC_SHININESS,
+	PROPERTY_ID_OPACITY,
+	PROPERTY_ID_TRANSPARENCY,
+	PROPERTY_ID_TEXT,
+	PROPERTY_ID_TEXT_ALIGNMENT,
+	PROPERTY_ID_TEXT_FONT,
+	PROPERTY_ID_TEXT_SIZE,
+	PROPERTY_ID_TEXT_COLOR,
+	PROPERTY_ID_HUD_TEXTURE,
+	PROPERTY_ID_HUD_REMOVE_TEXTURE,
+	PROPERTY_ID_TEXTURE_,
+	PROPERTY_ID_REMOVE_TEXTURE_,
+	PROPERTY_ID_FLIP_TEXTURE_,
+	PROPERTY_ID_REPEAT_TEXTURE_,
+	PROPERTY_ID_TILING_U_,
+	PROPERTY_ID_TILING_V_,
+	PROPERTY_ID_BOUNDING_VOLUME,
+	PROPERTY_ID_TERRAIN_SIZE,
+	PROPERTY_ID_TERRAIN_OCTAVES,
+	PROPERTY_ID_TERRAIN_REDISTRIBUTION,
+	PROPERTY_ID_WATER_SPEED,
+	PROPERTY_ID_WATER_WAVE_STRENGTH,
+	PROPERTY_ID_LIGHT_ACTIVE,
+	PROPERTY_ID_LIGHT_LOCATION,
+	PROPERTY_ID_LIGHT_LOCATION_,
+	PROPERTY_ID_LIGHT_AMBIENT,
+	PROPERTY_ID_LIGHT_DIFFUSE,
+	PROPERTY_ID_LIGHT_SPEC_INTENSITY,
+	PROPERTY_ID_LIGHT_SPEC_SHININESS,
+	PROPERTY_ID_LIGHT_DIRECTION,
+	PROPERTY_ID_LIGHT_DIRECTION_,
+	PROPERTY_ID_LIGHT_ATT_LINEAR,
+	PROPERTY_ID_LIGHT_ATT_QUAD,
+	PROPERTY_ID_LIGHT_ANGLE_INNER,
+	PROPERTY_ID_LIGHT_ANGLE_OUTER,
+	NR_OF_PROPERTY_IDS
 };
 
 enum RenderPass
 {
-	RENDER_PASS_DEFAULT, RENDER_PASS_FBO, NR_OF_RENDER_PASSES
+	RENDER_PASS_DEFAULT, RENDER_PASS_FBO_COLOR, RENDER_PASS_FBO_DEPTH, NR_OF_RENDER_PASSES
 };
 
 enum ShaderID
 {
 	SHADER_ID_UNKNOWN = -1,
+	SHADER_ID_COLOR,
 	SHADER_ID_DEFAULT,
+	SHADER_ID_DEPTH,
+	SHADER_ID_DEPTH_OMNI,
 	SHADER_ID_HUD,
 	SHADER_ID_SKYBOX,
-	SHADER_ID_TERRAIN,
-	SHADER_ID_WATER,
 	SHADER_ID_WIREFRAME,
 	NR_OF_SHADERS
+};
+
+enum TextureType
+{
+	TEXTURE_UNKNOWN = -1,
+	TEXTURE_2D,
+	TEXTURE_2D_ARRAY,
+	TEXTURE_CUBEMAP,
+	TEXTURE_CUBEMAP_ARRAY,
+	NR_OF_TEXTURE_TYPES
+};
+
+enum RootSignatureTypeDX12
+{
+	ROOT_CBV, ROOT_TEXTURE_SRV, ROOT_TEXTURE_SAMPLER, NR_OF_ROOT_SIGNATURE_TYPES
 };
 
 enum UniformBufferTypeGL
 {
 	UBO_GL_MATRIX,
+	UBO_GL_COLOR,
 	UBO_GL_DEFAULT,
+	UBO_GL_DEPTH,
 	UBO_GL_HUD,
-	UBO_GL_WATER,
-	UBO_GL_WIREFRAME,
-	UBO_GL_TEXTURES0,
-	UBO_GL_TEXTURES1,
-	UBO_GL_TEXTURES2,
-	UBO_GL_TEXTURES3,
-	UBO_GL_TEXTURES4,
-	UBO_GL_TEXTURES5,
+	UBO_GL_TEXTURES0, UBO_GL_TEXTURES1, UBO_GL_TEXTURES2, UBO_GL_TEXTURES3, UBO_GL_TEXTURES4, UBO_GL_TEXTURES5,
+	UBO_GL_TEXTURES6,
+	UBO_GL_TEXTURES7,
 	NR_OF_UBOS_GL
 };
 
 enum UniformBinding
 {
-	UBO_BINDING_MATRIX, UBO_BINDING_DEFAULT, UBO_BINDING_TEXTURES, NR_OF_UBO_BINDINGS
+	UBO_BINDING_MATRIX, UBO_BINDING_DEFAULT, UBO_BINDING_TEXTURES, UBO_BINDING_DEPTH_2D, UBO_BINDING_DEPTH_CUBEMAPS, NR_OF_UBO_BINDINGS
 };
 
 enum UniformBufferTypeVK
 {
 	UBO_VK_MATRIX,
+	UBO_VK_COLOR,
 	UBO_VK_DEFAULT,
+	UBO_VK_DEPTH,
 	UBO_VK_HUD,
-	UBO_VK_WATER,
-	UBO_VK_WIREFRAME,
 	NR_OF_UBOS_VK
-};
-
-struct AssImpMesh
-{
-	aiMesh*        Mesh  = nullptr;
-	const aiScene* Scene = nullptr;
-	aiMatrix4x4    Transformation;
 };
 
 struct DrawProperties
 {
-	bool      DrawBoundingVolume = false;
-	bool      DrawSelected       = false;
-	bool      EnableClipping     = false;
-	bool      FBO                = false;
-	glm::vec3 ClipMax            = {};
-	glm::vec3 ClipMin            = {};
+	glm::vec3       ClipMax            = {};
+	glm::vec3       ClipMin            = {};
+	int             DepthLayer         = 0;
+	bool            DrawBoundingVolume = false;
+	bool            DrawSelected       = false;
+	bool            EnableClipping     = false;
+	FrameBuffer*    FBO                = nullptr;
+	LightSource*    Light              = nullptr;
+	ShaderID        Shader             = SHADER_ID_UNKNOWN;
+	VkCommandBuffer VKCommandBuffer    = nullptr;
 };
 
 struct GPUDescription
@@ -268,15 +351,6 @@ struct Icon
 	wxString File  = "";
 	IconType ID    = ID_ICON_UNKNOWN;
 	wxString Title = "";
-};
-
-struct Light
-{
-	glm::vec4 Color      = glm::vec4(0.4f, 0.4f, 0.4f, 1.0f);
-	glm::vec3 Direction  = glm::vec3(-0.1f, -0.5f, -1.0f);
-	float     Reflection = 0.6f;
-	glm::vec3 Position   = glm::vec3(10.0f, 50.0f, 100.0f);
-	float     Shine      = 20.0f;
 };
 
 struct MouseState
@@ -321,14 +395,6 @@ struct VKUniform
 	VkDescriptorSet       Set    = {};
 };
 
-struct GLCameraBuffer
-{
-	glm::vec3 Position;
-	float     Near;
-	glm::vec3 Padding1;
-	float     Far;
-};
-
 struct GLCanvas
 {
 	float          AspectRatio = 0.0f;
@@ -341,132 +407,6 @@ struct GLCanvas
 	WindowFrame*   Window      = nullptr;
 };
 
-struct GLMatrixBuffer
-{
-	glm::mat4 Model;
-	glm::mat4 View;
-	glm::mat4 Projection;
-	glm::mat4 MVP;
-};
-
-struct GLDefaultBuffer
-{
-	glm::vec3 Ambient;
-	int       EnableClipping;
-	glm::vec3 ClipMax;
-	int       IsTextured;
-	glm::vec3 ClipMin;
-	float     Padding1;
-	glm::vec4 MaterialColor;
-	Light     SunLight;
-	glm::vec2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
-struct GLHUDBuffer
-{
-	glm::vec4 MaterialColor;
-	glm::vec3 Padding1;
-	int       IsTransparent;
-};
-
-struct GLWaterBuffer
-{
-	GLCameraBuffer CameraMain;
-	Light          SunLight;
-	glm::vec3      ClipMax;
-	int            EnableClipping;
-	glm::vec3      ClipMin;
-	float          MoveFactor;
-	glm::vec3      Padding1;
-	float          WaveStrength;
-	glm::vec2      TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
-struct GLWireframeBuffer
-{
-	glm::vec4 Color;
-};
-
-#if defined _WINDOWS
-
-static const unsigned int BYTE_ALIGN_BUFFER_DATA = 65536;
-static const unsigned int BYTE_ALIGN_BUFFER_VIEW = 256;
-
-struct DXCameraBuffer
-{
-	DirectX::XMFLOAT3 Position;
-	float             Near;
-	DirectX::XMFLOAT3 Padding1;
-	float             Far;
-};
-
-struct DXMatrixBuffer
-{
-	DirectX::XMMATRIX Model;
-	DirectX::XMMATRIX View;
-	DirectX::XMMATRIX Projection;
-	DirectX::XMMATRIX MVP;
-};
-
-struct DXLightBuffer
-{
-	DirectX::XMFLOAT4 Color;
-	DirectX::XMFLOAT3 Direction;
-	float             Reflection;
-	DirectX::XMFLOAT3 Position;
-	float             Shine;
-};
-
-struct DXDefaultBuffer
-{
-	DXMatrixBuffer    Matrices;
-	DXLightBuffer     SunLight;
-	DirectX::XMFLOAT3 Ambient;
-	int               EnableClipping;
-	DirectX::XMFLOAT3 ClipMax;
-	int               IsTextured;
-	DirectX::XMFLOAT3 ClipMin;
-	float             Padding1;
-	DirectX::XMFLOAT4 MaterialColor;
-	DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
-struct DXHUDBuffer
-{
-	DXMatrixBuffer    Matrices;
-	DirectX::XMFLOAT4 MaterialColor;
-	DirectX::XMFLOAT3 Padding1;
-	int               IsTransparent;
-};
-
-struct DXSkyboxBuffer
-{
-	DXMatrixBuffer Matrices;
-	//DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
-struct DXWireframeBuffer
-{
-	DXMatrixBuffer    Matrices;
-	DirectX::XMFLOAT4 Color;
-};
-
-struct DXWaterBuffer
-{
-	DXCameraBuffer    CameraMain;
-	DXMatrixBuffer    Matrices;
-	DXLightBuffer     SunLight;
-	DirectX::XMFLOAT3 ClipMax;
-	int               EnableClipping;
-	DirectX::XMFLOAT3 ClipMin;
-	float             MoveFactor;
-	DirectX::XMFLOAT3 Padding1;
-	float             WaveStrength;
-	DirectX::XMFLOAT2 TextureScales[MAX_TEXTURES];	// tx = [ [x, y], [x, y], ... ];
-};
-
-#endif
-
 #ifndef _DELETEP
 	#define _DELETEP(x) if (x != nullptr) { delete x; x = nullptr; }
 #endif
@@ -475,85 +415,107 @@ struct DXWaterBuffer
 	#define _RELEASEP(x) if (x != nullptr) { x->Release(); x = nullptr; }
 #endif
 
-#ifndef GE3D_UTILS_H
+#ifndef S3DE_MATERIAL_H
+	#include "scene/Material.h"
+#endif
+#ifndef S3DE_LIGHT_H
+	#include "scene/Light.h"
+#endif
+#ifndef S3DE_UTILS_H
 	#include "system/Utils.h"
 #endif
-#ifndef GE3D_NOISE_H
+#ifndef S3DE_NOISE_H
 	#include "system/Noise.h"
 #endif
-#ifndef GE3D_INPUTMANAGER_H
+#ifndef S3DE_INPUTMANAGER_H
 	#include "input/InputManager.h"
 #endif
-#ifndef GE3D_RAYCAST_H
+#ifndef S3DE_RAYCAST_H
 	#include "physics/RayCast.h"
 #endif
-#ifndef GE3D_PHYSICSENGINE_H
+#ifndef S3DE_PHYSICSENGINE_H
 	#include "physics/PhysicsEngine.h"
 #endif
-#ifndef GE3D_FRAMEBUFFER_H
+
+#ifndef S3DE_FRAMEBUFFER_H
 	#include "scene/FrameBuffer.h"
 #endif
-#ifndef GE3D_DXCONTEXT_H
+//#ifndef S3DE_MATERIAL_H
+//	#include "scene/Material.h"
+//#endif
+//#ifndef S3DE_LIGHT_H
+//	#include "scene/Light.h"
+//#endif
+#ifndef S3DE_DXCONTEXT_H
 	#include "render/DXContext.h"
 #endif
-#ifndef GE3D_VKCONTEXT_H
+#ifndef S3DE_VKCONTEXT_H
 	#include "render/VKContext.h"
 #endif
-#ifndef GE3D_RENDERENGINE_H
-	#include "render/RenderEngine.h"
-#endif
-#ifndef GE3D_SHADERMANAGER_H
-	#include "render/ShaderManager.h"
-#endif
-#ifndef GE3D_SHADERPROGRAM_H
-	#include "render/ShaderProgram.h"
-#endif
-#ifndef GE3D_BUFFER_H
-	#include "scene/Buffer.h"
-#endif
-#ifndef GE3D_COMPONENT_H
+#ifndef S3DE_COMPONENT_H
 	#include "scene/Component.h"
 #endif
-#ifndef GE3D_MESH_H
-	#include "scene/Mesh.h"
-#endif
-#ifndef GE3D_BOUNDINGVOLUME_H
-	#include "scene/BoundingVolume.h"
-#endif
-#ifndef GE3D_CAMERA_H
+#ifndef S3DE_CAMERA_H
 	#include "scene/Camera.h"
 #endif
-#ifndef GE3D_HUD_H
+#ifndef S3DE_RENDERENGINE_H
+	#include "render/RenderEngine.h"
+#endif
+#ifndef S3DE_SHADERMANAGER_H
+	#include "render/ShaderManager.h"
+#endif
+#ifndef S3DE_SHADERPROGRAM_H
+	#include "render/ShaderProgram.h"
+#endif
+#ifndef S3DE_BUFFER_H
+	#include "scene/Buffer.h"
+#endif
+//#ifndef S3DE_COMPONENT_H
+//	#include "scene/Component.h"
+//#endif
+#ifndef S3DE_MESH_H
+	#include "scene/Mesh.h"
+#endif
+#ifndef S3DE_BOUNDINGVOLUME_H
+	#include "scene/BoundingVolume.h"
+#endif
+//#ifndef S3DE_CAMERA_H
+//	#include "scene/Camera.h"
+//#endif
+#ifndef S3DE_HUD_H
 	#include "scene/HUD.h"
 #endif
-#ifndef GE3D_MODEL_H
+#ifndef S3DE_MODEL_H
 	#include "scene/Model.h"
 #endif
-#ifndef GE3D_SCENEMANAGER_H
+#ifndef S3DE_LIGHTSOURCE_H
+	#include "scene/LightSource.h"
+#endif
+#ifndef S3DE_SCENEMANAGER_H
 	#include "scene/SceneManager.h"
 #endif
-#ifndef GE3D_SKYBOX_H
+#ifndef S3DE_SKYBOX_H
 	#include "scene/Skybox.h"
 #endif
-#ifndef GE3D_TERRAIN_H
+#ifndef S3DE_TERRAIN_H
 	#include "scene/Terrain.h"
 #endif
-#ifndef GE3D_TEXTURE_H
+#ifndef S3DE_TEXTURE_H
 	#include "scene/Texture.h"
 #endif
-#ifndef GE3D_WATERFBO_H
+#ifndef S3DE_WATERFBO_H
 	#include "scene/WaterFBO.h"
 #endif
-#ifndef GE3D_WATER_H
+#ifndef S3DE_WATER_H
 	#include "scene/Water.h"
 #endif
-#ifndef GE3D_TIMEMANAGER_H
+#ifndef S3DE_TIMEMANAGER_H
 	#include "time/TimeManager.h"
 #endif
-#ifndef GE3D_WINDOW_H
+#ifndef S3DE_WINDOW_H
 	#include "ui/Window.h"
 #endif
-#ifndef GE3D_WINDOWFRAME_H
+#ifndef S3DE_WINDOWFRAME_H
 	#include "ui/WindowFrame.h"
 #endif
 

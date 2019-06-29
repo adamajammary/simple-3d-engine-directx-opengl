@@ -16,21 +16,35 @@ const wxChar* Utils::ALIGNMENTS[] = {
 const wxString Utils::APP_NAME           = "Simple 3D Engine";
 const uint8_t  Utils::APP_VERSION_MAJOR  = 1;
 const uint8_t  Utils::APP_VERSION_MINOR  = 0;
-const uint8_t  Utils::APP_VERSION_PATCH  = 1;
-const wxString Utils::APP_VERSION        = "1.0.1";
+const uint8_t  Utils::APP_VERSION_PATCH  = 2;
+const wxString Utils::APP_VERSION        = "1.0.2";
 const wxString Utils::ASPECT_RATIOS[]    = { "16:9", "4:3" };
 const wxChar*  Utils::BOUNDING_VOLUMES[] = { wxT("none"), wxT("box"), wxT("sphere"), nullptr };
 const wxString Utils::COPYRIGHT          = "\u00A9 2017 Adam A. Jammary";
-const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
-const wxString Utils::GOOGLE_ADS_URL     = "http://jammary.com/google_ad_horizontal.html";
 const wxString Utils::DRAW_MODES[]       = { "Filled", "Wireframe" };
 const wxString Utils::FOVS[]             = { "45\u00B0", "60\u00B0", "75\u00B0", "90\u00B0" };
+const wxString Utils::GOOGLE_ADS_URL     = "http://jammary.com/google_ad_horizontal.html";
 const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.jpg;*.tif;*.gif;*.pnm;*.pcx;*.ico;*.cur;*.ani;*.tga;*.xpm";
-const wxSize   Utils::RENDER_SIZE        = wxSize(640, 360);
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
-const wxSize   Utils::WINDOW_SIZE        = wxSize(1600, 900);
+const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
+const wxSize   Utils::UI_ADS_SIZE        = wxSize(730,  90);
+const wxSize   Utils::UI_LIST_BOX_SIZE   = wxSize(290,  150);
+const wxSize   Utils::UI_RENDER_SIZE     = wxSize(640,  360);
+const wxSize   Utils::UI_WINDOW_SIZE     = wxSize(1280, 875);
+const wxSize   Utils::UI_PROPS_SIZE      = wxSize(590,  280);
+const wxSize   Utils::UI_TABS_SIZE       = wxSize(1245, 85);
 
-const wxString Utils::GRAPHIC_APIS[] = {
+#if defined _WINDOWS
+	const wxString Utils::REGKEY_MSIE_EMULATION = "HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION";
+#endif
+
+#if defined _WINDOWS
+	const size_t Utils::NR_OF_GRAPHICS_APIS = 4;
+#else
+	const size_t Utils::NR_OF_GRAPHICS_APIS = 2;
+#endif
+
+const wxString Utils::GRAPHIC_APIS[NR_OF_GRAPHICS_APIS] = {
 	"OpenGL", "Vulkan"
 	#if defined _WINDOWS
 	, "DirectX 11", "DirectX 12"
@@ -54,7 +68,7 @@ const wxChar* Utils::FONTS[] = {
 	nullptr
 };
 
-const std::vector<Icon> Utils::ICONS = {
+const std::vector<Icon> Utils::ICONS_GEOMETRY = {
 	{ "img/icon-plane-128.png",         ID_ICON_PLANE,       "Plane" },
 	{ "img/icon-cube-100.png",          ID_ICON_CUBE,        "Cube" },
 	{ "img/icon-uvsphere-100.png",      ID_ICON_UV_SPHERE,   "UV Sphere" },
@@ -62,11 +76,23 @@ const std::vector<Icon> Utils::ICONS = {
 	{ "img/icon-cylinder-100.png",      ID_ICON_CYLINDER,    "Cylinder" },
 	{ "img/icon-cone-128-1.png",        ID_ICON_CONE,        "Cone" },
 	{ "img/icon-torus-256.png",         ID_ICON_TORUS,       "Torus" },
-	{ "img/icon-monkeyhead-100x83.png", ID_ICON_MONKEY_HEAD, "Monkey" },
-	{ "img/icon-skybox-256.png",        ID_ICON_SKYBOX,      "Skybox" },
-	{ "img/icon-terrain-200x121.png",   ID_ICON_TERRAIN,     "Terrain" },
-	{ "img/icon-water-208x235.png",     ID_ICON_WATER,       "Water" },
-	{ "img/icon-hud-128.png",           ID_ICON_HUD,         "HUD" }
+	{ "img/icon-monkeyhead-100x83.png", ID_ICON_MONKEY_HEAD, "Monkey" }
+};
+
+const std::vector<Icon> Utils::ICONS_ENVIRONMENT = {
+	{ "img/icon-skybox-256.png",      ID_ICON_SKYBOX,  "Skybox" },
+	{ "img/icon-terrain-200x121.png", ID_ICON_TERRAIN, "Terrain" },
+	{ "img/icon-water-208x235.png",   ID_ICON_WATER,   "Water" }
+};
+
+const std::vector<Icon> Utils::ICONS_LIGHTS = {
+	{ "img/icon-light-directional-128.png", ID_ICON_LIGHT_DIRECTIONAL, "Directional Light" },
+	{ "img/icon-light-point-128.png",       ID_ICON_LIGHT_POINT,       "Point Light" },
+	{ "img/icon-light-spot-2-128.png",      ID_ICON_LIGHT_SPOT,        "Spot Light" }
+};
+
+const std::vector<Icon> Utils::ICONS_UI = {
+	{ "img/icon-hud-128.png", ID_ICON_HUD, "HUD" }
 };
 
 const wxString Utils::MODEL_FILE_FORMATS =
@@ -109,6 +135,56 @@ const wxString Utils::MODEL_FILE_FORMATS =
 	"XGL (*.xgl;*.zgl)|*.xgl;*.zgl"
 ;
 
+wxString Utils::PROPERTY_IDS[NR_OF_PROPERTY_IDS] = {
+	"PROPERTY_ID_NAME",
+	"PROPERTY_ID_LOCATION",
+	"PROPERTY_ID_LOCATION_",
+	"PROPERTY_ID_ROTATION",
+	"PROPERTY_ID_ROTATION_",
+	"PROPERTY_ID_SCALE",
+	"PROPERTY_ID_SCALE_",
+	"PROPERTY_ID_AUTO_ROTATION",
+	"PROPERTY_ID_AUTO_ROTATION_",
+	"PROPERTY_ID_ENABLE_AUTO_ROTATION",
+	"PROPERTY_ID_COLOR",
+	"PROPERTY_ID_SPEC_INTENSITY",
+	"PROPERTY_ID_SPEC_SHININESS",
+	"PROPERTY_ID_OPACITY",
+	"PROPERTY_ID_TRANSPARENCY",
+	"PROPERTY_ID_TEXT",
+	"PROPERTY_ID_TEXT_ALIGNMENT",
+	"PROPERTY_ID_TEXT_FONT",
+	"PROPERTY_ID_TEXT_SIZE",
+	"PROPERTY_ID_TEXT_COLOR",
+	"PROPERTY_ID_HUD_TEXTURE",
+	"PROPERTY_ID_HUD_REMOVE_TEXTURE",
+	"PROPERTY_ID_TEXTURE_",
+	"PROPERTY_ID_REMOVE_TEXTURE_",
+	"PROPERTY_ID_FLIP_TEXTURE_",
+	"PROPERTY_ID_REPEAT_TEXTURE_",
+	"PROPERTY_ID_TILING_U_",
+	"PROPERTY_ID_TILING_V_",
+	"PROPERTY_ID_BOUNDING_VOLUME",
+	"PROPERTY_ID_TERRAIN_SIZE",
+	"PROPERTY_ID_TERRAIN_OCTAVES",
+	"PROPERTY_ID_TERRAIN_REDISTRIBUTION",
+	"PROPERTY_ID_WATER_SPEED",
+	"PROPERTY_ID_WATER_WAVE_STRENGTH",
+	"PROPERTY_ID_LIGHT_ACTIVE",
+	"PROPERTY_ID_LIGHT_LOCATION",
+	"PROPERTY_ID_LIGHT_LOCATION_",
+	"PROPERTY_ID_LIGHT_AMBIENT",
+	"PROPERTY_ID_LIGHT_DIFFUSE",
+	"PROPERTY_ID_LIGHT_SPEC_INTENSITY",
+	"PROPERTY_ID_LIGHT_SPEC_SHININESS",
+	"PROPERTY_ID_LIGHT_DIRECTION",
+	"PROPERTY_ID_LIGHT_DIRECTION_",
+	"PROPERTY_ID_LIGHT_ATT_LINEAR",
+	"PROPERTY_ID_LIGHT_ATT_QUAD",
+	"PROPERTY_ID_LIGHT_ANGLE_INNER",
+	"PROPERTY_ID_LIGHT_ANGLE_OUTER"
+};
+
 std::map<wxString, wxString> Utils::RESOURCE_IMAGES = {
 	{ "emptyTexture",      "resources/textures/white_1x1.png" },
 	{ "backgroundTexture", "resources/textures/terrain/backgroundTexture.png" },
@@ -139,27 +215,30 @@ std::map<IconType, wxString> Utils::RESOURCE_MODELS = {
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_DX = {
-	{ "resources/shaders/default.hlsl",   "default",   "" },
-	{ "resources/shaders/hud.hlsl",       "hud",       "" },
-	{ "resources/shaders/skybox.hlsl",    "skybox",    "" },
-	{ "resources/shaders/terrain.hlsl",   "terrain",   "" },
-	{ "resources/shaders/water.hlsl",     "water",     "" },
-	{ "resources/shaders/wireframe.hlsl", "wireframe", "" }
+	{ "resources/shaders/color.hlsl",      "color",      "" },
+	{ "resources/shaders/default.hlsl",    "default",    "" },
+	{ "resources/shaders/depth.hlsl",      "depth",      "" },
+	{ "resources/shaders/depth.omni.hlsl", "depth.omni", "" },
+	{ "resources/shaders/hud.hlsl",        "hud",        "" },
+	{ "resources/shaders/skybox.hlsl",     "skybox",     "" },
+	{ "resources/shaders/color.hlsl",      "wireframe",  "" }
 };
 
 const std::vector<Resource> Utils::SHADER_RESOURCES_GL_VK = {
-	{ "resources/shaders/default.vs.glsl",   "default_vs",   "" },
-	{ "resources/shaders/default.fs.glsl",   "default_fs",   "" },
-	{ "resources/shaders/hud.vs.glsl",       "hud_vs",       "" },
-	{ "resources/shaders/hud.fs.glsl",       "hud_fs",       "" },
-	{ "resources/shaders/skybox.vs.glsl",    "skybox_vs",    "" },
-	{ "resources/shaders/skybox.fs.glsl",    "skybox_fs",    "" },
-	{ "resources/shaders/terrain.vs.glsl",   "terrain_vs",   "" },
-	{ "resources/shaders/terrain.fs.glsl",   "terrain_fs",   "" },
-	{ "resources/shaders/water.vs.glsl",     "water_vs",     "" },
-	{ "resources/shaders/water.fs.glsl",     "water_fs",     "" },
-	{ "resources/shaders/wireframe.vs.glsl", "wireframe_vs", "" },
-	{ "resources/shaders/wireframe.fs.glsl", "wireframe_fs", "" }
+	{ "resources/shaders/color.vs.glsl",      "color_vs",      "" },
+	{ "resources/shaders/color.fs.glsl",      "color_fs",      "" },
+	{ "resources/shaders/default.vs.glsl",    "default_vs",    "" },
+	{ "resources/shaders/default.fs.glsl",    "default_fs",    "" },
+	{ "resources/shaders/depth.vs.glsl",      "depth_vs",      "" },
+	{ "resources/shaders/depth.fs.glsl",      "depth_fs",      "" },
+	{ "resources/shaders/depth.omni.vs.glsl", "depth.omni_vs", "" },
+	{ "resources/shaders/depth.omni.fs.glsl", "depth.omni_fs", "" },
+	{ "resources/shaders/hud.vs.glsl",        "hud_vs",        "" },
+	{ "resources/shaders/hud.fs.glsl",        "hud_fs",        "" },
+	{ "resources/shaders/skybox.vs.glsl",     "skybox_vs",     "" },
+	{ "resources/shaders/skybox.fs.glsl",     "skybox_fs",     "" },
+	{ "resources/shaders/color.vs.glsl",      "wireframe_vs",  "" },
+	{ "resources/shaders/color.fs.glsl",      "wireframe_fs",  "" }
 };
 
 std::vector<uint8_t> Utils::Compress(const std::vector<uint8_t> &data)
@@ -219,45 +298,35 @@ std::vector<uint8_t> Utils::Decompress(const std::vector<uint8_t> &data)
 }
 
 #if defined _WINDOWS
-DXGI_FORMAT Utils::GetImageFormatDXGI(wxImage* image)
+DXGI_FORMAT Utils::GetImageFormatDXGI(const wxImage &image, bool srgb)
 {
-	if ((image != nullptr) && (image->GetMaskBlue() == 0xFF))
-		return DXGI_FORMAT_B8G8R8A8_UNORM;
-
-	return DXGI_FORMAT_R8G8B8A8_UNORM;
+	return (srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
 }
 #endif
 
 wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 {
-	wxString apiString = "";
-
-	switch (RenderEngine::SelectedGraphicsAPI) {
+	switch (api) {
 		#if defined _WINDOWS
-		case GRAPHICS_API_DIRECTX11: apiString = "DirectX 11"; break;
-		case GRAPHICS_API_DIRECTX12: apiString = "DirectX 12"; break;
+		case GRAPHICS_API_DIRECTX11: return "DirectX 11";
+		case GRAPHICS_API_DIRECTX12: return "DirectX 12";
 		#endif
-		case GRAPHICS_API_OPENGL:    apiString = "OpenGL"; break;
-		case GRAPHICS_API_VULKAN:    apiString = "Vulkan"; break;
-		default:                     apiString = "Unknown Graphics API"; break;
+		case GRAPHICS_API_OPENGL:    return "OpenGL";
+		case GRAPHICS_API_VULKAN:    return "Vulkan";
+		default: throw;
 	}
 
-	return apiString;
+	return "";
 }
 
-GLenum Utils::GetImageFormat(wxImage* image)
+GLenum Utils::GetImageFormat(const wxImage &image, bool srgb, bool in)
 {
-	if (image == nullptr)
-		return GL_RGB;
+	return (in ? (srgb ? GL_SRGB8_ALPHA8 : GL_RGBA8) : GL_RGBA);
+}
 
-	GLenum format;
-
-	if (image->HasAlpha())
-		format = (image->GetMaskBlue() == 0xFF ? GL_BGRA : GL_RGBA);
-	else
-		format = (image->GetMaskBlue() == 0xFF ? GL_BGR : GL_RGB);
-
-	return format;
+VkFormat Utils::GetImageFormatVK(const wxImage &image, bool srgb)
+{
+	return (srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
@@ -272,9 +341,15 @@ GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
 		case GL_INT:            stride = (size * sizeof(int));            break;
 		case GL_UNSIGNED_INT:   stride = (size * sizeof(unsigned int));   break;
 		case GL_FLOAT:          stride = (size * sizeof(float));          break;
+		default: throw;
 	}
 
 	return stride;
+}
+
+wxString Utils::GetSubString(const wxString &string, size_t maxLength, const wxString &endChars)
+{
+	return (string.size() > maxLength ? string.substr(0, maxLength).append(endChars) : string);
 }
 
 std::vector<uint8_t> Utils::LoadDataFile(const wxString &file)
@@ -330,18 +405,56 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 
 	AssImpMesh*  mesh;
 	aiNode*      node;
-	unsigned int nrOfChildren = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mNumChildren : 1);
+	uint32_t     nrOfChildren = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mNumChildren : 1);
 
-	for (unsigned int i = 0; i < nrOfChildren; i++)
+	// SCENE CHILDREN
+	for (uint32_t i = 0; i < nrOfChildren; i++)
 	{
 		node = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mChildren[i] : scene->mRootNode);
 
-		for (unsigned int j = 0; j < node->mNumMeshes; j++)
+		// CHILD MESHES
+		for (uint32_t j = 0; j < node->mNumMeshes; j++)
 		{
 			mesh                 = new AssImpMesh();
 			mesh->Mesh           = scene->mMeshes[node->mMeshes[j]];
 			mesh->Scene          = scene;
 			mesh->Transformation = node->mTransformation;
+
+			mesh->Name = mesh->Mesh->mName.C_Str();
+			mesh->Name = (!mesh->Name.empty() ? mesh->Name : scene->mRootNode->mChildren[i]->mName.C_Str());
+			mesh->Name = (!mesh->Name.empty() ? mesh->Name : "Mesh");
+
+			// MESH MATERIALS: http://assimp.sourceforge.net/lib_html/materials.html
+			if (scene->mNumMaterials > 0)
+			{
+				aiString    textures[MAX_TEXTURES] = {};
+				aiMaterial* material      = scene->mMaterials[mesh->Mesh->mMaterialIndex];
+				aiColor4D   diffuse       = {};
+				aiColor3D   specIntensity = {};
+				float       specShininess = 0;
+				size_t      pathSeparator = file.rfind("/");
+
+				if (pathSeparator == wxString::npos)
+					pathSeparator = file.rfind("\\");
+
+				wxString path = file.substr(0, pathSeparator + 1);
+
+				material->Get(AI_MATKEY_COLOR_DIFFUSE,  diffuse);
+				material->Get(AI_MATKEY_COLOR_SPECULAR, specIntensity);
+				material->Get(AI_MATKEY_SHININESS,      specShininess);
+				material->Get(AI_MATKEY_TEXTURE(aiTextureType_DIFFUSE,  0), textures[0]);
+				material->Get(AI_MATKEY_TEXTURE(aiTextureType_SPECULAR, 0), textures[1]);
+
+				mesh->MeshMaterial.diffuse            = { diffuse.r, diffuse.g, diffuse.b, diffuse.a };
+				mesh->MeshMaterial.specular.intensity = { specIntensity.r, specIntensity.g, specIntensity.b };
+				mesh->MeshMaterial.specular.shininess = specShininess;
+
+				if (textures[0].length > 0)
+					mesh->MeshMaterial.textures[0] = (path + textures[0].C_Str());
+
+				if (textures[1].length > 0)
+					mesh->MeshMaterial.textures[1] = (path + textures[1].C_Str());
+			}
 
 			if (mesh->Mesh != nullptr)
 				meshes.push_back(mesh);
@@ -351,18 +464,20 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 	return meshes;
 }
 
-std::vector<Mesh*> Utils::LoadModelFile(const wxString &file, Component* parent)
+std::vector<Component*> Utils::LoadModelFile(const wxString &file, Component* parent)
 {
-	std::vector<Mesh*>       children;
+	std::vector<Component*>  children;
 	Mesh*                    mesh;
 	std::vector<AssImpMesh*> aiMeshes = Utils::LoadModelFile(file);
 
 	for (auto aiMesh : aiMeshes)
 	{
-		mesh = new Mesh(parent, aiMesh->Mesh->mName.C_Str());
+		mesh = new Mesh(parent, aiMesh->Name);
 
 		if (mesh == nullptr)
 			continue;
+
+		mesh->ComponentMaterial = aiMesh->MeshMaterial;
 
 		mesh->LoadModelFile(aiMesh->Mesh, aiMesh->Transformation);
 
@@ -488,6 +603,17 @@ uint8_t Utils::ToByte(uint64_t number, int byteIndex)
 	return ((number >> (byteIndex * 8)) & 0xFF);
 }
 
+GLenum Utils::ToGlTextureType(TextureType textureType)
+{
+	switch (textureType) {
+		case TEXTURE_2D:            return GL_TEXTURE_2D;
+		case TEXTURE_2D_ARRAY:      return GL_TEXTURE_2D_ARRAY;
+		case TEXTURE_CUBEMAP:       return GL_TEXTURE_CUBE_MAP;
+		case TEXTURE_CUBEMAP_ARRAY: return GL_TEXTURE_CUBE_MAP_ARRAY;
+		default: throw;
+	}
+}
+
 float Utils::ToRadians(float degrees)
 {
     return (degrees * glm::pi<float>() / 180.0f);
@@ -496,6 +622,11 @@ float Utils::ToRadians(float degrees)
 float Utils::ToDegrees(float radians)
 {
 	return (radians * 180.0f / glm::pi<float>());
+}
+
+float Utils::ToFloat(bool boolean)
+{
+	return (boolean ? 1.0f : 0);
 }
 
 wxFloatProperty* Utils::ToFloatProperty(float value, const wxString &label, const wxString &id, float min, float max)
@@ -529,14 +660,11 @@ json11::Json::array Utils::ToJsonArray(const glm::vec4 &arr)
 	return jsonArray;
 }
 
-uint8_t* Utils::ToRGBA(wxImage* image)
+uint8_t* Utils::ToRGBA(const wxImage &image)
 {
-	if (image == nullptr)
-		return nullptr;
-
-	int      size  = (image->GetWidth() * image->GetHeight() * 4);
-	uint8_t* rgb   = image->GetData();
-	uint8_t* alpha = image->GetAlpha();
+	int      size  = (image.GetWidth() * image.GetHeight() * 4);
+	uint8_t* rgb   = image.GetData();
+	uint8_t* alpha = image.GetAlpha();
 	uint8_t* rgba  = (uint8_t*)std::malloc(size);
 
 	if ((rgb == nullptr) || (rgba == nullptr))
@@ -547,7 +675,7 @@ uint8_t* Utils::ToRGBA(wxImage* image)
 		rgba[i + 0] = rgb[r + 0];
 		rgba[i + 1] = rgb[r + 1];
 		rgba[i + 2] = rgb[r + 2];
-		rgba[i + 3] = (alpha != nullptr ? alpha[a] : 255);
+		rgba[i + 3] = (alpha != nullptr ? alpha[a] : 0xFF);
 	}
 
 	return rgba;
@@ -585,12 +713,37 @@ glm::vec4 Utils::ToVec4(const json11::Json::array &jsonArray)
 	return result;
 }
 
+glm::vec3 Utils::ToVec3Color(const wxColour &color)
+{
+	glm::vec3 vec3Colour = glm::vec3(
+		(color.Red() / 255.0f), (color.Green() / 255.0f), (color.Blue() / 255.0f)
+	);
+	return vec3Colour;
+}
+
 glm::vec4 Utils::ToVec4Color(const wxColour &color)
 {
 	glm::vec4 vec4Colour = glm::vec4(
 		(color.Red() / 255.0f), (color.Green() / 255.0f), (color.Blue() / 255.0f), (color.Alpha() / 255.0f)
 	);
 	return vec4Colour;
+}
+
+glm::vec4 Utils::ToVec4Float(bool boolean)
+{
+	float value = (boolean ? 1.0f : 0);
+	return glm::vec4(value, value, value, value);
+}
+
+glm::vec4 Utils::ToVec4Float(int integer)
+{
+	float value = static_cast<float>(integer);
+	return glm::vec4(value, value, value, value);
+}
+
+glm::vec4 Utils::ToVec4Float(bool boolean, int integer)
+{
+	return glm::vec4((boolean ? 1.0f : 0.0f), (float)integer, 0.0f, 0.0f);
 }
 
 std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices, const std::vector<float> &normals, const std::vector<float> &texCoords)
@@ -620,10 +773,29 @@ std::vector<float> Utils::ToVertexBufferData(const std::vector<float> &vertices,
 	return data;
 }
 
+VkImageViewType Utils::ToVkImageViewType(TextureType textureType)
+{
+	switch (textureType) {
+		case TEXTURE_2D:            return VK_IMAGE_VIEW_TYPE_2D;
+		case TEXTURE_CUBEMAP:       return VK_IMAGE_VIEW_TYPE_CUBE;
+		case TEXTURE_2D_ARRAY:      return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+		case TEXTURE_CUBEMAP_ARRAY: return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
+		default: throw;
+	}
+}
+
 wxColour Utils::ToWxColour(const wxVariant &color)
 {
 	wxColour colorWX;
 	colorWX << color;
+	return colorWX;
+}
+
+wxColour Utils::ToWxColour(const glm::vec3 &color)
+{
+	wxColour colorWX(
+		(uint8_t)(color.r * 255.0f), (uint8_t)(color.g * 255.0f), (uint8_t)(color.b * 255.0f), 0xFF
+	);
 	return colorWX;
 }
 
@@ -645,9 +817,31 @@ DirectX::XMFLOAT3 Utils::ToXMFLOAT3(const glm::vec3 &vector)
 	return DirectX::XMFLOAT3(reinterpret_cast<const float*>(&vector[0]));
 }
 
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec3 &vector, float w)
+{
+	return DirectX::XMFLOAT4(vector.x, vector.y, vector.z, w);
+}
+
 DirectX::XMFLOAT4 Utils::ToXMFLOAT4(const glm::vec4 &vector)
 {
 	return DirectX::XMFLOAT4(reinterpret_cast<const float*>(&vector[0]));
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(bool boolean)
+{
+	float value = (boolean ? 1.0f : 0);
+	return DirectX::XMFLOAT4(value, value, value, value);
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(int integer)
+{
+	float value = static_cast<int>(integer);
+	return DirectX::XMFLOAT4(value, value, value, value);
+}
+
+DirectX::XMFLOAT4 Utils::ToXMFLOAT4(bool boolean, int integer)
+{
+	return DirectX::XMFLOAT4((boolean ? 1.0f : 0.0f), (float)integer, 0.0f, 0.0f);
 }
 
 DirectX::XMMATRIX Utils::ToXMMATRIX(const glm::mat4 &matrix)

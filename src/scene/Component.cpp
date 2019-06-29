@@ -1,85 +1,84 @@
 #include "Component.h"
 
-Component::Component(const wxString &name, const glm::vec3 &position, const glm::vec3 &rotation, const glm::vec3 &scale, const glm::vec4 &color)
+uint32_t Component::sid = 0;
+
+Component::Component(const wxString &name, const glm::vec3 &position)
 {
-	this->AutoRotate           = false;
-	this->AutoRotation         = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->Color                = color;
-	this->isValid              = false;
-	this->modelFile            = "";
-	this->LockToParentPosition = false;
-	this->LockToParentRotation = false;
-	this->LockToParentScale    = false;
-	this->Name                 = name;
-	this->Parent               = nullptr;
-	this->position             = position;
-	this->rotation             = rotation;
-	this->scale                = scale;
-	this->type                 = COMPONENT_UNKNOWN;
+	this->AutoRotate        = false;
+	this->AutoRotation      = {};
+	this->isValid           = false;
+	//this->LockToParentPosition = false;
+	//this->LockToParentRotation = false;
+	//this->LockToParentScale    = false;
+	this->ComponentMaterial = {};
+	this->modelFile         = "";
+	this->Name              = name;
+	this->Parent            = nullptr;
+	this->position          = position;
+	this->rotation          = {};
+	this->scale             = { 1.0f, 1.0f, 1.0f };
+	this->type              = COMPONENT_UNKNOWN;
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		this->Textures[i] = nullptr;
-}
 
-Component::Component()
-{
-	this->AutoRotate           = false;
-	this->AutoRotation         = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->Color                = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
-	this->isValid              = false;
-	this->modelFile            = "";
-	this->LockToParentPosition = false;
-	this->LockToParentRotation = false;
-	this->LockToParentScale    = false;
-	this->Name                 = "";
-	this->Parent               = nullptr;
-	this->position             = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->rotation             = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->scale                = glm::vec3(0.0f, 0.0f, 0.0f);
-	this->type                 = COMPONENT_UNKNOWN;
-
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->Textures[i] = nullptr;
+	this->id = Component::sid++;
 }
 
 Component::~Component()
 {
-	for (auto child : this->Children)
-		_DELETEP(child);
+	if (this->type != COMPONENT_CAMERA) {
+		for (auto child : this->Children)
+			_DELETEP(child);
+	}
 
 	this->Children.clear();
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
-		if ((this->Textures[i] == SceneManager::EmptyTexture) || (this->Textures[i] == SceneManager::EmptyCubemap))
-			continue;
-
-		_DELETEP(this->Textures[i]);
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		if ((this->type != COMPONENT_WATER) && (this->Textures[i] != SceneManager::EmptyTexture) && (this->Textures[i] != SceneManager::EmptyCubemap)) {
+			_DELETEP(this->Textures[i]);
+		}
 	}
 }
 
-int Component::GetChildIndex(Mesh* child)
+int Component::GetChildIndex(Component* child)
 {
 	for (int i = 0; i < (int)this->Children.size(); i++) {
-		if (this->Children[i] == child)
+		if (this->Children[i]->ID() == child->ID())
 			return i;
 	}
 
 	return -1;
 }
 
-bool Component::IsTextured()
+uint32_t Component::ID()
 {
+	return this->id;
+}
+
+bool Component::IsTextured(int index)
+{
+	if ((index < 0) || (index > MAX_TEXTURES))
+		return false;
+
+	Texture* texture = this->Textures[index];
+
+	if (texture == nullptr)
+		return false;
+
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->SRV11 != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->SRV11 != nullptr) && !texture->ImageFile().empty());
 	case GRAPHICS_API_DIRECTX12:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->Resource12 != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->Resource12 != nullptr) && !texture->ImageFile().empty());
 	#endif
 	case GRAPHICS_API_OPENGL:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ID() > 0) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->ID() > 0) && !texture->ImageFile().empty());
 	case GRAPHICS_API_VULKAN:
-		return ((this->Textures[0] != nullptr) && (this->Textures[0]->ImageView != nullptr) && (this->Textures[0]->Sampler != nullptr) && !this->Textures[0]->ImageFile().empty());
+		return ((texture->ImageView != nullptr) && (texture->Sampler != nullptr) && !texture->ImageFile().empty());
+	default:
+		throw;
 	}
 
 	return false;
@@ -87,6 +86,11 @@ bool Component::IsTextured()
 bool Component::IsValid()
 {
 	return this->isValid;
+}
+
+void Component::LoadTexture(Texture* texture, int index)
+{
+    this->Textures[index] = texture;
 }
 
 glm::mat4 Component::Matrix()
@@ -139,9 +143,9 @@ void Component::RotateBy(const glm::vec3 &amountRadians)
 	this->updateRotation();
 }
 
-void Component::RotateTo(const glm::vec3 &newRotationRadions)
+void Component::RotateTo(const glm::vec3 &newRotationRadians)
 {
-	this->rotation = newRotationRadions;
+	this->rotation = newRotationRadians;
 	this->updateRotation();
 }
 
@@ -175,19 +179,21 @@ void Component::updateMatrix()
 void Component::updateRotation()
 {
 	// RESET ROTATION AFTER 360 DEGREES (2PI)
+	float fullRotation = (2.0f * glm::pi<float>());
+
 	for (int i = 0; i < 3; i++)
 	{
-		if (this->rotation[i] > 2.0f * glm::pi<float>())
-			this->rotation[i] -= (2.0f * glm::pi<float>());
-		else if (this->rotation[i] < -2.0f * glm::pi<float>())
-			this->rotation[i] += (2.0f * glm::pi<float>());
+		if (this->rotation[i] > fullRotation)
+			this->rotation[i] -= fullRotation;
+		else if (this->rotation[i] < -fullRotation)
+			this->rotation[i] += fullRotation;
 	}
 
-	if (this->LockToParentRotation && (this->Parent != nullptr)) {
-		this->rotation[0] += this->Parent->rotation[0];
-		this->rotation[1] += this->Parent->rotation[1];
-		this->rotation[2] += this->Parent->rotation[2];
-	}
+	//if (this->LockToParentRotation && (this->Parent != nullptr)) {
+	//	this->rotation[0] += this->Parent->rotation[0];
+	//	this->rotation[1] += this->Parent->rotation[1];
+	//	this->rotation[2] += this->Parent->rotation[2];
+	//}
 
 	glm::mat4 rotateMatrixX = glm::rotate(this->rotation[0], glm::vec3(1.0f, 0.0f, 0.0f));
 	glm::mat4 rotateMatrixY = glm::rotate(this->rotation[1], glm::vec3(0.0f, 1.0f, 0.0f));
@@ -202,10 +208,10 @@ void Component::updateScale()
 {
 	glm::vec3 scaleVector;
 	
-	if (this->LockToParentScale && (this->Parent != nullptr))
-		scaleVector = (this->scale * this->Parent->scale);
-    else
-        scaleVector = this->scale;
+	//if (this->LockToParentScale && (this->Parent != nullptr))
+	//	scaleVector = (this->scale * this->Parent->scale);
+	//else
+    scaleVector = this->scale;
 
 	this->scaleMatrix = glm::scale(scaleVector);
 
@@ -216,10 +222,10 @@ void Component::updateTranslation()
 {
 	glm::vec3 positionVector;
 
-    if (this->LockToParentPosition && (this->Parent != nullptr))
-        positionVector = (this->position + this->Parent->position);
-    else
-        positionVector = this->position;
+    //if (this->LockToParentPosition && (this->Parent != nullptr))
+    //    positionVector = (this->position + this->Parent->position);
+    //else
+    positionVector = this->position;
 
 	this->translationMatrix = glm::translate(positionVector);
 

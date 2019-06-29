@@ -21,14 +21,6 @@ void Terrain::create(int size, int octaves, float redistribution)
 {
 	RenderEngine::Canvas.Window->SetStatusText("Loading the Terrain ...");
 
-	// https://www.dropbox.com/sh/do47b1opx7sxr2a/AAA9Wt05Lgqdm1z9g-YKyDWya/HeightsGenerator.java?dl=0
-	// https://en.wikipedia.org/wiki/Perlin_noise
-	// http://codeflow.org/entries/2011/nov/10/webgl-gpu-landscaping-and-erosion/
-	// http://www.mbsoftworks.sk/index.php?page=tutorials&series=1
-	// https://www.google.no/search?q=opengl+terrain+perlin+noise+vs+heightmap+image&source=lnms&sa=X&ved=0ahUKEwjYmYnMiM3UAhWGDZoKHXjHChMQ_AUICSgA&biw=1546&bih=937&dpr=1
-	// https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal
-	// http://www.redblobgames.com/maps/terrain-from-noise/
-
 	this->octaves        = octaves;
 	this->redistribution = redistribution;
 	this->size           = size;
@@ -53,24 +45,23 @@ void Terrain::create(int size, int octaves, float redistribution)
 
 		normals.push_back(vertex1);
 		normals.push_back(vertex2);
-		normals.push_back(vertex2);
+		normals.push_back(vertex3);
 
 		textureCoords.push_back((float)x / (float)size);
 		textureCoords.push_back((float)z / (float)size);
-	}
-	}
+	}}
 
-	// http://www.mbsoftworks.sk/index.php?page=tutorials&series=1&tutorial=8
-	//
-	// VERTICES
-	// 0, 1, 2, 3,
-	// 4, 5, 6, 7 ...
-	//
-	// INDICES
-	// 0, 4, 1,
-	// 1, 4, 5
-	// 
-	// QUAD FACES (TRIANGLE 1 + TRIANGLE 2)
+	/*
+	* VERTICES
+	* 0, 1, 2, 3,
+	* 4, 5, 6, 7 ...
+	*
+	* INDICES
+	* 0, 4, 1,
+	* 1, 4, 5
+	* 
+	* QUAD FACES (TRIANGLE 1 + TRIANGLE 2)
+	*/
 	for (int z = 0; z < size - 1; z++)
 	{
 		for (int x = 0; x < size - 1; x++)
@@ -97,13 +88,13 @@ void Terrain::create(int size, int octaves, float redistribution)
 
 	if (this->isValid && (this->Children[0] != nullptr))
 	{
-		this->Children[0]->LoadArrays(indices, normals, textureCoords, vertices);
+		dynamic_cast<Mesh*>(this->Children[0])->LoadArrays(indices, normals, textureCoords, vertices);
 
 		Texture* texture;
 
 		for (int i = 0; i < 5; i++)
 		{
-			texture        = new Texture(this->textureImageFiles[i], true);
+			texture        = new Texture(this->textureImageFiles[i], (i < 4), true);
 			texture->Scale = glm::vec2(size, size);
 
 			this->Children[0]->LoadTexture(texture, i);

@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_TIMEMANAGER_H
-#define GE3D_TIMEMANAGER_H
+#ifndef S3DE_TIMEMANAGER_H
+#define S3DE_TIMEMANAGER_H
 
 class TimeManager
 {
@@ -21,6 +21,7 @@ private:
 
 public:
 	static void Start();
+	static long TimeElapsedMS();
 	static void UpdateFPS();
 
 };

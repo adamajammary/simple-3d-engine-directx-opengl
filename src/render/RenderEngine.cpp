@@ -1,39 +1,39 @@
 #include "RenderEngine.h"
 
-GLCanvas           RenderEngine::Canvas              = {};
-DrawModeType       RenderEngine::DrawMode            = DRAW_MODE_FILLED;
-Camera*            RenderEngine::Camera              = nullptr;
-GPUDescription     RenderEngine::GPU                 = {};
-bool               RenderEngine::DrawBoundingVolume  = false;
-Mesh*              RenderEngine::Skybox              = nullptr;
-std::vector<Mesh*> RenderEngine::HUDs;
-bool               RenderEngine::Ready               = false;
-std::vector<Mesh*> RenderEngine::Renderables;
-GraphicsAPI        RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-std::vector<Mesh*> RenderEngine::Terrains;
-std::vector<Mesh*> RenderEngine::Waters;
+GLCanvas                RenderEngine::Canvas              = {};
+DrawModeType            RenderEngine::drawMode            = DRAW_MODE_FILLED;
+Camera*                 RenderEngine::CameraMain          = nullptr;
+GPUDescription          RenderEngine::GPU                 = {};
+bool                    RenderEngine::DrawBoundingVolume  = false;
+bool                    RenderEngine::EnableSRGB          = true;
+Mesh*                   RenderEngine::Skybox              = nullptr;
+std::vector<Component*> RenderEngine::HUDs;
+std::vector<Component*> RenderEngine::LightSources;
+bool                    RenderEngine::Ready               = false;
+std::vector<Component*> RenderEngine::Renderables;
+GraphicsAPI             RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
 
-void RenderEngine::clear(float r, float g, float b, float a, FrameBuffer* fbo, VkCommandBuffer cmdBuffer)
+void RenderEngine::clear(const glm::vec4 &colorRGBA, const DrawProperties &properties)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 	#if defined _WINDOWS
 	case GRAPHICS_API_DIRECTX11:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear11(r, g, b, a, fbo);
+			RenderEngine::Canvas.DX->Clear11(colorRGBA, properties);
 		break;
 	case GRAPHICS_API_DIRECTX12:
 		if (RenderEngine::Canvas.DX != nullptr)
-			RenderEngine::Canvas.DX->Clear12(r, g, b, a, fbo);
+			RenderEngine::Canvas.DX->Clear12(colorRGBA, properties);
 		break;
 	#endif
 	case GRAPHICS_API_OPENGL:
-		glClearColor(r, g, b, a);
+		glClearColor(colorRGBA.r, colorRGBA.g, colorRGBA.b, colorRGBA.a);
 		glClearStencil(0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		break;
 	case GRAPHICS_API_VULKAN:
 		if (RenderEngine::Canvas.VK != nullptr)
-			RenderEngine::Canvas.VK->Clear(r, g, b, a, fbo, cmdBuffer);
+			RenderEngine::Canvas.VK->Clear(colorRGBA, properties);
 		break;
 	}
 }
@@ -43,6 +43,9 @@ void RenderEngine::Close()
 	InputManager::Reset();
 	SceneManager::Clear();
 	ShaderManager::Close();
+
+	_DELETEP(SceneManager::DepthMap2D);
+	_DELETEP(SceneManager::DepthMapCube);
 
 	_DELETEP(SceneManager::EmptyCubemap);
 	_DELETEP(SceneManager::EmptyTexture);
@@ -58,79 +61,150 @@ void RenderEngine::Close()
 	}
 }
 
-void RenderEngine::createWaterFBOs()
+void RenderEngine::createDepthFBO()
 {
-	for (auto water : RenderEngine::Waters)
+	if (RenderEngine::Renderables.empty())
+		return;
+
+	bool cleared = false;
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
 	{
-		if (water == nullptr)
+		if (SceneManager::LightSources[i] == nullptr)
 			continue;
 
-		Water* parent = dynamic_cast<Water*>(water->Parent);
+		FrameBuffer* fbo   = nullptr;
+		LightSource* light = SceneManager::LightSources[i];
 
-		if (parent == nullptr)
+		switch (light->SourceType()) {
+			case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+			case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
+			case ID_ICON_LIGHT_SPOT:        fbo = SceneManager::DepthMap2D;   break;
+			default: throw;
+		}
+
+		if (fbo == nullptr)
 			continue;
 
-		glm::vec3       position       = water->Position();
-		glm::vec3       scale          = water->Scale();
-		float           cameraDistance = ((RenderEngine::Camera->Position().y - position.y) * 2.0f);
-		VkCommandBuffer cmdBuffer      = nullptr;
+		DrawProperties drawProperties = {};
 
-		// WATER REFLECTION PASS - ABOVE WATER
-		RenderEngine::Camera->MoveBy(glm::vec3(0.0f, -cameraDistance, 0.0f));
-		RenderEngine::Camera->InvertPitch();
+		drawProperties.DepthLayer = i;
+		drawProperties.FBO        = fbo;
+		drawProperties.Light      = light;
+
+		if (light->SourceType() == ID_ICON_LIGHT_POINT)
+			drawProperties.Shader = SHADER_ID_DEPTH_OMNI;
+		else
+			drawProperties.Shader = SHADER_ID_DEPTH;
+
+		// BIND
+		VkCommandBuffer cmdBuffer = nullptr;
 
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
 		else
-			parent->FBO()->BindReflection();
+			fbo->Bind(drawProperties.DepthLayer);
+
+		drawProperties.VKCommandBuffer = cmdBuffer;
+
+		// CLEAR
+		if ((RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL) &&
+			(light->SourceType() == ID_ICON_LIGHT_POINT))
+		{
+			if (!cleared) {
+				RenderEngine::clear(CLEAR_VALUE_DEPTH, drawProperties);
+				cleared = true;
+			}
+		} else {
+			RenderEngine::clear(CLEAR_VALUE_DEPTH, drawProperties);
+		}
+
+		// DRAW
+		RenderEngine::drawRenderables(drawProperties);
+
+		// UNBIND
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			RenderEngine::Canvas.VK->Present(cmdBuffer);
+		else
+			fbo->Unbind();
+	}
+}
+
+void RenderEngine::createWaterFBOs()
+{
+	for (auto component : RenderEngine::Renderables)
+	{
+		if ((component == nullptr) || (component->Type() != COMPONENT_WATER))
+			continue;
+
+		Water* water = dynamic_cast<Water*>(component->Parent);
+
+		if (water == nullptr)
+			continue;
+
+		glm::vec3       position       = component->Position();
+		glm::vec3       scale          = component->Scale();
+		float           cameraDistance = ((RenderEngine::CameraMain->Position().y - position.y) * 2.0f);
+		VkCommandBuffer cmdBuffer      = nullptr;
+
+		// WATER REFLECTION PASS - ABOVE WATER
+		RenderEngine::CameraMain->MoveBy(glm::vec3(0.0f, -cameraDistance, 0.0f));
+		RenderEngine::CameraMain->InvertPitch();
+
+		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
+			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
+		else
+			water->FBO()->BindReflection();
 
 		DrawProperties drawProperties = {};
 
-		drawProperties.EnableClipping = true;
-		drawProperties.FBO            = true;
-		drawProperties.ClipMax        = glm::vec3(scale.x, scale.y, scale.z);
-		drawProperties.ClipMin        = glm::vec3(-scale.x, position.y, -scale.z);
+		drawProperties.EnableClipping  = true;
+		drawProperties.FBO             = water->FBO()->ReflectionFBO();
+		drawProperties.ClipMax         = glm::vec3(scale.x,  scale.y,    scale.z);
+		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
+		drawProperties.VKCommandBuffer = cmdBuffer;
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->ReflectionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
 
-		RenderEngine::drawSkybox(drawProperties,      cmdBuffer);
-		RenderEngine::drawTerrains(drawProperties,    cmdBuffer);
-		RenderEngine::drawRenderables(drawProperties, cmdBuffer);
+		RenderEngine::drawSkybox(drawProperties);
+		RenderEngine::drawRenderables(drawProperties);
 		
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
 		else
-			parent->FBO()->UnbindReflection();
+			water->FBO()->UnbindReflection();
 
-		RenderEngine::Camera->InvertPitch();
-		RenderEngine::Camera->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
+		RenderEngine::CameraMain->InvertPitch();
+		RenderEngine::CameraMain->MoveBy(glm::vec3(0.0, cameraDistance, 0.0));
 
 		// WATER REFRACTION PASS - BELOW WATER
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			cmdBuffer = RenderEngine::Canvas.VK->CommandBufferBegin();
 		else
-			parent->FBO()->BindRefraction();
+			water->FBO()->BindRefraction();
 
-		drawProperties.ClipMax = glm::vec3(scale.x,   position.y, scale.z);
+		drawProperties.ClipMax = glm::vec3(scale.x,  position.y, scale.z);
 		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
+		drawProperties.FBO     = water->FBO()->RefractionFBO();
 
-		RenderEngine::clear(0.0f, 0.0f, 1.0f, 1.0f, parent->FBO()->RefractionFBO(), cmdBuffer);
+		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
 
-		RenderEngine::drawSkybox(drawProperties,      cmdBuffer);
-		RenderEngine::drawTerrains(drawProperties,    cmdBuffer);
-		RenderEngine::drawRenderables(drawProperties, cmdBuffer);
+		RenderEngine::drawSkybox(drawProperties);
+		RenderEngine::drawRenderables(drawProperties);
 
 		if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN)
 			RenderEngine::Canvas.VK->Present(cmdBuffer);
 		else
-			parent->FBO()->UnbindRefraction();
+			water->FBO()->UnbindRefraction();
 	}
 }
 
 void RenderEngine::Draw()
 {
+	RenderEngine::createDepthFBO();
 	RenderEngine::createWaterFBOs();
-	RenderEngine::clear(0.0f, 0.2f, 0.4f, 1.0f);
+
+	RenderEngine::clear(CLEAR_VALUE_DEFAULT, {});
 	RenderEngine::drawScene();
 
 	switch (RenderEngine::SelectedGraphicsAPI) {
@@ -160,145 +234,112 @@ int RenderEngine::drawBoundingVolumes()
     if (!RenderEngine::DrawBoundingVolume)
 		return 1;
 
-	DrawModeType oldDrawMode = RenderEngine::DrawMode;
+	DrawModeType oldDrawMode = RenderEngine::drawMode;
 
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
 	DrawProperties properties = {};
+
 	properties.DrawBoundingVolume = true;
+	properties.Shader             = SHADER_ID_WIREFRAME;
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
+	RenderEngine::drawMeshes(RenderEngine::Renderables, properties);
 
-	RenderEngine::DrawMode = oldDrawMode;
+	RenderEngine::drawMode = oldDrawMode;
 
     return 0;
 }    
 
-int RenderEngine::drawHUDs(const DrawProperties &properties)
+int RenderEngine::drawHUDs()
 {
 	if (RenderEngine::HUDs.empty())
 		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-	{
-		glDisable(GL_DEPTH_TEST);
+		RenderEngine::setDrawSettingsGL(SHADER_ID_HUD);
 
-		glDisable(GL_CULL_FACE);
+	DrawProperties properties = {};
+	properties.Shader         = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_HUD : SHADER_ID_WIREFRAME);
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-
-	RenderEngine::drawMeshes(RenderEngine::HUDs, SHADER_ID_HUD, properties);
+	RenderEngine::drawMeshes(RenderEngine::HUDs, properties);
 
 	return 0;
 }
 
-int RenderEngine::drawRenderables(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int RenderEngine::drawLightSources()
+{
+	if (RenderEngine::LightSources.empty())
+		return 1;
+
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+		RenderEngine::setDrawSettingsGL(SHADER_ID_COLOR);
+
+	DrawProperties properties = {};
+	properties.Shader         = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_COLOR : SHADER_ID_WIREFRAME);
+
+	RenderEngine::drawMeshes(RenderEngine::LightSources, properties);
+
+	return 0;
+}
+
+int RenderEngine::drawRenderables(DrawProperties &properties)
 {
 	if (RenderEngine::Renderables.empty())
 		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
+		RenderEngine::setDrawSettingsGL(SHADER_ID_DEFAULT);
 
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
+	if (properties.Shader == SHADER_ID_UNKNOWN)
+		properties.Shader = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_WIREFRAME);
 
-		glDisable(GL_BLEND);
-	}
+	RenderEngine::drawMeshes(RenderEngine::Renderables, properties);
 
-	ShaderID shaderID = (RenderEngine::DrawMode == DRAW_MODE_FILLED ? SHADER_ID_DEFAULT : SHADER_ID_WIREFRAME);
-
-	RenderEngine::drawMeshes(RenderEngine::Renderables, shaderID, properties, cmdBuffer);
+	properties.Shader = SHADER_ID_UNKNOWN;
 
 	return 0;
 }
 
 int RenderEngine::drawSelected()
 {
-	DrawModeType oldDrawMode = RenderEngine::DrawMode;
+	DrawModeType oldDrawMode = RenderEngine::drawMode;
 
 	RenderEngine::SetDrawMode(DRAW_MODE_WIREFRAME);
 
 	DrawProperties properties = {};
-	properties.DrawSelected   = true;
 
-	RenderEngine::drawMeshes(RenderEngine::Renderables, SHADER_ID_WIREFRAME, properties);
+	properties.DrawSelected = true;
+	properties.Shader       = SHADER_ID_WIREFRAME;
 
-	RenderEngine::DrawMode = oldDrawMode;
+	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
+		RenderEngine::setDrawSettingsGL(SHADER_ID_WIREFRAME);
+
+	RenderEngine::drawMeshes(RenderEngine::Renderables, properties);
+
+	RenderEngine::drawMode = oldDrawMode;
 
 	return 0;
 }
 
-int RenderEngine::drawSkybox(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int RenderEngine::drawSkybox(DrawProperties &properties)
 {
 	if (RenderEngine::Skybox == nullptr)
 		return 1;
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LEQUAL);
+		RenderEngine::setDrawSettingsGL(SHADER_ID_SKYBOX);
 
-		glDisable(GL_CULL_FACE);
+	if (properties.Shader == SHADER_ID_UNKNOWN)
+		properties.Shader = (RenderEngine::drawMode == DRAW_MODE_FILLED ? SHADER_ID_SKYBOX : SHADER_ID_WIREFRAME);
 
-		glDisable(GL_BLEND);
-	}
+	RenderEngine::drawMeshes({ RenderEngine::Skybox }, properties);
 
-	RenderEngine::drawMeshes({ RenderEngine::Skybox }, SHADER_ID_SKYBOX, properties, cmdBuffer);
+	properties.Shader = SHADER_ID_UNKNOWN;
 
 	return 0;
 }
 
-int RenderEngine::drawTerrains(const DrawProperties &properties, VkCommandBuffer cmdBuffer)
-{
-	if (RenderEngine::Terrains.empty())
-		return 1;
-
-	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-
-		glDisable(GL_BLEND);
-	}
-
-	RenderEngine::drawMeshes(RenderEngine::Terrains, SHADER_ID_TERRAIN, properties, cmdBuffer);
-
-	return 0;
-}
-
-int RenderEngine::drawWaters(const DrawProperties &properties)
-{
-	if (RenderEngine::Waters.empty())
-		return 1;
-
-	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
-	{
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_LESS);
-
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
-
-		glDisable(GL_BLEND);
-	}
-
-	RenderEngine::drawMeshes(RenderEngine::Waters, SHADER_ID_WATER, properties);
-
-	return 0;
-}
-
-void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+void RenderEngine::drawMesh(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
 	switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
@@ -313,36 +354,46 @@ void RenderEngine::drawMesh(Mesh* mesh, ShaderProgram* shaderProgram, const Draw
 			RenderEngine::drawMeshGL(mesh, shaderProgram, properties);
 			break;
 		case GRAPHICS_API_VULKAN:
-			RenderEngine::drawMeshVK(mesh, shaderProgram, properties, cmdBuffer);
+			RenderEngine::drawMeshVK(mesh, shaderProgram, properties);
 			break;
 		default:
-			break;
+			throw;
 	}
 }
 
-int RenderEngine::drawMeshDX11(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshDX11(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
 	return RenderEngine::Canvas.DX->Draw11(mesh, shaderProgram, properties);
 }
 
-int RenderEngine::drawMeshDX12(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
 	return RenderEngine::Canvas.DX->Draw12(mesh, shaderProgram, properties);
 }
 
-int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties)
+int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
-    if ((RenderEngine::Camera == nullptr) || (shaderProgram == nullptr) || (shaderProgram->Program() < 1) || (mesh == nullptr) || (mesh->IBO() < 1))
+	if ((RenderEngine::CameraMain == nullptr) ||
+		(shaderProgram == nullptr) || (shaderProgram->Program() < 1) ||
+		(mesh == nullptr) || (dynamic_cast<Mesh*>(mesh)->IBO() < 1))
+	{
 		return -1;
+	}
 
+	// SHADER ATTRIBUTES AND UNIFORMS
 	shaderProgram->UpdateAttribsGL(mesh);
 	shaderProgram->UpdateUniformsGL(mesh, properties);
 
     // DRAW
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->IBO());
-		glDrawElements(RenderEngine::GetDrawMode(), (GLsizei)mesh->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	//glDrawArrays(RenderEngine::DrawMode, 0, (GLsizei)mesh->NrOfVertices());
+	if (dynamic_cast<Mesh*>(mesh)->IBO() > 0) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dynamic_cast<Mesh*>(mesh)->IBO());
+		glDrawElements(RenderEngine::GetDrawMode(), (GLsizei)dynamic_cast<Mesh*>(mesh)->NrOfIndices(), GL_UNSIGNED_INT, nullptr);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	} else {
+		glBindBuffer(GL_VERTEX_ARRAY, dynamic_cast<Mesh*>(mesh)->VBO());
+		glDrawArrays(RenderEngine::GetDrawMode(), 0, (GLsizei)dynamic_cast<Mesh*>(mesh)->NrOfVertices());
+		glBindBuffer(GL_VERTEX_ARRAY, 0);
+	}
 
     // UNBIND TEXTURES
     for (int i = 0; i < MAX_TEXTURES; i++) {
@@ -356,54 +407,57 @@ int RenderEngine::drawMeshGL(Mesh* mesh, ShaderProgram* shaderProgram, const Dra
     return 0;
 }
 
-int RenderEngine::drawMeshVK(Mesh* mesh, ShaderProgram* shaderProgram, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+int RenderEngine::drawMeshVK(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
-	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, properties, cmdBuffer);
+	return RenderEngine::Canvas.VK->Draw(mesh, shaderProgram, properties);
 }
 
-void RenderEngine::drawMeshes(const std::vector<Mesh*> meshes, ShaderID shaderID, const DrawProperties &properties, VkCommandBuffer cmdBuffer)
+void RenderEngine::drawMeshes(const std::vector<Component*> meshes, DrawProperties &properties)
 {
-	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, shaderID);
+	ShaderProgram* shaderProgram = RenderEngine::setShaderProgram(true, properties.Shader);
 
 	for (auto mesh : meshes)
 	{
 		if (!properties.DrawBoundingVolume &&
-			((properties.DrawSelected && !mesh->IsSelected()) || (!properties.DrawSelected && mesh->IsSelected())))
+			((properties.DrawSelected && !dynamic_cast<Mesh*>(mesh)->IsSelected()) ||
+			(!properties.DrawSelected && dynamic_cast<Mesh*>(mesh)->IsSelected())))
 		{
 			continue;
 		}
-		
-		glm::vec4 oldColor = mesh->Color;
+
+		// SKIP RENDERING WATER WHEN CREATING FBO
+		if ((mesh->Type() == COMPONENT_WATER) && (properties.FBO != nullptr) && (properties.FBO->Type() != FBO_UNKNOWN))
+			continue;
+
+		glm::vec4 oldColor = mesh->ComponentMaterial.diffuse;
 
 		if (properties.DrawSelected)
-			mesh->Color = SceneManager::SelectColor;
+			mesh->ComponentMaterial.diffuse = SceneManager::SelectColor;
 
 		RenderEngine::drawMesh(
-			(properties.DrawBoundingVolume ? mesh->GetBoundingVolume() : mesh),
-			shaderProgram, properties, cmdBuffer
+			(properties.DrawBoundingVolume ? dynamic_cast<Mesh*>(mesh)->GetBoundingVolume() : mesh), shaderProgram, properties
 		);
 
 		if (properties.DrawSelected)
-			mesh->Color = oldColor;
+			mesh->ComponentMaterial.diffuse = oldColor;
 	}
 
 	RenderEngine::setShaderProgram(false);
 }
 
-void RenderEngine::drawScene(const DrawProperties &properties)
+void RenderEngine::drawScene()
 {
-	RenderEngine::drawRenderables(properties);
+	RenderEngine::drawRenderables();
+	RenderEngine::drawLightSources();
 	RenderEngine::drawSelected();
 	RenderEngine::drawBoundingVolumes();
-	RenderEngine::drawSkybox(properties);
-	RenderEngine::drawTerrains(properties);
-	RenderEngine::drawWaters(properties);
-    RenderEngine::drawHUDs(properties);
+	RenderEngine::drawSkybox();
+    RenderEngine::drawHUDs();
 }
 
 uint16_t RenderEngine::GetDrawMode()
 {
-	if (RenderEngine::DrawMode == DRAW_MODE_FILLED)
+	if (RenderEngine::drawMode == DRAW_MODE_FILLED)
 	{
 		switch (RenderEngine::SelectedGraphicsAPI) {
 		#if defined _WINDOWS
@@ -415,9 +469,11 @@ uint16_t RenderEngine::GetDrawMode()
 			return GL_TRIANGLES;
 		case GRAPHICS_API_VULKAN:
 			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		default:
+			throw;
 		}
 	}
-	else if (RenderEngine::DrawMode == DRAW_MODE_WIREFRAME)
+	else if (RenderEngine::drawMode == DRAW_MODE_WIREFRAME)
 	{
 		switch (RenderEngine::SelectedGraphicsAPI) {
 			#if defined _WINDOWS
@@ -429,6 +485,8 @@ uint16_t RenderEngine::GetDrawMode()
 				return GL_LINE_STRIP;
 			case GRAPHICS_API_VULKAN:
 				return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+			default:
+				throw;
 		}
 	}
 
@@ -461,34 +519,50 @@ int RenderEngine::initResources()
 	if (!SceneManager::EmptyTexture->IsOK() || !SceneManager::EmptyCubemap->IsOK())
 		return -1;
 
+	SceneManager::DepthMap2D   = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_2D_ARRAY);
+	SceneManager::DepthMapCube = new FrameBuffer(wxSize(FBO_TEXTURE_SIZE, FBO_TEXTURE_SIZE), FBO_DEPTH, TEXTURE_CUBEMAP_ARRAY);
+
+	if ((SceneManager::DepthMap2D->GetTexture() == nullptr) || (SceneManager::DepthMapCube->GetTexture() == nullptr))
+		return -2;
+
 	return 0;
 }
 
-void RenderEngine::RemoveMesh(Mesh* mesh)
+int RenderEngine::RemoveMesh(Component* mesh)
 {
-    if (mesh->Parent->Type() == COMPONENT_HUD) {
-		auto index = std::find(RenderEngine::HUDs.begin(), RenderEngine::HUDs.end(), mesh);
+	if (mesh->Parent == nullptr)
+		return -1;
+
+	std::vector<Component*>::iterator index;
+
+	switch (mesh->Parent->Type()) {
+	case COMPONENT_HUD:
+		index = std::find(RenderEngine::HUDs.begin(), RenderEngine::HUDs.end(), mesh);
 
         if (index != RenderEngine::HUDs.end())
 			RenderEngine::HUDs.erase(index);
-    } else if (mesh->Parent->Type() == COMPONENT_SKYBOX) {
+
+		break;
+	case COMPONENT_SKYBOX:
         RenderEngine::Skybox = nullptr;
-    } else if (mesh->Parent->Type() == COMPONENT_TERRAIN) {
-		auto index = std::find(RenderEngine::Terrains.begin(), RenderEngine::Terrains.end(), mesh);
+		break;
+	case COMPONENT_LIGHTSOURCE:
+		index = std::find(RenderEngine::LightSources.begin(), RenderEngine::LightSources.end(), mesh);
 
-		if (index != RenderEngine::Terrains.end())
-			RenderEngine::Terrains.erase(index);
-    } else if (mesh->Parent->Type() == COMPONENT_WATER) {
-		auto index = std::find(RenderEngine::Waters.begin(), RenderEngine::Waters.end(), mesh);
+		if (index != RenderEngine::LightSources.end())
+			RenderEngine::LightSources.erase(index);
 
-		if (index != RenderEngine::Waters.end())
-			RenderEngine::Waters.erase(index);
-    } else {
-		auto index = std::find(RenderEngine::Renderables.begin(), RenderEngine::Renderables.end(), mesh);
+		break;
+	default:
+		index = std::find(RenderEngine::Renderables.begin(), RenderEngine::Renderables.end(), mesh);
 
 		if (index != RenderEngine::Renderables.end())
 			RenderEngine::Renderables.erase(index);
-    }
+
+		break;
+	}
+
+	return 0;
 }
 
 void RenderEngine::SetAspectRatio(const wxString &ratio)
@@ -511,7 +585,7 @@ void RenderEngine::SetCanvasSize(int width, int height)
 {
 	RenderEngine::Canvas.Size = wxSize(width, height);
 	RenderEngine::Canvas.Canvas->SetSize(RenderEngine::Canvas.Size);
-	RenderEngine::Camera->UpdateProjection();
+	RenderEngine::CameraMain->UpdateProjection();
 
 	if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL)
 		glViewport(0, 0, width, height);
@@ -519,21 +593,60 @@ void RenderEngine::SetCanvasSize(int width, int height)
 
 void RenderEngine::SetDrawMode(DrawModeType mode)
 {
-	RenderEngine::DrawMode = mode;
+	RenderEngine::drawMode = mode;
 }
 
 void RenderEngine::SetDrawMode(const wxString &mode)
 {
 	if (mode == Utils::DRAW_MODES[DRAW_MODE_FILLED])
-		RenderEngine::DrawMode = DRAW_MODE_FILLED;
+		RenderEngine::drawMode = DRAW_MODE_FILLED;
 	else if (mode == Utils::DRAW_MODES[DRAW_MODE_WIREFRAME])
-		RenderEngine::DrawMode = DRAW_MODE_WIREFRAME;
+		RenderEngine::drawMode = DRAW_MODE_WIREFRAME;
+}
+
+void RenderEngine::setDrawSettingsGL(ShaderID shaderID)
+{
+	switch (shaderID) {
+	case SHADER_ID_HUD:
+		glEnable(GL_BLEND); glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_CLAMP);
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_STENCIL_TEST);
+		break;
+	case SHADER_ID_SKYBOX:
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LEQUAL); glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+		glDisable(GL_CULL_FACE);
+		glDisable(GL_DEPTH_CLAMP);
+		glDisable(GL_STENCIL_TEST);
+		break;
+	case SHADER_ID_DEPTH:
+	case SHADER_ID_DEPTH_OMNI:
+		glEnable(GL_CULL_FACE);  glCullFace(GL_FRONT); glFrontFace(GL_CCW);
+		glEnable(GL_DEPTH_CLAMP);
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
+		glDisable(GL_STENCIL_TEST);
+		glDisable(GL_BLEND);
+		break;
+	default:
+		glEnable(GL_CULL_FACE);  glCullFace(GL_BACK);  glFrontFace(GL_CCW);
+		glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS); glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+		glDisable(GL_DEPTH_CLAMP);
+		glDisable(GL_STENCIL_TEST);
+		break;
+	}
 }
 
 int RenderEngine::SetGraphicsAPI(const wxString &api)
 {
 	GraphicsAPI lastAPI = RenderEngine::SelectedGraphicsAPI;
-	int         result  = -1;
+
+	if (api == Utils::GetGraphicsAPI(lastAPI))
+		return 0;
+
+	int result = -1;
 
 	if (api == "DirectX 11")
 		result = RenderEngine::setGraphicsAPI(GRAPHICS_API_DIRECTX11);
@@ -557,7 +670,7 @@ int RenderEngine::SetGraphicsAPI(const wxString &api)
 
 int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 {
-	RenderEngine::Ready        = false;
+	RenderEngine::Ready               = false;
 	RenderEngine::SelectedGraphicsAPI = api;
 
 	// CLEAR SCENE AND FREE MEMORY
@@ -584,10 +697,7 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 		result = RenderEngine::setGraphicsApiVK();
 		break;
 	default:
-		RenderEngine::SelectedGraphicsAPI = GRAPHICS_API_UNKNOWN;
-		RenderEngine::Canvas.Window->SetStatusText("GRAPHICS_API_UNKNOWN: INVALID API");
-		RenderEngine::Close();
-		break;
+		throw;
 	}
 
 	if (result < 0)
@@ -607,6 +717,11 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 	if (InputManager::Init() < 0) {
 		RenderEngine::Close();
 		return -5;
+	}
+
+	if (RenderEngine::CameraMain == nullptr) {
+		SceneManager::AddComponent(new Camera());
+		SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
 	}
 
 	RenderEngine::Ready = true;
@@ -723,6 +838,6 @@ void RenderEngine::SetVSync(bool enable)
 			RenderEngine::Canvas.VK->SetVSync(enable);
 		break;
 	default:
-		break;
+		throw;
 	}
 }

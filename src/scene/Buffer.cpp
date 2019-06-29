@@ -1,5 +1,242 @@
 #include "Buffer.h"
 
+CBLight::CBLight(LightSource* lightSource)
+{
+	Light light = lightSource->GetLight();
+
+	this->Active      = Utils::ToVec4Float(light.active, (int)lightSource->SourceType());
+	this->Ambient     = glm::vec4(light.material.ambient, 0.0f);
+	this->Attenuation = glm::vec4(light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f);
+	this->Diffuse     = light.material.diffuse;
+	this->Direction   = glm::vec4(light.direction, 0.0f);
+	this->Specular    = glm::vec4(light.material.specular.intensity, light.material.specular.shininess);
+	this->Position    = glm::vec4(light.position,  0.0f);
+
+	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
+		this->Angles = glm::vec4(glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f);
+
+	this->ViewProjection = (lightSource->Projection() * lightSource->View(0));
+}
+
+CBMatrix::CBMatrix(Component* mesh, bool removeTranslation)
+{
+	this->Model  = mesh->Matrix();
+	this->Normal = glm::mat4(glm::transpose(glm::inverse(glm::mat3(this->Model))));
+	this->MVP    = RenderEngine::CameraMain->MVP(this->Model, removeTranslation);
+}
+
+CBMatrix::CBMatrix(LightSource* lightSource, Component* mesh)
+{
+	glm::mat4 depthTransform = glm::mat4(
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.5f, 0.0f,
+		0.0f, 0.0f, 0.5f, 1.0f
+	);
+
+	this->Model = mesh->Matrix();
+	this->MVP   = lightSource->MVP(this->Model);
+
+	glm::mat4 projection = lightSource->Projection();
+
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+		this->VP[i] = (projection * lightSource->View(i));
+
+	// Apply the depth transform
+	switch (RenderEngine::SelectedGraphicsAPI) {
+	case GRAPHICS_API_DIRECTX11:
+	case GRAPHICS_API_DIRECTX12:
+		depthTransform[1][1] *= -1.0f;
+
+		this->MVP = (depthTransform * this->MVP);
+
+		for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+			this->VP[i] = (depthTransform * this->VP[i]);
+
+		break;
+	case GRAPHICS_API_VULKAN:
+		this->MVP = (depthTransform * this->MVP);
+		break;
+	default:
+		break;
+	}
+}
+
+CBColor::CBColor(const glm::vec4 &color)
+{
+	this->Color = color;
+}
+
+CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
+{
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] != nullptr)
+			this->LightSources[i] = CBLight(SceneManager::LightSources[i]);
+	}
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+
+	this->MeshSpecular = glm::vec4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = mesh->ComponentMaterial.diffuse;
+
+	this->ClipMax        = glm::vec4(properties.ClipMax, 0.0f);
+	this->ClipMin        = glm::vec4(properties.ClipMin, 0.0f);
+	this->EnableClipping = Utils::ToVec4Float(properties.EnableClipping);
+
+	this->CameraPosition = glm::vec4(RenderEngine::CameraMain->Position(), 0.0f);
+	this->ComponentType  = Utils::ToVec4Float(static_cast<int>(mesh->Type()));
+	this->EnableSRGB     = Utils::ToVec4Float(RenderEngine::EnableSRGB);
+	this->WaterProps     = {};
+
+	if (mesh->Type() == COMPONENT_WATER) {
+		auto water = dynamic_cast<Water*>(mesh->Parent);
+		this->WaterProps = { water->FBO()->MoveFactor(), water->FBO()->WaveStrength, 0.0f, 0.0f };
+	}
+}
+
+CBDepth::CBDepth(const glm::vec3 &lightPosition, int depthLayer)
+{
+	this->lightPosition = glm::vec4(lightPosition, static_cast<float>(depthLayer));
+}
+
+CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
+{
+	this->MaterialColor = color;
+	this->IsTransparent = Utils::ToVec4Float(transparent);
+}
+
+#if defined _WINDOWS
+
+CBLightDX::CBLightDX(LightSource* lightSource)
+{
+	Light light = lightSource->GetLight();
+
+	this->Active      = Utils::ToXMFLOAT4(light.active, (int)lightSource->SourceType());
+	this->Ambient     = Utils::ToXMFLOAT4(light.material.ambient, 0.0f);
+	this->Attenuation = { light.attenuation.constant, light.attenuation.linear, light.attenuation.quadratic, 0.0f };
+	this->Diffuse     = Utils::ToXMFLOAT4(light.material.diffuse);
+	this->Direction   = Utils::ToXMFLOAT4(light.direction, 0.0f);
+	this->Position    = Utils::ToXMFLOAT4(light.position,  0.0f);
+	this->Specular    = Utils::ToXMFLOAT4(light.material.specular.intensity, light.material.specular.shininess);
+
+	if ((light.innerAngle > 0.1f) && (light.outerAngle > light.innerAngle))
+		this->Angles = { glm::cos(light.innerAngle), glm::cos(light.outerAngle), 0.0f, 0.0f };
+
+	this->ViewProjection = Utils::ToXMMATRIX(lightSource->Projection() * lightSource->View(0));
+}
+
+CBLightDX::CBLightDX(const CBLight &light)
+{
+	this->Active         = Utils::ToXMFLOAT4(light.Active);
+	this->Ambient        = Utils::ToXMFLOAT4(light.Ambient);
+	this->Angles         = Utils::ToXMFLOAT4(light.Angles);
+	this->Attenuation    = Utils::ToXMFLOAT4(light.Attenuation);
+	this->Diffuse        = Utils::ToXMFLOAT4(light.Diffuse);
+	this->Direction      = Utils::ToXMFLOAT4(light.Direction);
+	this->Position       = Utils::ToXMFLOAT4(light.Position);
+	this->Specular       = Utils::ToXMFLOAT4(light.Specular);
+	this->ViewProjection = Utils::ToXMMATRIX(light.ViewProjection);
+}
+
+CBMatrixDX::CBMatrixDX(const CBMatrix &matrices)
+{
+	this->Normal = Utils::ToXMMATRIX(matrices.Normal);
+	this->Model  = Utils::ToXMMATRIX(matrices.Model);
+	this->MVP    = Utils::ToXMMATRIX(matrices.MVP);
+
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+		this->VP[i] = Utils::ToXMMATRIX(matrices.VP[i]);
+}
+
+CBColorDX::CBColorDX(const CBMatrix &matrices, const glm::vec4 &color)
+{
+	this->MB    = CBMatrixDX(matrices);
+	this->Color = Utils::ToXMFLOAT4(color);
+}
+
+CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::vec3 &clipMax, const glm::vec3 &clipMin, bool enableClipping)
+{
+	this->MB = CBMatrixDX(matrices);
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++) {
+		if (SceneManager::LightSources[i] != nullptr)
+			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]);
+	}
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+
+	this->MeshSpecular = Utils::ToXMFLOAT4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
+
+	this->ClipMax        = Utils::ToXMFLOAT4(clipMax, 0.0f);
+	this->ClipMin        = Utils::ToXMFLOAT4(clipMin, 0.0f);
+	this->EnableClipping = Utils::ToXMFLOAT4(enableClipping);
+
+	this->CameraPosition = Utils::ToXMFLOAT4(RenderEngine::CameraMain->Position(), 0.0f);
+	this->ComponentType  = Utils::ToXMFLOAT4(static_cast<int>(mesh->Type()));
+	this->EnableSRGB     = Utils::ToXMFLOAT4(RenderEngine::EnableSRGB);
+	this->WaterProps     = {};
+
+	if (mesh->Type() == COMPONENT_WATER) {
+		auto water = dynamic_cast<Water*>(mesh->Parent);
+		this->WaterProps = { water->FBO()->MoveFactor(), water->FBO()->WaveStrength, 0.0f, 0.0f };
+	}
+}
+
+CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
+{
+	this->MB = CBMatrixDX(matrices);
+
+	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
+		this->LightSources[i] = CBLightDX(default.LightSources[i]);
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->IsTextured[i] = Utils::ToXMFLOAT4(default.IsTextured[i]);
+
+	for (int i = 0; i < MAX_TEXTURES; i++)
+		this->TextureScales[i] = Utils::ToXMFLOAT4(default.TextureScales[i]);
+
+	this->MeshSpecular = Utils::ToXMFLOAT4(default.MeshSpecular);
+	this->MeshDiffuse  = Utils::ToXMFLOAT4(default.MeshDiffuse);
+
+	this->ClipMax        = Utils::ToXMFLOAT4(default.ClipMax);
+	this->ClipMin        = Utils::ToXMFLOAT4(default.ClipMin);
+	this->EnableClipping = Utils::ToXMFLOAT4(default.EnableClipping);
+
+	this->CameraPosition = Utils::ToXMFLOAT4(default.CameraPosition);
+	this->ComponentType  = Utils::ToXMFLOAT4(default.ComponentType);
+	this->EnableSRGB     = Utils::ToXMFLOAT4(default.EnableSRGB);
+	this->WaterProps     = Utils::ToXMFLOAT4(default.WaterProps);
+}
+
+CBDepthDX::CBDepthDX(const CBMatrix &matrices, const glm::vec3 &lightPosition, int depthLayer)
+{
+	this->MB            = CBMatrixDX(matrices);
+	this->lightPosition = Utils::ToXMFLOAT4(lightPosition, static_cast<float>(depthLayer));
+}
+
+CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transparent)
+{
+	this->MB            = CBMatrixDX(matrices);
+	this->MaterialColor = Utils::ToXMFLOAT4(color);
+	this->IsTransparent = Utils::ToXMFLOAT4(transparent);
+}
+
+CBSkyboxDX::CBSkyboxDX(const CBMatrix &matrices)
+{
+	this->MB = CBMatrixDX(matrices);
+}
+
+#endif
+
 Buffer::Buffer(std::vector<uint32_t> &indices)
 {
 	this->init();
@@ -27,7 +264,7 @@ Buffer::Buffer(std::vector<uint32_t> &indices)
 		RenderEngine::Canvas.VK->CreateIndexBuffer(indices, this);
 		break;
 	default:
-		break;
+		throw;
 	}
 }
 
@@ -65,6 +302,8 @@ Buffer::Buffer(std::vector<float> &vertices, std::vector<float> &normals, std::v
 		RenderEngine::Canvas.VK->CreateVertexBuffer(vertices, normals, texCoords, this);
 		RenderEngine::Canvas.VK->InitPipelines(this);
 		break;
+	default:
+		throw;
 	}
 }
 
@@ -89,8 +328,11 @@ Buffer::~Buffer()
 			_RELEASEP(this->InputLayoutsDX11[i]);
 
 			_RELEASEP(this->PipelineStatesDX12[i]);
-			_RELEASEP(this->PipelineStatesFBODX12[i]);
+			_RELEASEP(this->PipelineStatesColorDX12[i]);
+			_RELEASEP(this->PipelineStatesDepthDX12[i]);
 			_RELEASEP(this->RootSignaturesDX12[i]);
+			_RELEASEP(this->RootSignaturesColorDX12[i]);
+			_RELEASEP(this->RootSignaturesDepthDX12[i]);
 		}
 
 		_RELEASEP(this->VertexBufferDX11);
@@ -141,17 +383,18 @@ void Buffer::init()
 		this->InputLayoutsDX11[NR_OF_SHADERS]        = {};
 		this->RasterizerStatesDX11[NR_OF_SHADERS]    = {};
 		this->PipelineStatesDX12[NR_OF_SHADERS]      = {};
-		this->PipelineStatesFBODX12[NR_OF_SHADERS]   = {};
+		this->PipelineStatesColorDX12[NR_OF_SHADERS] = {};
+		this->PipelineStatesDepthDX12[NR_OF_SHADERS] = {};
 		this->RootSignaturesDX12[NR_OF_SHADERS]      = {};
+		this->RootSignaturesColorDX12[NR_OF_SHADERS] = {};
+		this->RootSignaturesDepthDX12[NR_OF_SHADERS] = {};
 		this->SamplerHeapsDX12[NR_OF_SHADERS]        = {};
 
-		this->MatrixBufferValues    = {};
-		this->LightBufferValues     = {};
-		this->DefaultBufferValues   = {};
-		this->HUDBufferValues       = {};
-		this->SkyboxBufferValues    = {};
-		this->WireframeBufferValues = {};
-		this->WaterBufferValues     = {};
+		this->ConstantBufferColor   = {};
+		this->ConstantBufferDefault = {};
+		this->ConstantBufferDepth   = {};
+		this->ConstantBufferHUD     = {};
+		this->ConstantBufferSkybox  = {};
 	#endif
 }
 

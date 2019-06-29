@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_BOUNDINGVOLUME_H
-#define GE3D_BOUNDINGVOLUME_H
+#ifndef S3DE_BOUNDINGVOLUME_H
+#define S3DE_BOUNDINGVOLUME_H
 
 class BoundingVolume : public Mesh
 {
@@ -17,7 +17,7 @@ private:
 
 public:
 	glm::vec3          MaxBoundaries();
-	glm::vec3          MinBoundaries();
+	void               Update();
 	BoundingVolumeType VolumeType();
 
 private:

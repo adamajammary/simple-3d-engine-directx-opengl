@@ -1,27 +1,29 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_TEXTURE_H
-#define GE3D_TEXTURE_H
+#ifndef S3DE_TEXTURE_H
+#define S3DE_TEXTURE_H
 
 class Texture
 {
 public:
 	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture(const wxString &imageFile, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture::Texture(VkFormat format, int width, int height);
-	Texture(GLint formatIn, GLenum formatOut, GLenum dataType, GLenum attachment, int width, int height);
+	Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, const wxSize &size);
+	Texture(GLint format, TextureType textureType, const wxSize &size);
 	Texture();
 	~Texture();
 
 	#if defined _WINDOWS
-		Texture(DXGI_FORMAT format, int width, int height);
+		Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, const wxSize &size);
 	#endif
 
 public:
-	VkFramebuffer       ColorBufferVK;
+	VkFramebuffer       BufferVK;
+	VkFramebuffer       DepthBuffers[MAX_LIGHT_SOURCES];
+	VkImageView         DepthViews[MAX_LIGHT_SOURCES];
 	VkImage             Image;
 	VkDeviceMemory      ImageMemory;
 	VkImageView         ImageView;
@@ -31,7 +33,9 @@ public:
 
 	#if defined _WINDOWS
 		ID3D11RenderTargetView*         ColorBuffer11;
+		ID3D11DepthStencilView*         DepthBuffers11[MAX_LIGHT_SOURCES];
 		ID3D12DescriptorHeap*           ColorBuffer12;
+		ID3D12DescriptorHeap*           DepthBuffers12[MAX_LIGHT_SOURCES];
 		ID3D11Texture2D*                Resource11;
 		ID3D12Resource*                 Resource12;
 		D3D12_SAMPLER_DESC              SamplerDesc12;
@@ -41,40 +45,44 @@ public:
 #endif
 
 private:
+	VkViewport            bufferViewPort;
 	bool                  flipY;
 	GLuint                id;
 	std::vector<wxString> imageFiles;
 	uint32_t              mipLevels;
 	bool                  repeat;
 	wxSize                size;
+	bool                  srgb;
+	TextureType           type;
 	bool                  transparent;
-	GLenum                type;
-	VkViewport            colorBufferViewPort;
+	GLenum                glType;
 
 	#if defined _WINDOWS
-		D3D11_VIEWPORT      colorBufferViewPort11;
+		D3D11_VIEWPORT      bufferViewPort11;
 		ID3D11SamplerState* samplerState11;
-		D3D12_VIEWPORT      colorBufferViewPort12;
+		D3D12_VIEWPORT      bufferViewPort12;
 	#endif
 
 public:
-	VkViewport ColorBufferViewPort();
-	bool       FlipY();
-	bool       Repeat();
-	bool       Transparent();
-	GLuint     ID();
-	wxString   ImageFile(int index = 0);
-	bool       IsOK();
-	uint32_t   MipLevels();
-	void       SetFlipY(bool newFlipY);
-	void       SetRepeat(bool newRepeat);
-	void       SetTransparent(bool newTransparent);
-	wxSize     Size();
-	GLenum     Type();
+	VkViewport  BufferViewPort();
+	bool        FlipY();
+	GLuint      ID();
+	wxString    ImageFile(int index = 0);
+	bool        IsOK();
+	uint32_t    MipLevels();
+	bool        Repeat();
+	void        SetFlipY(bool newFlipY);
+	void        SetRepeat(bool newRepeat);
+	void        SetTransparent(bool newTransparent);
+	wxSize      Size();
+	bool        SRGB();
+	bool        Transparent();
+	TextureType Type();
+	GLenum      TypeGL();
 
 	#if defined _WINDOWS
-		D3D11_VIEWPORT ColorBufferViewPort11();
-		D3D12_VIEWPORT ColorBufferViewPort12();
+		D3D11_VIEWPORT BufferViewPort11();
+		D3D12_VIEWPORT BufferViewPort12();
 	#endif
 
 private:

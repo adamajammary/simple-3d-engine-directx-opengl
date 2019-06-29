@@ -70,11 +70,11 @@ void HUD::Update(const wxString &newText)
 		if (this->Transparent)
 			gcdc.SetBackground(*wxTRANSPARENT_BRUSH);
 		else
-			gcdc.SetBackground(wxBrush(Utils::ToWxColour(this->Children[0]->Color)));
+			gcdc.SetBackground(wxBrush(Utils::ToWxColour(this->Children[0]->ComponentMaterial.diffuse)));
 
 		gcdc.Clear();
 		
-		if (this->Children[0]->IsTextured())
+		if (this->Children[0]->IsTextured(0))
 		{
 			wxImage* textureImage = Utils::LoadImageFile(this->Children[0]->Textures[0]->ImageFile());
 			wxBitmap textureBMP   = wxBitmap(*textureImage);

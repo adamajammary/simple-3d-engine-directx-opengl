@@ -1,9 +1,9 @@
-#ifndef GE3D_GLOBALS_H
+#ifndef S3DE_GLOBALS_H
 	#include "../globals.h"
 #endif
 
-#ifndef GE3D_WINDOW_H
-#define GE3D_WINDOW_H
+#ifndef S3DE_WINDOW_H
+#define S3DE_WINDOW_H
 
 class Window : public wxApp
 {
