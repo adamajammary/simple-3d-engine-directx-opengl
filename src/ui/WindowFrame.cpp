@@ -236,7 +236,10 @@ void WindowFrame::addTextLabel(wxBoxSizer* sizer, wxString text, int flag, int b
 void WindowFrame::ClearScene()
 {
 	this->components->Clear();
+	this->components->Update();
+
 	this->children->Clear();
+	this->children->Update();
 }
 
 void WindowFrame::DeactivateProperties()

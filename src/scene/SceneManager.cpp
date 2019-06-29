@@ -160,10 +160,10 @@ Model* SceneManager::LoadModel(const wxString &file)
 
 int SceneManager::LoadScene(const wxString &file)
 {
-	SceneManager::Ready = false;
-
 	if (file.empty())
 		return -1;
+
+	SceneManager::Ready = false;
 
 	std::vector<uint8_t> sceneFile   = Utils::LoadDataFile(file);
 	std::vector<uint8_t> sceneBuffer = Utils::Decompress(sceneFile);
@@ -171,10 +171,11 @@ int SceneManager::LoadScene(const wxString &file)
 
 	if (sceneData.empty()) {
 		RenderEngine::Canvas.Window->SetStatusText("Failed to load the scene '" + file + "'");
-		return -1;
+		return -2;
 	}
 
 	SceneManager::Clear();
+	RenderEngine::Draw();
 
 	if (RenderEngine::CameraMain == nullptr)
 		SceneManager::AddComponent(new Camera());
@@ -256,6 +257,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 		for (int i = 0; i < (int)childrenJSON.size(); i++)
 		{
+			if (component == nullptr)
+				continue;
+
 			auto  childJSON = childrenJSON[i];
 			Mesh* child     = dynamic_cast<Mesh*>(component->Children[i]);
 			
