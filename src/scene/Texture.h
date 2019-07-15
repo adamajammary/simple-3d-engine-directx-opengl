@@ -9,7 +9,7 @@ class Texture
 {
 public:
 	Texture(wxImage* image, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
-	Texture(const wxString &imageFile, bool srgb = false, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
+	Texture(const wxString& imageFile, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2& scale = { 1.0f, 1.0f });
 	Texture(const std::vector<wxString> &imageFiles, bool repeat = false, bool flipY = false, bool transparent = false, const glm::vec2 &scale = { 1.0f, 1.0f });
 	Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat, const wxSize &size);
 	Texture(GLint format, TextureType textureType, const wxSize &size);
@@ -52,7 +52,6 @@ private:
 	uint32_t              mipLevels;
 	bool                  repeat;
 	wxSize                size;
-	bool                  srgb;
 	TextureType           type;
 	bool                  transparent;
 	GLenum                glType;
@@ -75,7 +74,6 @@ public:
 	void        SetRepeat(bool newRepeat);
 	void        SetTransparent(bool newTransparent);
 	wxSize      Size();
-	bool        SRGB();
 	bool        Transparent();
 	TextureType Type();
 	GLenum      TypeGL();

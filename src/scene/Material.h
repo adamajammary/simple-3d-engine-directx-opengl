@@ -5,24 +5,28 @@
 #ifndef S3DE_MATERIAL_H
 #define S3DE_MATERIAL_H
 
-struct Specular
+class Specular
 {
-	Specular(const glm::vec3 &intensity, float shininess);
-	Specular() {}
+public:
+	Specular();
 
-	glm::vec3 intensity = { 0.1f, 0.1f, 0.1f };
-	float     shininess = 32.0f;
+public:
+	glm::vec3 intensity;
+	float     shininess;
+
 };
 
-struct Material
+class Material
 {
-	Material(const glm::vec4 &diffuse, const glm::vec3 &ambient, const Specular &specular = {});
-	Material() {}
+public:
+	Material();
 
-	glm::vec3 ambient  = { 0.8f, 0.8f, 0.8f };
-	glm::vec4 diffuse  = { 0.8f, 0.8f, 0.8f, 1.0f };
-	Specular  specular = {};
-	wxString  textures[MAX_TEXTURES] = {};
+public:
+	glm::vec3 ambient;
+	glm::vec4 diffuse;
+	Specular  specular;
+	wxString  textures[MAX_TEXTURES];
+
 };
 
 #endif

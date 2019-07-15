@@ -73,7 +73,7 @@ struct CBDepth
 	CBDepth(const glm::vec3 &lightPosition, int depthLayer);
 	CBDepth() {}
 
-	glm::vec4 lightPosition = {}; // { x, y, z, depthLayer }
+	glm::vec4 LightPosition = {}; // { x, y, z, depthLayer }
 };
 
 struct CBHUD
@@ -83,6 +83,13 @@ struct CBHUD
 
 	glm::vec4 MaterialColor = {};
 	glm::vec4 IsTransparent = {};
+};
+
+struct CBSkybox
+{
+	CBSkybox();
+
+	glm::vec4 EnableSRGB = {};
 };
 
 #if defined _WINDOWS
@@ -156,7 +163,7 @@ struct CBDepthDX
 	CBDepthDX() {}
 
 	CBMatrixDX        MB            = {};
-	DirectX::XMFLOAT4 lightPosition = {}; // { x, y, z, depthLayer }
+	DirectX::XMFLOAT4 LightPosition = {}; // { x, y, z, depthLayer }
 };
 
 struct CBHUDDX
@@ -175,7 +182,8 @@ struct CBSkyboxDX
 	CBSkyboxDX(const CBMatrix &matrices);
 	CBSkyboxDX() {}
 
-	CBMatrixDX MB = {};
+	CBMatrixDX        MB         = {};
+	DirectX::XMFLOAT4 EnableSRGB = {};
 };
 
 #endif

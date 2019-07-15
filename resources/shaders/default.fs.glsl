@@ -112,15 +112,6 @@ vec4 GetMaterialColor()
 	return db.MeshDiffuse;
 }
 
-// MESH SPECULAR HIGHLIGHTS
-vec4 GetMaterialSpecular()
-{
-	if (db.IsTextured[1].x > 0.1)
-		return texture(Textures[1], GetTiledTexCoords(db.TextureScales[1]));
-
-	return db.MeshSpecular;
-}
-
 vec4 GetMaterialColorTerrain()
 {
 	vec4  blendMapColor       = texture(Textures[4], FragmentTextureCoords);
@@ -161,10 +152,20 @@ vec4 GetMaterialColorWater(vec3 cameraView, out vec3 normal)
 	normal = normalize(vec3((normalColor.r * 2.0 - 1.0), normalColor.b, (normalColor.g * 2.0 - 1.0)));
 
 	// FRESNEL EFFECT - higher power => more refractive (transparent)
-	float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+	//float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+	float refractionFactor = clamp(dot(cameraView, normal), 0.0, 1.0);
 
 	// MATERIAL COLOR
 	return mix(reflectionColor, refractionColor, refractionFactor);
+}
+
+// MESH SPECULAR HIGHLIGHTS
+vec4 GetMaterialSpecular()
+{
+	if (db.IsTextured[1].x > 0.1)
+		return texture(Textures[1], GetTiledTexCoords(db.TextureScales[1]));
+
+	return db.MeshSpecular;
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional/spot light
@@ -395,13 +396,13 @@ vec4 GetFragColorLight(vec4 materialColor, vec4 materialSpecular, vec3 cameraVie
     {
         if (db.LightSources[i].Active.x > 0.1)
 		{
-    		// ID_ICON_LIGHT_SPOT = 17
-			if (db.LightSources[i].Active.y > 16.9)
+			// SPOT = 2
+			if (db.LightSources[i].Active.y > 1.9)
 				fragColor += GetSpotLight(i, normal, cameraView, materialColor, materialSpecular);
-    		// ID_ICON_LIGHT_POINT = 16
-			else if (db.LightSources[i].Active.y > 15.9)
+			// POINT = 1
+			else if (db.LightSources[i].Active.y > 0.9)
 				fragColor += GetPointLight(i, normal, cameraView, materialColor, materialSpecular);
-			// ID_ICON_LIGHT_DIRECTIONAL = 15
+			// DIRECTIONAL = 0
 			else
 				fragColor += GetDirectionalLight(i, normal, cameraView, materialColor, materialSpecular);
 		}

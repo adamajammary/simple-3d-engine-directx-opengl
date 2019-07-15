@@ -353,8 +353,12 @@ void ShaderProgram::setUniformsGL()
 	this->Uniforms[UBO_GL_HUD] = glGetUniformBlockIndex(this->program, "HUDBuffer");
 	glGenBuffers(1, &this->UniformBuffers[UBO_GL_HUD]);
 
+	// SKYBOX BUFFER
+	this->Uniforms[UBO_GL_SKYBOX] = glGetUniformBlockIndex(this->program, "SkyboxBuffer");
+	glGenBuffers(1, &this->UniformBuffers[UBO_GL_SKYBOX]);
+
 	// MESH TEXTURES
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		this->Uniforms[UBO_GL_TEXTURES0 + i] = glGetUniformLocation(this->program, wxString("Textures[" + std::to_string(i) + "]").c_str());
 	
 	// DEPTH MAP 2D TEXTURES
@@ -440,8 +444,16 @@ int ShaderProgram::UpdateUniformsGL(Component* mesh, const DrawProperties &prope
 		this->updateUniformGL(id, UBO_GL_HUD, &hb, sizeof(hb));
 	}
 
+	// SKYBOX BUFFER
+	id = this->Uniforms[UBO_GL_SKYBOX];
+
+	if (id >= 0) {
+		CBSkybox cb = CBSkybox();
+		this->updateUniformGL(id, UBO_GL_SKYBOX, &cb, sizeof(cb));
+	}
+
     // BIND MESH TEXTURES - Texture slots: [GL_TEXTURE0, GL_TEXTURE5]
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 	{
 		id = this->Uniforms[UBO_GL_TEXTURES0 + i];
 
@@ -520,6 +532,7 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 	CBDefault cbDefault;
 	CBDepth   cbDepth;
 	CBHUD     cbHUD;
+	CBSkybox  cbSkybox;
 
 	switch (this->ID()) {
 	case SHADER_ID_COLOR:
@@ -554,6 +567,14 @@ int ShaderProgram::UpdateUniformsVK(VkDevice deviceContext, Component* mesh, con
 
 		result = ShaderProgram::updateUniformsVK(
 			UBO_VK_HUD, UBO_BINDING_DEFAULT, uniform, &cbHUD, sizeof(cbHUD), deviceContext, mesh
+		);
+
+		break;
+	case SHADER_ID_SKYBOX:
+		cbSkybox = CBSkybox();
+
+		result = ShaderProgram::updateUniformsVK(
+			UBO_VK_SKYBOX, UBO_BINDING_DEFAULT, uniform, &cbSkybox, sizeof(cbSkybox), deviceContext, mesh
 		);
 
 		break;
@@ -632,7 +653,7 @@ int ShaderProgram::updateUniformSamplersVK(VkDescriptorSet uniformSet, VkDevice 
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-		for (int i = 0; i < MAX_TEXTURES; i++)
+		for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 		{
 			uniformTextureInfo[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			uniformTextureInfo[i].imageView   = mesh->Textures[i]->ImageView;

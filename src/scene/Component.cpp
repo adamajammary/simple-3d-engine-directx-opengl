@@ -179,7 +179,7 @@ void Component::updateMatrix()
 void Component::updateRotation()
 {
 	// RESET ROTATION AFTER 360 DEGREES (2PI)
-	float fullRotation = (2.0f * glm::pi<float>());
+	float fullRotation = (2.0f * PI);
 
 	for (int i = 0; i < 3; i++)
 	{

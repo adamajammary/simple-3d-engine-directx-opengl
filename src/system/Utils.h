@@ -64,8 +64,6 @@ public:
 	static std::vector<uint8_t>     Compress(const std::vector<uint8_t>   &data);
 	static std::vector<uint8_t>     Decompress(const std::vector<uint8_t> &data);
 	static wxString                 GetGraphicsAPI(GraphicsAPI api);
-	static GLenum                   GetImageFormat(const wxImage &image, bool srgb, bool in);
-	static VkFormat                 GetImageFormatVK(const wxImage &image, bool srgb);
 	static GLsizei                  GetStride(GLsizei size, GLenum arrayType);
 	static wxString                 GetSubString(const wxString& string, size_t maxLength, const wxString& endChars);
 	static std::vector<uint8_t>     LoadDataFile(const  wxString &file);
@@ -104,7 +102,6 @@ public:
 	static wxColour                 ToWxColour(const glm::vec4 &color);
 
 	#if defined _WINDOWS
-		static DXGI_FORMAT       GetImageFormatDXGI(const wxImage &image, bool srgb);
 		static DirectX::XMFLOAT2 ToXMFLOAT2(const glm::vec2 &vector);
 		static DirectX::XMFLOAT3 ToXMFLOAT3(const glm::vec3 &vector);
 		static DirectX::XMFLOAT4 ToXMFLOAT4(bool boolean);

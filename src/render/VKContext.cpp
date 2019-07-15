@@ -971,6 +971,9 @@ int VKContext::createUniformBuffers(Buffer* buffer)
 	if (this->createBuffer(sizeof(CBHUD), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_HUD], &buffer->Uniform.BufferMemories[UBO_VK_HUD]) < 0)
 		return -5;
 
+	if (this->createBuffer(sizeof(CBSkybox), bufferUseFlags, bufferMemFlags, &buffer->Uniform.Buffers[UBO_VK_SKYBOX], &buffer->Uniform.BufferMemories[UBO_VK_SKYBOX]) < 0)
+		return -6;
+
 	return 0;
 }
 

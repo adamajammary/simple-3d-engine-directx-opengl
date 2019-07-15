@@ -1,14 +1,17 @@
 #include "Material.h"
 
-Specular::Specular(const glm::vec3 &intensity, float shininess)
+Specular::Specular()
 {
-	this->intensity = intensity;
-	this->shininess = shininess;
+	this->intensity = { 0.6f, 0.6f, 0.6f };
+	this->shininess = 0.0f;
 }
 
-Material::Material(const glm::vec4 &diffuse, const glm::vec3 &ambient, const Specular &specular)
+Material::Material()
 {
-	this->ambient  = ambient;
-	this->diffuse  = diffuse;
-	this->specular = specular;
+	this->ambient  = { 0.6f, 0.6f, 0.6f };
+	this->diffuse  = { 0.6f, 0.6f, 0.6f, 1.0f };
+	this->specular = {};
+
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
+		this->textures[i] = "";
 }

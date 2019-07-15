@@ -125,15 +125,6 @@ float4 GetMaterialColor(float2 fragTexCoords)
 	return MeshDiffuse;
 }
 
-// MESH SPECULAR HIGHLIGHTS
-float4 GetMaterialSpecular(float2 fragTexCoords)
-{
-	if (IsTextured[1].x > 0.1)
-		return Textures[1].Sample(TextureSamplers[1], GetTiledTexCoords(fragTexCoords, TextureScales[1]));
-
-	return MeshSpecular;
-}
-
 float4 GetMaterialColorTerrain(float2 fragTexCoords)
 {
 	float4 blendMapColor       = Textures[4].Sample(TextureSamplers[4], fragTexCoords);
@@ -174,10 +165,20 @@ float4 GetMaterialColorWater(float2 fragTexCoords, float4 clipSpace, float3 came
 	normal = normalize(float3((normalColor.r * 2.0 - 1.0), normalColor.b, (normalColor.g * 2.0 - 1.0)));
 
 	// FRESNEL EFFECT - higher power => more refractive (transparent)
-	float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+	//float refractionFactor = clamp(pow(dot(cameraView, normal), 10.0), 0.0, 1.0);
+	float refractionFactor = clamp(dot(cameraView, normal), 0.0, 1.0);
 
 	// MATERIAL COLOR
 	return lerp(reflectionColor, refractionColor, refractionFactor);
+}
+
+// MESH SPECULAR HIGHLIGHTS
+float4 GetMaterialSpecular(float2 fragTexCoords)
+{
+	if (IsTextured[1].x > 0.1)
+		return Textures[1].Sample(TextureSamplers[1], GetTiledTexCoords(fragTexCoords, TextureScales[1]));
+
+	return MeshSpecular;
 }
 
 // Shadow - the impact of the light on the the fragment from the perspective of the directional/spot light
@@ -412,13 +413,13 @@ float4 GetFragColorLight(float3 fragPos, float4 materialColor, float4 materialSp
     {
         if (LightSources[i].Active.x > 0.1)
 		{
-    		// ID_ICON_LIGHT_SPOT = 17
-			if (LightSources[i].Active.y > 16.9)
+			// SPOT = 2
+			if (LightSources[i].Active.y > 1.9)
 				fragColor += GetSpotLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
-			// ID_ICON_LIGHT_POINT = 16
-			else if (LightSources[i].Active.y > 15.9)
+			// POINT = 1
+			else if (LightSources[i].Active.y > 0.9)
 				fragColor += GetPointLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
-			// ID_ICON_LIGHT_DIRECTIONAL = 15
+			// DIRECTIONAL = 0
 			else
 				fragColor += GetDirectionalLight(i, fragPos, normal, cameraView, materialColor, materialSpecular);
 		}

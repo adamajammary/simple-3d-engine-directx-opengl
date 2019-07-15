@@ -74,11 +74,10 @@ CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 			this->LightSources[i] = CBLight(SceneManager::LightSources[i]);
 	}
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->IsTextured[i] = Utils::ToVec4Float(mesh->IsTextured(i));
-
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		this->IsTextured[i]    = Utils::ToVec4Float(mesh->IsTextured(i));
+		this->TextureScales[i] = glm::vec4(mesh->Textures[i]->Scale, 0.0f, 0.0f);
+	}
 
 	this->MeshSpecular = glm::vec4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
 	this->MeshDiffuse  = mesh->ComponentMaterial.diffuse;
@@ -100,13 +99,18 @@ CBDefault::CBDefault(Component* mesh, const DrawProperties &properties)
 
 CBDepth::CBDepth(const glm::vec3 &lightPosition, int depthLayer)
 {
-	this->lightPosition = glm::vec4(lightPosition, static_cast<float>(depthLayer));
+	this->LightPosition = glm::vec4(lightPosition, static_cast<float>(depthLayer));
 }
 
 CBHUD::CBHUD(const glm::vec4 &color, bool transparent)
 {
 	this->MaterialColor = color;
 	this->IsTransparent = Utils::ToVec4Float(transparent);
+}
+
+CBSkybox::CBSkybox()
+{
+	this->EnableSRGB = Utils::ToVec4Float(RenderEngine::EnableSRGB);
 }
 
 #if defined _WINDOWS
@@ -167,11 +171,10 @@ CBDefaultDX::CBDefaultDX(const CBMatrix &matrices, Component* mesh, const glm::v
 			this->LightSources[i] = CBLightDX(SceneManager::LightSources[i]);
 	}
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->IsTextured[i] = Utils::ToXMFLOAT4(mesh->IsTextured(i));
-
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		this->IsTextured[i]    = Utils::ToXMFLOAT4(mesh->IsTextured(i));
 		this->TextureScales[i] = DirectX::XMFLOAT4(mesh->Textures[i]->Scale.x, mesh->Textures[i]->Scale.y, 0.0f, 0.0f);
+	}
 
 	this->MeshSpecular = Utils::ToXMFLOAT4(mesh->ComponentMaterial.specular.intensity, mesh->ComponentMaterial.specular.shininess);
 	this->MeshDiffuse  = Utils::ToXMFLOAT4(mesh->ComponentMaterial.diffuse);
@@ -198,11 +201,10 @@ CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 	for (uint32_t i = 0; i < MAX_LIGHT_SOURCES; i++)
 		this->LightSources[i] = CBLightDX(default.LightSources[i]);
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
-		this->IsTextured[i] = Utils::ToXMFLOAT4(default.IsTextured[i]);
-
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
+		this->IsTextured[i]    = Utils::ToXMFLOAT4(default.IsTextured[i]);
 		this->TextureScales[i] = Utils::ToXMFLOAT4(default.TextureScales[i]);
+	}
 
 	this->MeshSpecular = Utils::ToXMFLOAT4(default.MeshSpecular);
 	this->MeshDiffuse  = Utils::ToXMFLOAT4(default.MeshDiffuse);
@@ -220,7 +222,7 @@ CBDefaultDX::CBDefaultDX(const CBDefault &default, const CBMatrix &matrices)
 CBDepthDX::CBDepthDX(const CBMatrix &matrices, const glm::vec3 &lightPosition, int depthLayer)
 {
 	this->MB            = CBMatrixDX(matrices);
-	this->lightPosition = Utils::ToXMFLOAT4(lightPosition, static_cast<float>(depthLayer));
+	this->LightPosition = Utils::ToXMFLOAT4(lightPosition, static_cast<float>(depthLayer));
 }
 
 CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transparent)
@@ -232,7 +234,8 @@ CBHUDDX::CBHUDDX(const CBMatrix &matrices, const glm::vec4 &color, bool transpar
 
 CBSkyboxDX::CBSkyboxDX(const CBMatrix &matrices)
 {
-	this->MB = CBMatrixDX(matrices);
+	this->MB         = CBMatrixDX(matrices);
+	this->EnableSRGB = Utils::ToXMFLOAT4(RenderEngine::EnableSRGB);
 }
 
 #endif

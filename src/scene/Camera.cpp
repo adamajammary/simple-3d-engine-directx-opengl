@@ -7,7 +7,7 @@ Camera::Camera(const glm::vec3 &position, const glm::vec3 &lookAt, float fovRadi
 	this->near       = near;
 	this->far        = far;
 	this->pitch      = 0;
-	this->yaw        = -(glm::pi<float>() * 0.5f);
+	this->yaw        = -PI_HALF;
 	this->type       = COMPONENT_CAMERA;
 	this->isValid    = true;
 
@@ -22,6 +22,11 @@ Camera::Camera() : Component("Camera")
 	this->Children = { this };
 }
 
+float Camera::Far()
+{
+	return far;
+}
+
 void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
 {
 	this->forward = glm::normalize(lookAt - position);
@@ -30,11 +35,6 @@ void Camera::init(const glm::vec3 &position, const glm::vec3 &lookAt)
 	this->UpdateProjection();
 	this->updatePosition();
 	this->updateRotation();
-}
-
-float Camera::Far()
-{
-	return far;
 }
 
 bool Camera::InputKeyboard(char key)
@@ -155,6 +155,25 @@ Component* Camera::Parent()
 	return nullptr;
 }
 
+glm::mat4 Camera::Projection()
+{
+	return projection;
+}
+
+void Camera::Reset()
+{
+	this->position   = { 0.0f, 2.5f, 10.0f };
+	this->fovRadians = PI_QUARTER;
+	this->near       = 0.1f;
+	this->far        = 100.0f;
+	this->pitch      = 0;
+	this->yaw        = -PI_HALF;
+	this->type       = COMPONENT_CAMERA;
+	this->isValid    = true;
+
+	this->init(this->position, {});
+}
+
 void Camera::RotateBy(const glm::vec3 &amountRadians)
 {
 	this->pitch += amountRadians.x;
@@ -169,25 +188,6 @@ void Camera::RotateTo(const glm::vec3 &newRotationRadians)
 	this->yaw   = newRotationRadians.y;
 
 	this->updateRotation();
-}
-
-glm::mat4 Camera::Projection()
-{
-	return projection;
-}
-
-void Camera::Reset()
-{
-	this->position   = { 0.0f, 2.5f, 10.0f };
-	this->fovRadians = (glm::pi<float>() * 0.25f);
-	this->near       = 0.1f;
-	this->far        = 100.0f;
-	this->pitch      = 0;
-	this->yaw        = -(glm::pi<float>() * 0.5f);
-	this->type       = COMPONENT_CAMERA;
-	this->isValid    = true;
-
-	this->init(this->position, {});
 }
 
 void Camera::SetFOV(const wxString &fov)
@@ -215,7 +215,7 @@ void Camera::updatePosition()
 void Camera::updateRotation()
 {
 	// https://learnopengl.com/#!Getting-started/Camera
-	this->pitch    = std::max(std::min(this->pitch, (glm::pi<float>() * 0.5f)), -(glm::pi<float>() * 0.5f));
+	this->pitch    = std::max(std::min(this->pitch, PI_HALF), -PI_HALF);
 	this->rotation = { this->pitch, this->yaw, 0 };
 
 	glm::vec3 center = {

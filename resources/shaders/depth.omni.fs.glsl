@@ -10,10 +10,10 @@
 layout(location = 0) in vec4 FragmentPosition;
 
 layout(binding = 1) uniform DepthBuffer {
-	vec4 lightPosition;
+	vec4 LightPosition;
 } db;
 
 void main()
 {
-    gl_FragDepth = (length(FragmentPosition.xyz - db.lightPosition.xyz) / 25.0);
+    gl_FragDepth = (length(FragmentPosition.xyz - db.LightPosition.xyz) / 25.0);
 }

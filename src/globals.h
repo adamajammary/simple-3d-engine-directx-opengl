@@ -121,6 +121,9 @@ static const uint32_t  MAX_LIGHT_SOURCES     = 13;
 static const uint32_t  MAX_TEXTURES          = 6;
 static const uint32_t  MAX_TEXTURE_SLOTS     = (MAX_TEXTURES + MAX_LIGHT_SOURCES + MAX_LIGHT_SOURCES);
 static const uint32_t  NR_OF_FRAMEBUFFERS    = 2;
+static const float     PI                    = glm::pi<float>();
+static const float     PI_HALF               = (glm::pi<float>() * 0.5f);
+static const float     PI_QUARTER            = (glm::pi<float>() * 0.25f);
 
 #if defined _WINDOWS
 static const unsigned int BYTE_ALIGN_BUFFER_DATA = 65536;
@@ -210,6 +213,11 @@ enum IconType
 	ID_TABS,
 	ID_TABS_GEOMETRY,
 	ID_TABS_LIGHTS
+};
+
+enum LightType
+{
+	LIGHT_TYPE_UNKNOWN = -1, LIGHT_TYPE_DIRECTIONAL, LIGHT_TYPE_POINT, LIGHT_TYPE_SPOT, NR_OF_LIGHT_TYPES
 };
 
 enum PropertyID
@@ -304,6 +312,7 @@ enum UniformBufferTypeGL
 	UBO_GL_DEFAULT,
 	UBO_GL_DEPTH,
 	UBO_GL_HUD,
+	UBO_GL_SKYBOX,
 	UBO_GL_TEXTURES0, UBO_GL_TEXTURES1, UBO_GL_TEXTURES2, UBO_GL_TEXTURES3, UBO_GL_TEXTURES4, UBO_GL_TEXTURES5,
 	UBO_GL_TEXTURES6,
 	UBO_GL_TEXTURES7,
@@ -322,6 +331,7 @@ enum UniformBufferTypeVK
 	UBO_VK_DEFAULT,
 	UBO_VK_DEPTH,
 	UBO_VK_HUD,
+	UBO_VK_SKYBOX,
 	NR_OF_UBOS_VK
 };
 

@@ -11,6 +11,7 @@ struct CBMatrix
 cbuffer SkyboxBuffer : register(b0)
 {
     CBMatrix MB;
+	float4   EnableSRGB;
 };
 
 TextureCube  Textures[MAX_TEXTURES]        : register(t0);
@@ -29,6 +30,17 @@ struct FS_INPUT
 	float4 GL_Position           : SV_POSITION;
 };
 
+// sRGB GAMMA CORRECTION
+float3 GetFragColorSRGB(float3 colorRGB)
+{
+	if (EnableSRGB.x > 0.1) {
+		float sRGB = (1.0 / 2.2);
+		colorRGB.rgb = pow(colorRGB.rgb, float3(sRGB, sRGB, sRGB));
+	}
+
+	return colorRGB;
+}
+
 // VERTEX SHADER
 FS_INPUT VS(VS_INPUT input)
 {
@@ -44,10 +56,7 @@ FS_INPUT VS(VS_INPUT input)
 float4 PS(FS_INPUT input) : SV_Target
 {
 	float4 GL_FragColor = Textures[0].Sample(TextureSamplers[0], input.FragmentTextureCoords);
-
-	// sRGB GAMMA CORRECTION
-    float sRGB = (1.0 / 2.2);
-    GL_FragColor.rgb = pow(GL_FragColor.rgb, float3(sRGB, sRGB, sRGB));
+	GL_FragColor.rgb    = GetFragColorSRGB(GL_FragColor.rgb);
 
 	return GL_FragColor;
 }

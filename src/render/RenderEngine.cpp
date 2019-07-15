@@ -77,9 +77,9 @@ void RenderEngine::createDepthFBO()
 		LightSource* light = SceneManager::LightSources[i];
 
 		switch (light->SourceType()) {
-			case ID_ICON_LIGHT_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
-			case ID_ICON_LIGHT_POINT:       fbo = SceneManager::DepthMapCube; break;
-			case ID_ICON_LIGHT_SPOT:        fbo = SceneManager::DepthMap2D;   break;
+			case LIGHT_TYPE_DIRECTIONAL: fbo = SceneManager::DepthMap2D;   break;
+			case LIGHT_TYPE_POINT:       fbo = SceneManager::DepthMapCube; break;
+			case LIGHT_TYPE_SPOT:        fbo = SceneManager::DepthMap2D;   break;
 			default: throw;
 		}
 
@@ -92,7 +92,7 @@ void RenderEngine::createDepthFBO()
 		drawProperties.FBO        = fbo;
 		drawProperties.Light      = light;
 
-		if (light->SourceType() == ID_ICON_LIGHT_POINT)
+		if (light->SourceType() == LIGHT_TYPE_POINT)
 			drawProperties.Shader = SHADER_ID_DEPTH_OMNI;
 		else
 			drawProperties.Shader = SHADER_ID_DEPTH;
@@ -109,7 +109,7 @@ void RenderEngine::createDepthFBO()
 
 		// CLEAR
 		if ((RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_OPENGL) &&
-			(light->SourceType() == ID_ICON_LIGHT_POINT))
+			(light->SourceType() == LIGHT_TYPE_POINT))
 		{
 			if (!cleared) {
 				RenderEngine::clear(CLEAR_VALUE_DEPTH, drawProperties);
@@ -143,7 +143,7 @@ void RenderEngine::createWaterFBOs()
 			continue;
 
 		glm::vec3       position       = component->Position();
-		glm::vec3       scale          = component->Scale();
+		glm::vec3       scale          = (component->Scale() + glm::vec3(5.0));
 		float           cameraDistance = ((RenderEngine::CameraMain->Position().y - position.y) * 2.0f);
 		VkCommandBuffer cmdBuffer      = nullptr;
 
@@ -160,8 +160,8 @@ void RenderEngine::createWaterFBOs()
 
 		drawProperties.EnableClipping  = true;
 		drawProperties.FBO             = water->FBO()->ReflectionFBO();
-		drawProperties.ClipMax         = glm::vec3(scale.x,  scale.y,    scale.z);
-		drawProperties.ClipMin         = glm::vec3(-scale.x, position.y, -scale.z);
+		drawProperties.ClipMax         = glm::vec3((position.x + scale.x), (position.y + scale.y), (position.z + scale.z));
+		drawProperties.ClipMin         = glm::vec3((position.x - scale.x),  position.y,            (position.z - scale.z));
 		drawProperties.VKCommandBuffer = cmdBuffer;
 
 		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
@@ -183,9 +183,9 @@ void RenderEngine::createWaterFBOs()
 		else
 			water->FBO()->BindRefraction();
 
-		drawProperties.ClipMax = glm::vec3(scale.x,  position.y, scale.z);
-		drawProperties.ClipMin = glm::vec3(-scale.x, -scale.y,   -scale.z);
-		drawProperties.FBO     = water->FBO()->RefractionFBO();
+		drawProperties.ClipMax.y = position.y;
+		drawProperties.ClipMin.y = (position.y - scale.y);
+		drawProperties.FBO       = water->FBO()->RefractionFBO();
 
 		RenderEngine::clear(CLEAR_VALUE_COLOR, drawProperties);
 
@@ -373,12 +373,8 @@ int RenderEngine::drawMeshDX12(Component* mesh, ShaderProgram* shaderProgram, Dr
 
 int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, DrawProperties &properties)
 {
-	if ((RenderEngine::CameraMain == nullptr) ||
-		(shaderProgram == nullptr) || (shaderProgram->Program() < 1) ||
-		(mesh == nullptr) || (dynamic_cast<Mesh*>(mesh)->IBO() < 1))
-	{
+	if ((RenderEngine::CameraMain == nullptr) || (shaderProgram == nullptr) || (shaderProgram->Program() < 1) || (mesh == nullptr))
 		return -1;
-	}
 
 	// SHADER ATTRIBUTES AND UNIFORMS
 	shaderProgram->UpdateAttribsGL(mesh);
@@ -396,11 +392,17 @@ int RenderEngine::drawMeshGL(Component* mesh, ShaderProgram* shaderProgram, Draw
 	}
 
     // UNBIND TEXTURES
-    for (int i = 0; i < MAX_TEXTURES; i++) {
+    for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
         glActiveTexture(GL_TEXTURE0 + i);
         glBindTexture(GL_TEXTURE_2D,       0);
         glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
     }
+
+	glActiveTexture(GL_TEXTURE6);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, 0);
+
+	glActiveTexture(GL_TEXTURE7);
+	glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
 
     glActiveTexture(GL_TEXTURE0);
 
@@ -721,7 +723,7 @@ int RenderEngine::setGraphicsAPI(GraphicsAPI api)
 
 	if (RenderEngine::CameraMain == nullptr) {
 		SceneManager::AddComponent(new Camera());
-		SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
+		SceneManager::LoadLightSource(LIGHT_TYPE_DIRECTIONAL);
 	}
 
 	RenderEngine::Ready = true;

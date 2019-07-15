@@ -11,9 +11,6 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 	this->textureCoordsBuffer = nullptr;
 	this->type                = parent->Type();
 	this->vertexBuffer        = nullptr;
-
-	//for (int i = 0; i < MAX_TEXTURES; i++)
-	//	this->Textures[i] = nullptr;
 }
 
 Mesh::Mesh() : Component("")
@@ -26,9 +23,6 @@ Mesh::Mesh() : Component("")
 	this->textureCoordsBuffer = nullptr;
 	this->type                = COMPONENT_MESH;
 	this->vertexBuffer        = nullptr;
-
-	//for (int i = 0; i < MAX_TEXTURES; i++)
-	//	this->Textures[i] = nullptr;
 }
 
 Mesh::~Mesh()
@@ -183,8 +177,6 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	if (mesh == nullptr)
 		return false;
 
-    //this->Name = (mesh->mName.length > 0 ? mesh->mName.C_Str() : "Mesh");
-
 	if (!this->loadModelData(mesh))
 		return false;
 
@@ -211,11 +203,6 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 
 	return this->isValid;
 }
-//
-//void Mesh::LoadTexture(Texture* texture, int index)
-//{
-//    this->Textures[index] = texture;
-//}
 
 int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 {
@@ -224,7 +211,7 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 		return -1;
 	}
 
-	this->Textures[index] = new Texture(imageFile, (index == 0));
+	this->Textures[index] = new Texture(imageFile);
 
     return 0;
 }
@@ -342,7 +329,7 @@ void Mesh::updateModelData()
 	this->ScaleTo(this->scale);
 	this->RotateTo(this->rotation);
 
-	for (int i = 0; i < MAX_TEXTURES; i++) {
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
 		if (this->Textures[i] == nullptr)
 			this->LoadTexture(SceneManager::EmptyTexture, i);
 	}
@@ -354,7 +341,7 @@ void Mesh::updateModelData(const aiVector3D &position, const aiVector3D &scale, 
 	this->ScaleTo(glm::vec3(scale.x,     scale.y,    scale.z));
 	this->RotateTo(glm::vec3(rotation.x, rotation.y, rotation.z));
 
-	for (int i = 0; i < MAX_TEXTURES; i++)
+	for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 	{
 		if (!this->ComponentMaterial.textures[i].empty())
 			this->LoadTextureImage(this->ComponentMaterial.textures[i], i);

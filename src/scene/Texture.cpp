@@ -8,7 +8,6 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 		this->flipY       = flipY;
 		this->repeat      = repeat;
 		this->Scale       = scale;
-		this->srgb        = false;
 		this->type        = TEXTURE_2D;
 		this->transparent = transparent;
 
@@ -46,7 +45,7 @@ Texture::Texture(wxImage* image, bool repeat, bool flipY, bool transparent, cons
 }
 
 // 2D TEXTURE FROM IMAGE FILE
-Texture::Texture(const wxString &imageFile, bool srgb, bool repeat, bool flipY, bool transparent, const glm::vec2 &scale)
+Texture::Texture(const wxString& imageFile, bool repeat, bool flipY, bool transparent, const glm::vec2& scale)
 {
 	wxImage* image = nullptr;
 
@@ -59,7 +58,6 @@ Texture::Texture(const wxString &imageFile, bool srgb, bool repeat, bool flipY, 
 		this->imageFiles  = { imageFile };
 		this->repeat      = repeat;
 		this->Scale       = scale;
-		this->srgb        = srgb;
 		this->type        = TEXTURE_2D;
 		this->transparent = transparent;
 
@@ -118,7 +116,6 @@ Texture::Texture(const std::vector<wxString> &imageFiles, bool repeat, bool flip
 	this->flipY       = flipY;
 	this->imageFiles  = imageFiles;
 	this->Scale       = scale;
-	this->srgb        = true;
 	this->type        = TEXTURE_CUBEMAP;
 	this->transparent = transparent;
 
@@ -163,7 +160,6 @@ Texture::Texture(FBOType fboType, TextureType textureType, DXGI_FORMAT format, c
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = size;
-	this->srgb        = false;
 	this->type        = textureType;
 	this->transparent = false;
 
@@ -251,7 +247,6 @@ Texture::Texture(FBOType fboType, TextureType textureType, VkFormat imageFormat,
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = size;
-	this->srgb        = false;
 	this->type        = textureType;
 	this->transparent = false;
 
@@ -302,7 +297,6 @@ Texture::Texture(GLint format, TextureType textureType, const wxSize &size)
 	this->repeat      = true;
 	this->Scale       = { 1.0f, 1.0f };
 	this->size        = size;
-	this->srgb        = false;
 	this->transparent = false;
 	this->type        = textureType;
 	this->glType      = Utils::ToGlTextureType(this->type);
@@ -518,7 +512,7 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 
 	if (!images2.empty())
 	{
-		DXGI_FORMAT        format        = Utils::GetImageFormatDXGI(images2[0], this->srgb);
+		DXGI_FORMAT        format        = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 		D3D11_SAMPLER_DESC samplerDesc11 = {};
 
 		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
@@ -569,8 +563,8 @@ void Texture::loadTextureImagesDX(const std::vector<wxImage*> &images)
 void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 {
 	wxImage  image2    = (this->flipY ? image->Mirror(false) : *image);
-	GLenum   formatIn  = Utils::GetImageFormat(image2, this->srgb, true);
-	GLenum   formatOut = Utils::GetImageFormat(image2, false, false);
+	GLenum   formatIn  = GL_SRGB8_ALPHA8;
+	GLenum   formatOut = GL_RGBA;
 	uint8_t* pixels    = Utils::ToRGBA(image2);
 
 	glBindTexture(this->glType, this->id);
@@ -601,8 +595,9 @@ void Texture::loadTextureImageGL(wxImage* image, bool cubemap, int index)
 		glTexParameteri(this->glType, GL_TEXTURE_MAX_LEVEL,  this->mipLevels - 1);
 
 		// https://www.khronos.org/opengl/wiki/Common_Mistakes#Automatic_mipmap_generation
-		glTexStorage2D(this->glType, this->mipLevels, formatIn, image2.GetWidth(), image2.GetHeight());
-		glTexSubImage2D(this->glType, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), formatOut, GL_UNSIGNED_BYTE, pixels);
+		//glTexStorage2D(this->glType, this->mipLevels, formatIn, image2.GetWidth(), image2.GetHeight());
+		//glTexSubImage2D(this->glType, 0, 0, 0, image2.GetWidth(), image2.GetHeight(), formatOut, GL_UNSIGNED_BYTE, pixels);
+		glTexImage2D(this->glType, 0, formatIn, image2.GetWidth(), image2.GetHeight(), 0, formatOut, GL_UNSIGNED_BYTE, pixels);
 
 		glGenerateMipmap(this->glType);
 
@@ -635,7 +630,7 @@ void Texture::loadTextureImagesVK(const std::vector<wxImage*> &images)
 
 	if (!images2.empty())
 	{
-		VkFormat format = Utils::GetImageFormatVK(images2[0], this->srgb);
+		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
 
 		this->size        = wxSize(images2[0].GetWidth(), images2[0].GetHeight());
 		this->mipLevels   = ((uint32_t)(std::floor(std::log2(std::max(this->size.GetWidth(), this->size.GetHeight())))) + 1);
@@ -792,11 +787,6 @@ void Texture::SetTransparent(bool newTransparent)
 wxSize Texture::Size()
 {
 	return this->size;
-}
-
-bool Texture::SRGB()
-{
-	return this->srgb;
 }
 
 bool Texture::Transparent()

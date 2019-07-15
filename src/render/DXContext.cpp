@@ -1313,7 +1313,7 @@ int DXContext::Draw11(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 	case SHADER_ID_DEFAULT:
 	case SHADER_ID_HUD:
 	case SHADER_ID_SKYBOX:
-		for (int i = 0; i < MAX_TEXTURES; i++) {
+		for (uint32_t i = 0; i < MAX_TEXTURES; i++) {
 			meshTextureSRVs[i]     = mesh->Textures[i]->SRV11;
 			meshTextureSamplers[i] = mesh->Textures[i]->SamplerState11;
 		}
@@ -1424,7 +1424,7 @@ int DXContext::Draw12(Component* mesh, ShaderProgram* shaderProgram, const DrawP
 		case SHADER_ID_DEFAULT:
 		case SHADER_ID_HUD:
 		case SHADER_ID_SKYBOX:
-			for (int i = 0; i < MAX_TEXTURES; i++)
+			for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 			{
 				this->renderDevice12->CreateShaderResourceView(
 					mesh->Textures[i]->Resource12, &mesh->Textures[i]->SRVDesc12, srvHandleCPU

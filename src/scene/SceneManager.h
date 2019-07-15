@@ -30,10 +30,10 @@ public:
 	static void         Clear();
 	static int          GetComponentIndex(Component* component);
 	static HUD*         LoadHUD();
-	static LightSource* LoadLightSource(IconType type);
+	static LightSource* LoadLightSource(LightType type);
 	static Model*       LoadModel(const wxString &file);
 	static int          LoadScene(const wxString &file);
-	static Skybox*      LoadSkybox();
+	static Skybox*      LoadSkybox(const std::vector<wxString> &imageFiles = {});
 	static Terrain*     LoadTerrain(int size = 10, float octaves = 1.0f, float redistribution = 2.0f);
 	static Water*       LoadWater();
 	static int          RemoveSelectedComponent();

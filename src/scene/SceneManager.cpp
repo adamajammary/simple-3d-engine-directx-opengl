@@ -33,7 +33,7 @@ int SceneManager::AddComponent(Component* component)
 		if (SceneManager::AddLightSource(component) < 0)
 			return -2;
 
-		if (dynamic_cast<LightSource*>(component)->SourceType() != ID_ICON_LIGHT_DIRECTIONAL) {
+		if (dynamic_cast<LightSource*>(component)->SourceType() != LIGHT_TYPE_DIRECTIONAL) {
 			for (auto child : component->Children)
 				RenderEngine::LightSources.push_back(child);
 		}
@@ -48,7 +48,7 @@ int SceneManager::AddComponent(Component* component)
 	SceneManager::SelectedComponent = component;
 	SceneManager::Components.push_back(component);
 	RenderEngine::Canvas.Window->AddListComponent(component);
-	RenderEngine::Canvas.Window->AddListChildren(SceneManager::SelectedComponent->Children);
+	RenderEngine::Canvas.Window->AddListChildren(component->Children);
 
 	if (SceneManager::Ready)
 		RenderEngine::Canvas.Window->InitProperties();
@@ -130,7 +130,7 @@ HUD* SceneManager::LoadHUD()
 	return hud;
 }
 
-LightSource* SceneManager::LoadLightSource(IconType type)
+LightSource* SceneManager::LoadLightSource(LightType type)
 {
 	LightSource* light = new LightSource(Utils::RESOURCE_MODELS[ID_ICON_ICO_SPHERE], type);
 
@@ -181,20 +181,24 @@ int SceneManager::LoadScene(const wxString &file)
 		SceneManager::AddComponent(new Camera());
 
 	std::string error;
-	auto        sceneDataJSON = json11::Json::parse(sceneData, error);
 	Component*  component     = nullptr;
+	auto        sceneDataJSON = json11::Json::parse(sceneData, error);
 
 	// COMPONENTS
 	for (auto &componentJSON : sceneDataJSON["components"].array_items())
 	{
-		ComponentType type = (ComponentType)componentJSON["type"].int_value();
+		json11::Json::array   imageFiles, texturesJSON;
+		std::vector<wxString> imageFiles2;
+
+		auto childrenJSON = componentJSON["children"].array_items();
+		auto type         = (ComponentType)componentJSON["type"].int_value();
 
 		switch (type) {
 		case COMPONENT_CAMERA:
 			RenderEngine::CameraMain->Name = componentJSON["name"].string_value();
+
 			RenderEngine::CameraMain->MoveTo(Utils::ToVec3(componentJSON["position"].array_items()));
 			RenderEngine::CameraMain->RotateTo(Utils::ToVec3(componentJSON["rotation"].array_items()));
-
 			break;
 		case COMPONENT_HUD:
 			component       = SceneManager::LoadHUD();
@@ -207,22 +211,28 @@ int SceneManager::LoadScene(const wxString &file)
 			dynamic_cast<HUD*>(component)->TextColor   = Utils::ToWxColour(Utils::ToVec4(componentJSON["text_color"].array_items()));
 
 			dynamic_cast<HUD*>(component)->Update(componentJSON["text"].string_value());
-
 			break;
 		case COMPONENT_MODEL:
 			component       =  SceneManager::LoadModel(componentJSON["model_file"].string_value());
 			component->Name = componentJSON["name"].string_value();
-
 			break;
 		case COMPONENT_SKYBOX:
-			component       =  SceneManager::LoadSkybox();
+			if (!childrenJSON.empty())
+				texturesJSON = childrenJSON[0]["textures"].array_items();
+
+			if (!texturesJSON.empty())
+				imageFiles = texturesJSON[0]["image_files"].array_items();
+
+			for (auto imageFile : imageFiles)
+				imageFiles2.push_back(static_cast<wxString>(imageFile.string_value()));
+
+			component       =  SceneManager::LoadSkybox(imageFiles2);
 			component->Name = componentJSON["name"].string_value();
-			
-			break;
+
+			continue;
 		case COMPONENT_TERRAIN:
 			component       =  SceneManager::LoadTerrain(componentJSON["size"].int_value(), componentJSON["octaves"].int_value(), componentJSON["redistribution"].number_value());
 			component->Name = componentJSON["name"].string_value();
-			
 			break;
 		case COMPONENT_WATER:
 			component       = SceneManager::LoadWater();
@@ -230,10 +240,9 @@ int SceneManager::LoadScene(const wxString &file)
 
 			dynamic_cast<Water*>(component)->FBO()->Speed        = componentJSON["speed"].number_value();
 			dynamic_cast<Water*>(component)->FBO()->WaveStrength = componentJSON["wave_strength"].number_value();
-			
 			break;
 		case COMPONENT_LIGHTSOURCE:
-			component       = SceneManager::LoadLightSource((IconType)componentJSON["source_type"].int_value());
+			component       = SceneManager::LoadLightSource((LightType)componentJSON["source_type"].int_value());
 			component->Name = componentJSON["name"].string_value();
 
 			dynamic_cast<LightSource*>(component)->SetActive(componentJSON["active"].bool_value());
@@ -246,15 +255,12 @@ int SceneManager::LoadScene(const wxString &file)
 			dynamic_cast<LightSource*>(component)->SetAttenuationQuadratic(componentJSON["att_quadratic"].number_value());
 			dynamic_cast<LightSource*>(component)->SetConeInnerAngle(componentJSON["inner_angle"].number_value());
 			dynamic_cast<LightSource*>(component)->SetConeOuterAngle(componentJSON["outer_angle"].number_value());
-
 			break;
 		default:
 			throw;
 		}
 
 		// CHILDREN
-		auto childrenJSON = componentJSON["children"].array_items();
-
 		for (int i = 0; i < (int)childrenJSON.size(); i++)
 		{
 			if (component == nullptr)
@@ -284,8 +290,9 @@ int SceneManager::LoadScene(const wxString &file)
 			child->ScaleTo(scale);
 			child->RotateTo(Utils::ToVec3(childJSON["rotation"].array_items()));
 
-			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
 			child->AutoRotate   = childJSON["auto_rotate"].bool_value();
+			child->AutoRotation = Utils::ToVec3(childJSON["auto_rotation"].array_items());
+
 			child->ComponentMaterial.diffuse            = Utils::ToVec4(childJSON["color"].array_items());
 			child->ComponentMaterial.specular.intensity = Utils::ToVec3(childJSON["spec_intensity"].array_items());
 			child->ComponentMaterial.specular.shininess = childJSON["spec_shininess"].number_value();
@@ -296,7 +303,7 @@ int SceneManager::LoadScene(const wxString &file)
 			child->SetBoundingVolume(static_cast<BoundingVolumeType>(childJSON["bounding_box"].int_value()));
 
 			// TEXTURES
-			auto texturesJSON = childJSON["textures"].array_items();
+			texturesJSON = childJSON["textures"].array_items();
 
 			for (int j = 0; j < (int)texturesJSON.size(); j++)
 			{
@@ -309,9 +316,6 @@ int SceneManager::LoadScene(const wxString &file)
 				// TERRAIN, WATER
 				if ((type == COMPONENT_TERRAIN) || (type == COMPONENT_WATER)) {
 					texture->Scale = Utils::ToVec2(textureJSON["scale"].array_items());
-				// SKYBOX
-				} else if (type == COMPONENT_SKYBOX) {
-					//
 				}
 				// MODEL
 				else
@@ -320,14 +324,14 @@ int SceneManager::LoadScene(const wxString &file)
 					if ((type == COMPONENT_HUD) && (j > 0))
 						continue;
 
-					wxString imageFile = textureJSON["image_file"].string_value();
+					auto imageFiles = textureJSON["image_files"].array_items();
 
-					if (imageFile.empty())
+					if (imageFiles.empty() || imageFiles[0].string_value().empty())
 						continue;
 
 					texture = new Texture(
-						imageFile,
-						textureJSON["srgb"].bool_value(),
+						static_cast<wxString>(imageFiles[0].string_value()),
+						//textureJSON["srgb"].bool_value(),
 						textureJSON["repeat"].bool_value(),
 						textureJSON["flip"].bool_value(),
 						textureJSON["transparent"].bool_value(),
@@ -351,21 +355,26 @@ int SceneManager::LoadScene(const wxString &file)
 	return 0;
 }
 
-Skybox* SceneManager::LoadSkybox()
+Skybox* SceneManager::LoadSkybox(const std::vector<wxString> &imageFiles)
 {
 	if (RenderEngine::Skybox != nullptr)
 		return nullptr;
 
-	std::vector<wxString> imageFiles;
+	std::vector<wxString> imageFiles2;
 
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxRight"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxLeft"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxTop"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxBottom"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxBack"]);
-	imageFiles.push_back(Utils::RESOURCE_IMAGES["skyboxFront"]);
+	if (imageFiles.empty())
+	{
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxRight"]);
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxLeft"]);
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxTop"]);
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxBottom"]);
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxBack"]);
+		imageFiles2.push_back(Utils::RESOURCE_IMAGES["skyboxFront"]);
+	} else {
+		imageFiles2 = imageFiles;
+	}
 
-	Skybox* skybox = new Skybox(Utils::RESOURCE_MODELS[ID_ICON_CUBE], imageFiles);
+	Skybox* skybox = new Skybox(Utils::RESOURCE_MODELS[ID_ICON_CUBE], imageFiles2);
 
     if ((skybox == nullptr) || !skybox->IsValid())
 		return nullptr;
@@ -421,9 +430,12 @@ int SceneManager::RemoveSelectedComponent()
 
 	int index = SceneManager::GetComponentIndex(SceneManager::SelectedComponent);
 
-	SceneManager::SelectComponent(index - 1);
-	SceneManager::Components.erase(SceneManager::Components.begin() + index);
-	RenderEngine::Canvas.Window->RemoveComponent(index);
+	if (index > 0)
+	{
+		SceneManager::SelectComponent(index - 1);
+		SceneManager::Components.erase(SceneManager::Components.begin() + index);
+		RenderEngine::Canvas.Window->RemoveComponent(index);
+	}
 
 	return 0;
 }
@@ -479,25 +491,30 @@ int SceneManager::SaveScene(const wxString &file)
 		// CHILDREN
 		for (auto child : component->Children)
 		{
-			if (child->Type() == COMPONENT_CAMERA)
+			//if ((child->Type() == COMPONENT_CAMERA) || (child->Type() == COMPONENT_SKYBOX))
+			if ((child->Type() == COMPONENT_CAMERA) || (child->Type() == COMPONENT_LIGHTSOURCE))
 				continue;
 
 			json11::Json        childJSON;
 			json11::Json::array texturesJSON;
 
-			for (int i = 0; i < MAX_TEXTURES; i++)
+			for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 			{
-				json11::Json textureJSON;
-				Texture*     texture;
+				Texture* texture;
 
 				if (component->Type() == COMPONENT_WATER)
 					texture = dynamic_cast<Water*>(component)->FBO()->Textures[i];
 				else
 					texture = child->Textures[i];
 
-				textureJSON = json11::Json::object {
-					{ "image_file",  static_cast<std::string>(texture->ImageFile()) },
-					{ "srgb",        texture->SRGB() },
+				std::vector<std::string> imageFilesJSON;
+
+				for (uint32_t j = 0; j < MAX_TEXTURES; j++)
+					imageFilesJSON.push_back(static_cast<std::string>(texture->ImageFile(j)));
+
+				json11::Json textureJSON = json11::Json::object {
+					{ "image_files", imageFilesJSON },
+					//{ "srgb",        texture->SRGB() },
 					{ "repeat",      texture->Repeat() },
 					{ "flip",        texture->FlipY() },
 					{ "transparent", texture->Transparent() },
@@ -511,13 +528,12 @@ int SceneManager::SaveScene(const wxString &file)
 			glm::vec3       position       = child->Position();
 			glm::vec3       scale          = child->Scale();
 
-			if (child->Type() == COMPONENT_HUD)
+			// Invert Y-axis for both mesh and vertex positions on Vulkan
+			if ((child->Type() == COMPONENT_HUD) &&
+				(RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN))
 			{
-				// Invert Y-axis for both mesh and vertex positions on Vulkan
-				if (RenderEngine::SelectedGraphicsAPI == GRAPHICS_API_VULKAN) {
-					position.y *= -1;
-					scale.y    *= -1;
-				}
+				position.y *= -1;
+				scale.y    *= -1;
 			}
 
 			childJSON = json11::Json::object {
@@ -552,6 +568,7 @@ int SceneManager::SaveScene(const wxString &file)
 		case COMPONENT_HUD:
 			componentJSON = json11::Json::object {
 				{ "type",           (int)component->Type() },
+				{ "name",           static_cast<std::string>(component->Name) },
 				{ "transparent",    dynamic_cast<HUD*>(component)->Transparent },
 				{ "text",           static_cast<std::string>(dynamic_cast<HUD*>(component)->Text()) },
 				{ "text_align",     static_cast<std::string>(dynamic_cast<HUD*>(component)->TextAlign) },
@@ -560,6 +577,26 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "text_color",     Utils::ToJsonArray(Utils::ToVec4Color(dynamic_cast<HUD*>(component)->TextColor)) },
 				{ "children",       childrenJSON }
 			};
+			break;
+		case COMPONENT_LIGHTSOURCE:
+			componentJSON = json11::Json::object{
+				{ "type",           (int)component->Type() },
+				{ "name",           static_cast<std::string>(component->Name) },
+				{ "source_type",    (int)dynamic_cast<LightSource*>(component)->SourceType() },
+				{ "active",         dynamic_cast<LightSource*>(component)->Active() },
+				{ "position",       Utils::ToJsonArray(component->Children[0]->Position()) },
+				{ "ambient",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().ambient) },
+				{ "diffuse",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().diffuse) },
+				{ "spec_intensity", Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().specular.intensity) },
+				{ "spec_shininess", dynamic_cast<LightSource*>(component)->GetMaterial().specular.shininess },
+				{ "direction",      Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->Direction()) },
+				{ "att_linear",     dynamic_cast<LightSource*>(component)->GetAttenuation().linear },
+				{ "att_quadratic",  dynamic_cast<LightSource*>(component)->GetAttenuation().quadratic },
+				{ "inner_angle",    dynamic_cast<LightSource*>(component)->ConeInnerAngle() },
+				{ "outer_angle",    dynamic_cast<LightSource*>(component)->ConeOuterAngle() },
+				{ "children",       childrenJSON }
+			};
+
 			break;
 		case COMPONENT_MODEL:
 			componentJSON = json11::Json::object {
@@ -594,26 +631,6 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "wave_strength",  dynamic_cast<Water*>(component)->FBO()->WaveStrength },
 				{ "children",       childrenJSON }
 			};
-			break;
-		case COMPONENT_LIGHTSOURCE:
-			componentJSON = json11::Json::object{
-				{ "type",           (int)component->Type() },
-				{ "name",           static_cast<std::string>(component->Name) },
-				{ "source_type",    (int)dynamic_cast<LightSource*>(component)->SourceType() },
-				{ "active",         dynamic_cast<LightSource*>(component)->Active() },
-				{ "position",       Utils::ToJsonArray(component->Children[0]->Position()) },
-				{ "ambient",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().ambient) },
-				{ "diffuse",        Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().diffuse) },
-				{ "spec_intensity", Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->GetMaterial().specular.intensity) },
-				{ "spec_shininess", dynamic_cast<LightSource*>(component)->GetMaterial().specular.shininess },
-				{ "direction",      Utils::ToJsonArray(dynamic_cast<LightSource*>(component)->Direction()) },
-				{ "att_linear",     dynamic_cast<LightSource*>(component)->GetAttenuation().linear },
-				{ "att_quadratic",  dynamic_cast<LightSource*>(component)->GetAttenuation().quadratic },
-				{ "inner_angle",    dynamic_cast<LightSource*>(component)->ConeInnerAngle() },
-				{ "outer_angle",    dynamic_cast<LightSource*>(component)->ConeOuterAngle() },
-				{ "children",       childrenJSON }
-			};
-
 			break;
 		default:
 			throw;

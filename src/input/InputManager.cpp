@@ -76,9 +76,13 @@ void InputManager::OnIcon(const wxCommandEvent &event)
 		SceneManager::LoadWater();
 		break;
 	case ID_ICON_LIGHT_DIRECTIONAL:
+		SceneManager::LoadLightSource(LIGHT_TYPE_DIRECTIONAL);
+		break;
 	case ID_ICON_LIGHT_POINT:
+		SceneManager::LoadLightSource(LIGHT_TYPE_POINT);
+		break;
 	case ID_ICON_LIGHT_SPOT:
-		SceneManager::LoadLightSource(iconType);
+		SceneManager::LoadLightSource(LIGHT_TYPE_SPOT);
 		break;
 	default:
 		if ((iconType > ID_ICON_UNKNOWN) && (iconType < ID_CANVAS))
@@ -114,7 +118,7 @@ void InputManager::OnList(const wxCommandEvent &event)
 
 			if (RenderEngine::CameraMain == nullptr) {
 				SceneManager::AddComponent(new Camera());
-				SceneManager::LoadLightSource(ID_ICON_LIGHT_DIRECTIONAL);
+				SceneManager::LoadLightSource(LIGHT_TYPE_DIRECTIONAL);
 			}
 
 			break;

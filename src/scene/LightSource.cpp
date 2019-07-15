@@ -1,6 +1,6 @@
 #include "LightSource.h"
 
-LightSource::LightSource(const wxString &modelFile, IconType type) : Component("Light Source")
+LightSource::LightSource(const wxString &modelFile, LightType type) : Component("Light Source")
 {
 	RenderEngine::Canvas.Window->SetStatusText("Loading the light source ...");
 
@@ -18,12 +18,12 @@ LightSource::LightSource(const wxString &modelFile, IconType type) : Component("
 	this->Children = Utils::LoadModelFile(modelFile, this);
 	this->isValid  = !this->Children.empty();
 
-	if (this->isValid && !this->Children.empty())
+	if (this->isValid && (this->Children[0] != nullptr))
 	{
-		switch (type) {
-			case ID_ICON_LIGHT_DIRECTIONAL: this->Children[0]->Name = "Directional Light"; break;
-			case ID_ICON_LIGHT_POINT:       this->Children[0]->Name = "Point Light";       break;
-			case ID_ICON_LIGHT_SPOT:        this->Children[0]->Name = "Spot Light";        break;
+		switch (this->sourceType) {
+			case LIGHT_TYPE_DIRECTIONAL: this->Children[0]->Name = "Directional Light"; break;
+			case LIGHT_TYPE_POINT:       this->Children[0]->Name = "Point Light";       break;
+			case LIGHT_TYPE_SPOT:        this->Children[0]->Name = "Spot Light";        break;
 			default: throw;
 		}
 
@@ -42,47 +42,42 @@ LightSource::LightSource(const wxString &modelFile, IconType type) : Component("
 LightSource::LightSource()
 {
 	this->light      = {};
-	this->sourceType = ID_ICON_UNKNOWN;
+	this->sourceType = LIGHT_TYPE_UNKNOWN;
 	this->type       = COMPONENT_LIGHTSOURCE;
 }
 
 Light LightSource::initLight()
 {
-	this->light = {};
+	Light light = {};
 
 	switch (this->sourceType) {
-	case ID_ICON_LIGHT_DIRECTIONAL:
-		this->light.direction        = { 0.5f, -1.0f, -0.2f };
-		this->light.position         = { -2.0f, 3.0f, 3.0f };
-		this->light.material.diffuse = { 0.4f, 0.4f, 0.4f, 1.0f };
-
+	case LIGHT_TYPE_DIRECTIONAL:
+		light.direction        = { 0.5f, -1.0f, -0.2f };
+		light.position         = { -2.0f, 3.0f, 3.0f };
+		light.material.diffuse = { 0.4f, 0.4f, 0.4f, 1.0f };
 		break;
-	case ID_ICON_LIGHT_POINT:
-		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
-		this->light.position         = { 0.0f, 5.0f, 0.0f };
-		this->light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
-
+	case LIGHT_TYPE_POINT:
+		light.attenuation      = { 1.0f, 0.09f, 0.032f };
+		light.position         = { 0.0f, 5.0f, 0.0f };
+		light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
 		break;
-	case ID_ICON_LIGHT_SPOT:
-		this->light.attenuation      = { 1.0f, 0.09f, 0.032f };
-		this->light.direction        = { 0.0f, -1.0f, 0.0f };
-		this->light.position         = { 0.0f, 5.0f,  0.0f };
-		this->light.innerAngle       = glm::radians(12.5f);
-		this->light.outerAngle       = glm::radians(17.5f);
-		this->light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
-
+	case LIGHT_TYPE_SPOT:
+		light.attenuation      = { 1.0f, 0.09f, 0.032f };
+		light.direction        = { 0.0f, -1.0f, 0.0f };
+		light.position         = { 0.0f, 5.0f,  0.0f };
+		light.innerAngle       = glm::radians(12.5f);
+		light.outerAngle       = glm::radians(17.5f);
+		light.material.diffuse = { 1.0f, 1.0f, 0.0f, 1.0f };
 		break;
 	default:
 		throw;
 	}
 
-	this->light.material.ambient            = { 0.2f, 0.2f, 0.2f };
-	this->light.material.specular.intensity = { 0.6f, 0.6f, 0.6f };
-	this->light.material.specular.shininess = 20.0f;
+	light.material.ambient            = { 0.2f, 0.2f, 0.2f };
+	light.material.specular.intensity = { 0.6f, 0.6f, 0.6f };
+	light.material.specular.shininess = 20.0f;
 
-	this->color = this->light.material.diffuse;
-
-	return this->light;
+	return light;
 }
 
 bool LightSource::Active()
@@ -155,7 +150,7 @@ void LightSource::SetActive(bool active)
 	this->light.active = active;
 
 	if (!this->Children.empty())
-		this->Children[0]->ComponentMaterial.diffuse = (!active ? glm::vec4(0.0f, 0.0f, 0.0f, 1.0f) : this->color);
+		this->Children[0]->ComponentMaterial.diffuse = (!active ? glm::vec4(0.0f, 0.0f, 0.0f, 1.0f) : this->light.material.diffuse);
 }
 
 void LightSource::SetAmbient(const glm::vec3 &ambient)
@@ -176,7 +171,6 @@ void LightSource::SetAttenuationQuadratic(float quadratic)
 void LightSource::SetColor(const glm::vec4 &color)
 {
 	this->light.material.diffuse = color;
-	this->color                  = color;
 
 	if (!this->Children.empty())
 		this->Children[0]->ComponentMaterial.diffuse = color;
@@ -202,14 +196,20 @@ void LightSource::SetDirection(const glm::vec3 &direction)
 void LightSource::SetSpecularIntensity(const glm::vec3 &intensity)
 {
 	this->light.material.specular.intensity = intensity;
+
+	if (!this->Children.empty())
+		this->Children[0]->ComponentMaterial.specular.intensity = intensity;
 }
 
 void LightSource::SetSpecularShininess(float shininess)
 {
 	this->light.material.specular.shininess = shininess;
+
+	if (!this->Children.empty())
+		this->Children[0]->ComponentMaterial.specular.shininess = shininess;
 }
 
-IconType LightSource::SourceType()
+LightType LightSource::SourceType()
 {
 	return this->sourceType;
 }
@@ -219,13 +219,13 @@ void LightSource::updateProjection()
 	const float ORTHO_SIZE = 30.0f;
 
 	switch (this->sourceType) {
-	case ID_ICON_LIGHT_DIRECTIONAL:
+	case LIGHT_TYPE_DIRECTIONAL:
 		this->projection = glm::ortho(-ORTHO_SIZE, ORTHO_SIZE, -ORTHO_SIZE, ORTHO_SIZE, 1.0f, ORTHO_SIZE);
 		break;
-	case ID_ICON_LIGHT_POINT:
-		this->projection = glm::perspective((glm::pi<float>() * 0.5f), 1.0f, 1.0f, 25.0f);
+	case LIGHT_TYPE_POINT:
+		this->projection = glm::perspective(PI_HALF, 1.0f, 1.0f, 25.0f);
 		break;
-	case ID_ICON_LIGHT_SPOT:
+	case LIGHT_TYPE_SPOT:
 		this->projection = glm::perspective(std::acos(this->light.outerAngle), 1.0f, 1.0f, 20.0f);
 		break;
 	default:
@@ -239,10 +239,10 @@ void LightSource::updateView()
 	glm::vec3 pos = this->light.position;
 
 	switch (this->sourceType) {
-	case ID_ICON_LIGHT_DIRECTIONAL:
+	case LIGHT_TYPE_DIRECTIONAL:
 		this->views[0] = glm::lookAt(pos, (pos + dir), RenderEngine::CameraMain->Up());
 		break;
-	case ID_ICON_LIGHT_POINT:
+	case LIGHT_TYPE_POINT:
 		// 6 view directions: right, left, top, bottom, near, far
 		this->views[0] = glm::lookAt(pos, (pos + glm::vec3(1.0,  0.0, 0.0)), glm::vec3(0.0, -1.0, 0.0));
 		this->views[1] = glm::lookAt(pos, (pos + glm::vec3(-1.0, 0.0, 0.0)), glm::vec3(0.0, -1.0, 0.0));
@@ -251,7 +251,7 @@ void LightSource::updateView()
 		this->views[4] = glm::lookAt(pos, (pos + glm::vec3(0.0,  0.0, 1.0)), glm::vec3(0.0, -1.0, 0.0));
 		this->views[5] = glm::lookAt(pos, (pos + glm::vec3(0.0, 0.0, -1.0)), glm::vec3(0.0, -1.0, 0.0));
 		break;
-	case ID_ICON_LIGHT_SPOT:
+	case LIGHT_TYPE_SPOT:
 		this->views[0] = glm::lookAt(pos, dir, RenderEngine::CameraMain->Up());
 		break;
 	default:

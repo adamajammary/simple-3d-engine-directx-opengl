@@ -14,7 +14,7 @@ Water::Water(const wxString &modelFile, const std::vector<wxString> &textureImag
 	{
 		this->Children[0]->Name = "Water";
 
-		for (int i = 0; i < MAX_TEXTURES; i++)
+		for (uint32_t i = 0; i < MAX_TEXTURES; i++)
 			this->Children[0]->LoadTexture(this->fbo->Textures[i], i);
 
 		RenderEngine::Canvas.Window->SetStatusText("Loading Water ... OK");

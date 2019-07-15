@@ -122,6 +122,7 @@ void FrameBuffer::Bind(int depthLayer)
 		glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, 0);
 
 		glViewport(0, 0, this->size.GetWidth(), this->size.GetHeight());
+
 		glBindFramebuffer(GL_FRAMEBUFFER, this->fbo);
 
 		if (this->texture->Type() == TEXTURE_2D_ARRAY)
@@ -155,6 +156,7 @@ void FrameBuffer::Unbind()
 		glBindFramebuffer(GL_FRAMEBUFFER,  0);
 
 		glViewport(0, 0, RenderEngine::Canvas.Size.GetWidth(), RenderEngine::Canvas.Size.GetHeight());
+
 		break;
 	case GRAPHICS_API_VULKAN:
 		break;

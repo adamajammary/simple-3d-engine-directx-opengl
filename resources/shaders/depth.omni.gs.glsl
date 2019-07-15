@@ -15,7 +15,7 @@ layout(binding = 0) uniform MatrixBuffer {
 } mb;
 
 layout(binding = 1) uniform DepthBuffer {
-	vec4 lightPosition;
+	vec4 LightPosition;
 } db;
 
 layout(location = 0) out vec4 FragmentPosition;
@@ -24,7 +24,7 @@ void main()
 {
 	for (int face = 0; face < MAX_TEXTURES; face++)
 	{
-		int layer = int(db.lightPosition.w);
+		int layer = int(db.LightPosition.w);
 		gl_Layer  = (layer >= 0 ? (layer * MAX_TEXTURES + face) : face);
 
 		for (int vertex = 0; vertex < VERTICES_PER_FACE; vertex++)

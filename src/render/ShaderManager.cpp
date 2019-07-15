@@ -34,9 +34,9 @@ int ShaderManager::Init()
 
 		for (int i = 0; i < NR_OF_SHADERS; i++)
 		{
-			Resource gs = {};
 			Resource vs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 0];
 			Resource fs = Utils::SHADER_RESOURCES_GL_VK[(i * 2) + 1];
+			Resource gs = {};
 
 			if (vs.Name.rfind("_vs") == wxString::npos)
 				continue;

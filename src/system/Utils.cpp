@@ -28,10 +28,10 @@ const wxString Utils::IMAGE_FILE_FORMATS = "All supported formats|*.bmp;*.png;*.
 const wxString Utils::SCENE_FILE_FORMAT  = "Scene file (*.scene)|*.scene";
 const wxString Utils::TESTED             = "Tested on Windows 10 (64-bit)";
 const wxSize   Utils::UI_ADS_SIZE        = wxSize(730,  90);
-const wxSize   Utils::UI_LIST_BOX_SIZE   = wxSize(290,  150);
+const wxSize   Utils::UI_LIST_BOX_SIZE   = wxSize(200,  150);
 const wxSize   Utils::UI_RENDER_SIZE     = wxSize(640,  360);
-const wxSize   Utils::UI_WINDOW_SIZE     = wxSize(1280, 875);
-const wxSize   Utils::UI_PROPS_SIZE      = wxSize(590,  280);
+const wxSize   Utils::UI_WINDOW_SIZE     = wxSize(1100, 875);
+const wxSize   Utils::UI_PROPS_SIZE      = wxSize(410,  280);
 const wxSize   Utils::UI_TABS_SIZE       = wxSize(1245, 85);
 
 #if defined _WINDOWS
@@ -297,13 +297,6 @@ std::vector<uint8_t> Utils::Decompress(const std::vector<uint8_t> &data)
 	return outBuffer;
 }
 
-#if defined _WINDOWS
-DXGI_FORMAT Utils::GetImageFormatDXGI(const wxImage &image, bool srgb)
-{
-	return (srgb ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB : DXGI_FORMAT_R8G8B8A8_UNORM);
-}
-#endif
-
 wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 {
 	switch (api) {
@@ -317,16 +310,6 @@ wxString Utils::GetGraphicsAPI(GraphicsAPI api)
 	}
 
 	return "";
-}
-
-GLenum Utils::GetImageFormat(const wxImage &image, bool srgb, bool in)
-{
-	return (in ? (srgb ? GL_SRGB8_ALPHA8 : GL_RGBA8) : GL_RGBA);
-}
-
-VkFormat Utils::GetImageFormatVK(const wxImage &image, bool srgb)
-{
-	return (srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM);
 }
 
 GLsizei Utils::GetStride(GLsizei size, GLenum arrayType)
@@ -403,9 +386,15 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 		return meshes;
 	}
 
+	size_t pathSeparator = file.rfind("/");
+
+	if (pathSeparator == wxString::npos)
+		pathSeparator = file.rfind("\\");
+
 	AssImpMesh*  mesh;
 	aiNode*      node;
 	uint32_t     nrOfChildren = (scene->mRootNode->mNumChildren > 0 ? scene->mRootNode->mNumChildren : 1);
+	wxString     path         = file.substr(0, pathSeparator + 1);
 
 	// SCENE CHILDREN
 	for (uint32_t i = 0; i < nrOfChildren; i++)
@@ -432,12 +421,6 @@ std::vector<AssImpMesh*> Utils::LoadModelFile(const wxString &file)
 				aiColor4D   diffuse       = {};
 				aiColor3D   specIntensity = {};
 				float       specShininess = 0;
-				size_t      pathSeparator = file.rfind("/");
-
-				if (pathSeparator == wxString::npos)
-					pathSeparator = file.rfind("\\");
-
-				wxString path = file.substr(0, pathSeparator + 1);
 
 				material->Get(AI_MATKEY_COLOR_DIFFUSE,  diffuse);
 				material->Get(AI_MATKEY_COLOR_SPECULAR, specIntensity);
@@ -616,12 +599,12 @@ GLenum Utils::ToGlTextureType(TextureType textureType)
 
 float Utils::ToRadians(float degrees)
 {
-    return (degrees * glm::pi<float>() / 180.0f);
+    return (degrees * PI / 180.0f);
 }
 
 float Utils::ToDegrees(float radians)
 {
-	return (radians * 180.0f / glm::pi<float>());
+	return (radians * 180.0f / PI);
 }
 
 float Utils::ToFloat(bool boolean)
@@ -731,7 +714,7 @@ glm::vec4 Utils::ToVec4Color(const wxColour &color)
 
 glm::vec4 Utils::ToVec4Float(bool boolean)
 {
-	float value = (boolean ? 1.0f : 0);
+	float value = (boolean ? 1.0f : 0.0f);
 	return glm::vec4(value, value, value, value);
 }
 
