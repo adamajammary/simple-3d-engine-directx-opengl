@@ -4,7 +4,7 @@ Mesh::Mesh(Component* parent, const wxString &name) : Component(name)
 {
 	this->boundingVolume      = nullptr;
 	this->isSelected          = false;
-	this->maxScale            = 0.0f;
+	this->maxVertexPosition   = glm::vec3();
 	this->Parent              = parent;
 	this->indexBuffer         = nullptr;
 	this->normalBuffer        = nullptr;
@@ -17,7 +17,7 @@ Mesh::Mesh() : Component("")
 {
 	this->boundingVolume      = nullptr;
 	this->isSelected          = false;
-	this->maxScale            = 0.0f;
+	this->maxVertexPosition   = glm::vec3();
 	this->indexBuffer         = nullptr;
 	this->normalBuffer        = nullptr;
 	this->textureCoordsBuffer = nullptr;
@@ -117,8 +117,8 @@ bool Mesh::LoadArrays(std::vector<unsigned int> &indices, std::vector<float> &no
 
 	this->setModelData();
 	this->updateModelData();
-    this->setMaxScale();
-	this->SetBoundingVolume(BOUNDING_VOLUME_BOX);
+    this->setMaxVertexPosition();
+	this->SetBoundingVolume(BOUNDING_VOLUME_BOX_AABB);
 
 	this->isValid = this->IsOK();
 
@@ -189,15 +189,14 @@ bool Mesh::LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix)
 	aiVector3D position, rotation, scale;
 	transformMatrix.Decompose(scale, rotation, position);
 
-	//if (this->Parent->ModelFile() == Utils::RESOURCE_MODELS[ID_ICON_PLANE])
 	if (this->type == COMPONENT_WATER) {
 		scale.z = 10.0f;
 		this->ComponentMaterial.specular.shininess = 20.0f;
 	}
 
 	this->updateModelData(position, scale, rotation);
-	this->setMaxScale();
-	this->SetBoundingVolume(BOUNDING_VOLUME_BOX);
+	this->setMaxVertexPosition();
+	this->SetBoundingVolume(BOUNDING_VOLUME_BOX_AABB);
 
 	this->isValid = this->IsOK();
 
@@ -214,6 +213,14 @@ int Mesh::LoadTextureImage(const wxString &imageFile, int index)
 	this->Textures[index] = new Texture(imageFile);
 
     return 0;
+}
+
+glm::vec3 Mesh::MaxVertexPosition(bool update)
+{
+	if (update)
+		this->setMaxVertexPosition();
+
+	return this->maxVertexPosition;
 }
 
 void Mesh::MoveBy(const glm::vec3 &amount)
@@ -263,15 +270,33 @@ void Mesh::SetBoundingVolume(BoundingVolumeType type)
 		_DELETEP(this->boundingVolume);
 
 	if (type != BOUNDING_VOLUME_NONE) {
-		this->boundingVolume = new BoundingVolume(this, type, (this->maxScale + 0.01f));
+		this->boundingVolume = new BoundingVolume(this, type, this->maxVertexPosition);
 		this->boundingVolume->Update();
 	}
 }
 
-void Mesh::setMaxScale()
+void Mesh::setMaxVertexPosition()
 {
-	for (auto vertex : this->vertices)
-		this->maxScale = std::max(this->maxScale, std::abs(vertex));
+	this->maxVertexPosition = glm::vec3();
+
+	for (size_t i = 0; i < this->vertices.size(); i += 3)
+	{
+		glm::vec3 rotated = glm::vec3();
+
+		glm::vec3 vertex = glm::vec3(
+			(this->vertices[i]     * this->scale.x),
+			(this->vertices[i + 1] * this->scale.y),
+			(this->vertices[i + 2] * this->scale.z)
+		);
+
+		rotated = glm::rotateX(vertex,  this->rotation[0]);
+		rotated = glm::rotateY(rotated, this->rotation[1]);
+		rotated = glm::rotateZ(rotated, this->rotation[2]);
+
+		this->maxVertexPosition[0] = std::max(this->maxVertexPosition[0], std::abs(rotated[0]));
+		this->maxVertexPosition[1] = std::max(this->maxVertexPosition[1], std::abs(rotated[1]));
+		this->maxVertexPosition[2] = std::max(this->maxVertexPosition[2], std::abs(rotated[2]));
+	}
 }
 
 bool Mesh::setModelData()

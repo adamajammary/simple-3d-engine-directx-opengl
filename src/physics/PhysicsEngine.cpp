@@ -19,11 +19,14 @@ void PhysicsEngine::CheckRayCasts(const wxMouseEvent &event)
 		auto max = (volume->Position() + volume->MaxBoundaries());
 
 		switch (volume->VolumeType()) {
-		case BOUNDING_VOLUME_BOX:
+		case BOUNDING_VOLUME_BOX_AABB:
+			selected = ray->RayIntersectAABB(min, max);
+			break;
+		case BOUNDING_VOLUME_BOX_OBB:
 			selected = ray->RayIntersectAABB(min, max);
 			break;
 		case BOUNDING_VOLUME_SPHERE:
-			selected = ray->RayIntersectSphere(min, max);
+			selected = ray->RayIntersectSphere();
 			break;
 		default:
 			throw;
@@ -37,9 +40,12 @@ void PhysicsEngine::Update()
 {
 	for (auto component : SceneManager::Components)
 	{
-		for (auto child : component->Children) {
-			if ((child != nullptr) && child->AutoRotate) {
+		for (auto child : component->Children)
+		{
+			if ((child != nullptr) && child->AutoRotate)
+			{
 				child->RotateBy(child->AutoRotation);
+				dynamic_cast<Mesh*>(child)->UpdateBoundingVolume();
 
 				if (TimeManager::TimeElapsedMS() % 100 < 20)
 					RenderEngine::Canvas.Window->UpdateProperties(true);

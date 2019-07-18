@@ -18,8 +18,9 @@ private:
 	glm::vec3 origin;
 
 public:
-	bool RayIntersectAABB(const   glm::vec3 &boxMin, const glm::vec3 &boxMax);
-	bool RayIntersectSphere(const glm::vec3 &boxMin, const glm::vec3 &boxMax);
+	bool RayIntersectAABB(const glm::vec3 &boxMin, const glm::vec3 &boxMax);
+	bool RayIntersectOBB();
+	bool RayIntersectSphere();
 
 private:
 	glm::vec3 calculateRay(int x, int y);

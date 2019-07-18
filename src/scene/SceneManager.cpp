@@ -300,7 +300,7 @@ int SceneManager::LoadScene(const wxString &file)
 			if (child->Type() == COMPONENT_HUD)
 				dynamic_cast<HUD*>(child->Parent)->Update();
 
-			child->SetBoundingVolume(static_cast<BoundingVolumeType>(childJSON["bounding_box"].int_value()));
+			child->SetBoundingVolume(static_cast<BoundingVolumeType>(childJSON["bounding_volume"].int_value()));
 
 			// TEXTURES
 			texturesJSON = childJSON["textures"].array_items();
@@ -546,7 +546,7 @@ int SceneManager::SaveScene(const wxString &file)
 				{ "color",           Utils::ToJsonArray(child->ComponentMaterial.diffuse) },
 				{ "spec_intensity",  Utils::ToJsonArray(child->ComponentMaterial.specular.intensity) },
 				{ "spec_shininess",  child->ComponentMaterial.specular.shininess },
-				{ "bounding_box",    (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
+				{ "bounding_volume", (boundingVolume != nullptr ? boundingVolume->VolumeType() : BOUNDING_VOLUME_NONE) },
 				{ "textures",        texturesJSON }
 			};
                 

@@ -25,7 +25,7 @@ protected:
 private:
 	BoundingVolume* boundingVolume;
 	bool            isSelected;
-	float           maxScale;
+	glm::vec3       maxVertexPosition;
 
 public:
 	void            BindBuffer(GLuint bufferID, GLuint shaderAttrib, GLsizei size, GLenum arrayType, GLboolean normalized, const GLvoid* offset = nullptr);
@@ -41,6 +41,7 @@ public:
 	bool            LoadArrays(std::vector<unsigned int> &indices, std::vector<float> &normals, std::vector<float> &textureCoords, std::vector<float> &vertices);
 	bool            LoadModelFile(aiMesh* mesh, const aiMatrix4x4 &transformMatrix);
 	int             LoadTextureImage(const wxString &imageFile, int index);
+	glm::vec3       MaxVertexPosition(bool update = false);
 	void            MoveBy(const glm::vec3 &amount)      override;
 	void            MoveTo(const glm::vec3 &newPosition) override;
 	size_t          NrOfIndices();
@@ -56,7 +57,7 @@ protected:
 	void updateModelData();
 
 private:
-	void setMaxScale();
+	void setMaxVertexPosition();
 	void updateModelData(const aiVector3D &position, const aiVector3D &scale, aiVector3D &rotation);
 
 };

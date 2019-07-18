@@ -50,11 +50,14 @@ glm::vec3 RayCast::calculateRay(int x, int y)
 	return ray;
 }
 
+/**
+* https://www.unknowncheats.me/forum/counterstrike-global-offensive/136361-external-ray-tracing-ray-aabb.html
+* https://www.unknowncheats.me/forum/counterstrike-source/109498-efficient-iscrossonhitbox-algorithm.html
+* http://www.miguelcasillas.com/?p=24
+* http://www.miguelcasillas.com/?p=30
+*/
 bool RayCast::RayIntersectAABB(const glm::vec3 &boxMin, const glm::vec3 &boxMax)
 {
-	// https://www.unknowncheats.me/forum/counterstrike-global-offensive/136361-external-ray-tracing-ray-aabb.html
-	// https://www.unknowncheats.me/forum/counterstrike-source/109498-efficient-iscrossonhitbox-algorithm.html
-	
 	// If line is parallel and outside the box it is not possible to intersect
 
 	// X
@@ -84,7 +87,16 @@ bool RayCast::RayIntersectAABB(const glm::vec3 &boxMin, const glm::vec3 &boxMax)
 	return true;
 }
 
-bool RayCast::RayIntersectSphere(const glm::vec3 &boxMin, const glm::vec3 &boxMax)
+/**
+* https://www.researchgate.net/figure/Bounding-volumes-sphere-axis-aligned-bounding-box-AABB-oriented-bounding-box_fig9_272093426
+*/
+bool RayCast::RayIntersectOBB()
+{
+	RenderEngine::Canvas.Window->SetStatusText("RayIntersectOBB: NOT IMPLEMENTED");
+	return false;
+}
+
+bool RayCast::RayIntersectSphere()
 {
 	RenderEngine::Canvas.Window->SetStatusText("RayIntersectSphere: NOT IMPLEMENTED");
 	return false;
