@@ -309,50 +309,52 @@ Texture::Texture(GLint format, TextureType textureType, const wxSize &size)
 	GLsizei width         = this->size.GetWidth();
 	GLsizei height        = this->size.GetHeight();
 
-	switch (this->glType) {
-	case GL_TEXTURE_2D:
-		glTexStorage2D(this->glType, 1, format, width, height);
-
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-		break;
-	case GL_TEXTURE_CUBE_MAP:
-		for (GLenum i = 0; i < MAX_TEXTURES; i++)
-			glTexStorage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), 1, format, width, height);
-
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-		break;
-	case GL_TEXTURE_2D_ARRAY:
-		glTexStorage3D(this->glType, 1, format, width, height, MAX_LIGHT_SOURCES);
-
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-		// SET BORDER VALUES FOR CLAMP WRAPPING
-		glTexParameterfv(this->glType, GL_TEXTURE_BORDER_COLOR, borderColor);
-
-		break;
-	case GL_TEXTURE_CUBE_MAP_ARRAY:
-		glTexStorage3D(this->glType, 1, format, width, height, (MAX_LIGHT_SOURCES * MAX_TEXTURES));
-
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(this->glType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-		break;
-	default:
-		throw;
-	}
-
 	glTexParameteri(this->glType, GL_TEXTURE_BASE_LEVEL, 0);
 	glTexParameteri(this->glType, GL_TEXTURE_MAX_LEVEL,  0);
 
 	glTexParameteri(this->glType, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(this->glType, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	switch (this->glType) {
+	case GL_TEXTURE_2D:
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		glTexStorage2D(this->glType, 1, format, width, height);
+
+		break;
+	case GL_TEXTURE_CUBE_MAP:
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+		for (GLenum i = 0; i < MAX_TEXTURES; i++)
+			glTexStorage2D((GL_TEXTURE_CUBE_MAP_POSITIVE_X + i), 1, format, width, height);
+
+		break;
+	case GL_TEXTURE_2D_ARRAY:
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		/*glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+		// SET BORDER VALUES FOR CLAMP WRAPPING
+		glTexParameterfv(this->glType, GL_TEXTURE_BORDER_COLOR, borderColor);*/
+
+		glTexStorage3D(this->glType, 1, format, width, height, MAX_LIGHT_SOURCES);
+
+		break;
+	case GL_TEXTURE_CUBE_MAP_ARRAY:
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(this->glType, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+		glTexStorage3D(this->glType, 1, format, width, height, (MAX_LIGHT_SOURCES * MAX_TEXTURES));
+
+		break;
+	default:
+		throw;
+	}
 
 	glBindTexture(this->glType, 0);
 }
